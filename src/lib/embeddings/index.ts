@@ -55,3 +55,23 @@ export {
   needsReembedding,
 } from "./embedding-service";
 
+// ─────────────────────────────────────────────────────────────
+// Semantic Search Service
+// ─────────────────────────────────────────────────────────────
+
+export type {
+  SemanticSearchParams,
+  FindSimilarParams,
+  SemanticSearchResult,
+} from "./search-service";
+
+export {
+  SemanticSearchService,
+  getSemanticSearchService,
+  createSemanticSearchService,
+  // Convenience functions
+  searchSimilar,
+  findSimilarToEntity,
+  hasEmbedding,
+} from "./search-service";
+

@@ -1,38 +1,37 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Context Search API
 // GET /api/context/search - Unified search across all context entities
+// Supports both text-based and semantic (vector) search
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
-  searchPeople,
-  searchPlaces,
-  searchEvents,
-  searchTasks,
-  searchDeadlines,
+  searchContext,
   type EntityType,
-  type Person,
-  type Place,
-  type Event,
-  type Task,
-  type Deadline,
+  type ContextSearchResult,
 } from "@/services/context";
 
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
-interface UnifiedSearchResult {
-  entityType: EntityType;
-  entityId: string;
-  entity: Person | Place | Event | Task | Deadline;
-  score: number;
-  matchType: "text";
+interface SearchResponse {
+  query: string;
+  totalResults: number;
+  resultsByType: Record<EntityType, number>;
+  searchMode: "text" | "semantic" | "hybrid";
+  results: ContextSearchResult[];
 }
 
 // Valid entity types for filtering
-const VALID_ENTITY_TYPES: EntityType[] = ["person", "place", "event", "task", "deadline"];
+const VALID_ENTITY_TYPES: EntityType[] = [
+  "person",
+  "place",
+  "event",
+  "task",
+  "deadline",
+];
 
 // ─────────────────────────────────────────────────────────────
 // GET - Unified Search
@@ -43,10 +42,7 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse query parameters
@@ -60,7 +56,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
+    // Parse limit (default 20, max 100)
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+      100
+    );
 
     // Parse entity types filter
     const typesParam = searchParams.get("types");
@@ -68,110 +68,47 @@ export async function GET(request: NextRequest) {
     if (typesParam) {
       entityTypes = typesParam
         .split(",")
-        .filter((t) => VALID_ENTITY_TYPES.includes(t as EntityType)) as EntityType[];
-      
+        .filter((t) =>
+          VALID_ENTITY_TYPES.includes(t as EntityType)
+        ) as EntityType[];
+
       if (entityTypes.length === 0) {
         return NextResponse.json(
-          { error: `Invalid types. Valid types: ${VALID_ENTITY_TYPES.join(", ")}` },
+          {
+            error: `Invalid types. Valid types: ${VALID_ENTITY_TYPES.join(", ")}`,
+          },
           { status: 400 }
         );
       }
     }
 
-    // Calculate per-type limit (distribute evenly, then merge and sort)
-    const perTypeLimit = Math.ceil(limit / entityTypes.length) + 5; // Extra buffer for better ranking
+    // Parse semantic search options
+    const useSemanticSearch = searchParams.get("semantic") !== "false";
+    const minSimilarity = parseFloat(
+      searchParams.get("minSimilarity") || "0.5"
+    );
+    const semanticWeight = parseFloat(
+      searchParams.get("semanticWeight") || "0.7"
+    );
 
-    // Run searches in parallel for each requested entity type
-    const searchPromises: Promise<UnifiedSearchResult[]>[] = [];
+    // Determine search mode for response
+    const searchMode: "text" | "semantic" | "hybrid" = useSemanticSearch
+      ? "hybrid"
+      : "text";
 
-    if (entityTypes.includes("person")) {
-      searchPromises.push(
-        searchPeople(session.user.id, q, { limit: perTypeLimit })
-          .then((results) =>
-            results.map((entity, index) => ({
-              entityType: "person" as EntityType,
-              entityId: entity.id,
-              entity,
-              score: 1 - index * 0.01, // Simple positional scoring
-              matchType: "text" as const,
-            }))
-          )
-          .catch(() => [])
-      );
-    }
-
-    if (entityTypes.includes("place")) {
-      searchPromises.push(
-        searchPlaces(session.user.id, q, { limit: perTypeLimit })
-          .then((results) =>
-            results.map((entity, index) => ({
-              entityType: "place" as EntityType,
-              entityId: entity.id,
-              entity,
-              score: 1 - index * 0.01,
-              matchType: "text" as const,
-            }))
-          )
-          .catch(() => [])
-      );
-    }
-
-    if (entityTypes.includes("event")) {
-      searchPromises.push(
-        searchEvents(session.user.id, q, { limit: perTypeLimit })
-          .then((results) =>
-            results.map((entity, index) => ({
-              entityType: "event" as EntityType,
-              entityId: entity.id,
-              entity,
-              score: 1 - index * 0.01,
-              matchType: "text" as const,
-            }))
-          )
-          .catch(() => [])
-      );
-    }
-
-    if (entityTypes.includes("task")) {
-      searchPromises.push(
-        searchTasks(session.user.id, q, { limit: perTypeLimit })
-          .then((results) =>
-            results.map((entity, index) => ({
-              entityType: "task" as EntityType,
-              entityId: entity.id,
-              entity,
-              score: 1 - index * 0.01,
-              matchType: "text" as const,
-            }))
-          )
-          .catch(() => [])
-      );
-    }
-
-    if (entityTypes.includes("deadline")) {
-      searchPromises.push(
-        searchDeadlines(session.user.id, q, { limit: perTypeLimit })
-          .then((results) =>
-            results.map((entity, index) => ({
-              entityType: "deadline" as EntityType,
-              entityId: entity.id,
-              entity,
-              score: 1 - index * 0.01,
-              matchType: "text" as const,
-            }))
-          )
-          .catch(() => [])
-      );
-    }
-
-    // Wait for all searches to complete
-    const searchResults = await Promise.all(searchPromises);
-
-    // Flatten and sort by score
-    const allResults = searchResults
-      .flat()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    // Perform unified search
+    const results = await searchContext(session.user.id, q, {
+      entityTypes,
+      limit,
+      useSemanticSearch,
+      minSimilarity: isNaN(minSimilarity)
+        ? 0.5
+        : Math.min(1, Math.max(0, minSimilarity)),
+      semanticWeight: isNaN(semanticWeight)
+        ? 0.7
+        : Math.min(1, Math.max(0, semanticWeight)),
+      includeSnippets: true,
+    });
 
     // Group results by type for summary
     const byType: Record<EntityType, number> = {
@@ -182,16 +119,19 @@ export async function GET(request: NextRequest) {
       deadline: 0,
     };
 
-    for (const result of allResults) {
+    for (const result of results) {
       byType[result.entityType]++;
     }
 
-    return NextResponse.json({
+    const response: SearchResponse = {
       query: q,
-      totalResults: allResults.length,
+      totalResults: results.length,
       resultsByType: byType,
-      results: allResults,
-    });
+      searchMode,
+      results,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error in context search:", error);
     return NextResponse.json(
@@ -200,4 +140,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

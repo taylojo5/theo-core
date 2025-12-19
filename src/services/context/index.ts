@@ -366,7 +366,23 @@ export type {
 } from "./relationships";
 
 // ─────────────────────────────────────────────────────────────
-// Services (to be added in subsequent chunks)
+// Context Search Service
 // ─────────────────────────────────────────────────────────────
 
-// export { ContextSearchService } from "./search";
+export {
+  // Service object
+  ContextSearchService,
+  getContextSearchService,
+  createContextSearchService,
+  // Individual functions
+  searchContext,
+  textSearchContext,
+  semanticSearchContext,
+} from "./context-search";
+
+export type {
+  // Service interface
+  IContextSearchService,
+  // Search options
+  UnifiedSearchOptions,
+} from "./context-search";
