@@ -334,6 +334,71 @@ Formalized the database schema with proper Prisma migrations:
 3. **shadcn/ui over other libraries**: Full ownership, Tailwind-native, accessible
 4. **Prisma migrations over db:push**: Proper migration history for production deployments
 
+#### 5. Chat Services
+
+**Files Created**:
+- `src/services/chat/index.ts` - Service barrel exports
+- `src/services/chat/types.ts` - TypeScript interfaces and DTOs
+- `src/services/chat/conversation.ts` - Conversation CRUD operations
+- `src/services/chat/message.ts` - Message operations
+
+**ConversationService Functions**:
+- `createConversation()` - Create new conversation with optional title
+- `getConversation()` - Get by ID with optional messages
+- `listConversations()` - Paginated list with cursor-based pagination
+- `updateConversation()` - Update title/summary
+- `deleteConversation()` - Delete with cascade to messages
+- `generateTitleFromContent()` - Auto-generate title from first message
+
+**MessageService Functions**:
+- `createMessage()` - Create message with role (user/assistant/system/tool)
+- `listMessages()` - Paginated message history with bi-directional pagination
+- `getMessagesForContext()` - Get messages for AI context window
+
+**Features**:
+- Full audit logging for all CRUD operations
+- Automatic title generation from first user message
+- Cursor-based pagination for infinite scroll
+- Ownership verification (users can only access their data)
+- Tool call support for AI agent interactions
+- Metadata tracking (tokens, latency, model info)
+
+#### 6. Chat API Routes
+
+**Files Created**:
+- `src/app/api/chat/conversations/route.ts` - List and create conversations
+- `src/app/api/chat/conversations/[id]/route.ts` - Get, update, delete conversation
+- `src/app/api/chat/conversations/[id]/messages/route.ts` - List and create messages
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/chat/conversations` | Create new conversation |
+| `GET` | `/api/chat/conversations` | List user's conversations (paginated) |
+| `GET` | `/api/chat/conversations/[id]` | Get conversation with messages |
+| `PATCH` | `/api/chat/conversations/[id]` | Update conversation title/summary |
+| `DELETE` | `/api/chat/conversations/[id]` | Delete conversation and messages |
+| `POST` | `/api/chat/conversations/[id]/messages` | Create message in conversation |
+| `GET` | `/api/chat/conversations/[id]/messages` | List messages (paginated) |
+
+**Features**:
+- Full authentication on all routes (via `auth()`)
+- User ownership verification (users can only access their data)
+- Request validation with helpful error messages
+- Cursor-based pagination with configurable limits
+- Query parameters for include options (messages, messageLimit)
+- Proper HTTP status codes (201 Created, 404 Not Found, etc.)
+- Consistent error response format
+
+### Decisions Made
+
+1. **NextAuth v5 over v4**: Better Edge runtime support, cleaner API
+2. **JWT over Database sessions**: Works with Edge middleware, simpler
+3. **shadcn/ui over other libraries**: Full ownership, Tailwind-native, accessible
+4. **Prisma migrations over db:push**: Proper migration history for production deployments
+5. **Cursor-based pagination over offset**: Better performance for large datasets, infinite scroll friendly
+
 ### Files Created (Phase 1)
 
 ```
@@ -355,7 +420,14 @@ Created/Modified:
 ├── src/components/ui/index.ts
 ├── src/lib/utils.ts (consolidated)
 ├── components.json (shadcn config)
-└── prisma/migrations/20251219192018_init/migration.sql
+├── prisma/migrations/20251219192018_init/migration.sql
+├── src/services/chat/index.ts
+├── src/services/chat/types.ts
+├── src/services/chat/conversation.ts
+├── src/services/chat/message.ts
+├── src/app/api/chat/conversations/route.ts
+├── src/app/api/chat/conversations/[id]/route.ts
+└── src/app/api/chat/conversations/[id]/messages/route.ts
 ```
 
 ---

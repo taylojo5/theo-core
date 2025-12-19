@@ -13,7 +13,8 @@ export type EntityType =
   | "task"
   | "deadline"
   | "message"
-  | "email";
+  | "email"
+  | "conversation";
 
 export type SourceType =
   | "manual"
