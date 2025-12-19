@@ -128,10 +128,40 @@ export {
 } from "./utils";
 
 // ─────────────────────────────────────────────────────────────
+// People Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  PeopleService,
+  // Individual functions
+  createPerson,
+  getPersonById,
+  updatePerson,
+  deletePerson,
+  restorePerson,
+  listPeople,
+  findPersonByEmail,
+  findPersonBySource,
+  searchPeople,
+  upsertPeopleFromSource,
+  // Error class
+  PeopleServiceError,
+} from "./people";
+
+export type {
+  // Service interface
+  IPeopleService,
+  // Person-specific types
+  SearchPeopleOptions,
+  SourcePersonInput,
+  PeopleErrorCode,
+} from "./people";
+
+// ─────────────────────────────────────────────────────────────
 // Services (to be added in subsequent chunks)
 // ─────────────────────────────────────────────────────────────
 
-// export { PeopleService } from "./people";
 // export { PlacesService } from "./places";
 // export { EventsService } from "./events";
 // export { TasksService } from "./tasks";
