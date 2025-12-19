@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # PostgreSQL with pgvector extension
+  # ─────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: theo-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: theo
+      POSTGRES_PASSWORD: theo_dev_password
+      POSTGRES_DB: theo_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U theo -d theo_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────
+  # Redis (Cache, Sessions, Job Queues)
+  # ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: theo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────
+  # Redis Commander (Redis GUI) - Optional
+  # Start with: docker compose --profile tools up -d
+  # ─────────────────────────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: theo-redis-ui
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      - redis
+    profiles:
+      - tools
+
+  # ─────────────────────────────────────────────────────────────
+  # pgAdmin (PostgreSQL GUI) - Optional
+  # Start with: docker compose --profile tools up -d
+  # Access at: http://localhost:5050
+  # ─────────────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: theo-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@theo.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+  # ─────────────────────────────────────────────────────────────
+  # LocalStack (AWS Services Emulation) - Optional
+  # Start with: docker compose --profile aws up -d
+  # Emulates: S3, SQS, SES, Secrets Manager
+  # ─────────────────────────────────────────────────────────────
+  localstack:
+    image: localstack/localstack:latest
+    container_name: theo-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      SERVICES: s3,sqs,ses,secretsmanager
+      DEBUG: 0
+      DATA_DIR: /var/lib/localstack/data
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles:
+      - aws
+
+  # ─────────────────────────────────────────────────────────────
+  # Mailpit (Email Testing) - Optional
+  # Start with: docker compose --profile tools up -d
+  # SMTP: localhost:1025 | Web UI: http://localhost:8025
+  # ─────────────────────────────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: theo-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  localstack_data:
+
+networks:
+  default:
+    name: theo-network
+

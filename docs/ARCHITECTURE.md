@@ -231,4 +231,5 @@ User: "What's my relationship with Sarah Chen?"
 3. Review [INTEGRATIONS.md](./INTEGRATIONS.md) for Gmail/Slack strategy
 4. Review [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) for AWS deployment and local Docker setup
 5. Review [SCAFFOLDING_PLAN.md](./SCAFFOLDING_PLAN.md) for implementation roadmap
+6. Review [BUILD_LOG.md](./BUILD_LOG.md) for implementation history and decisions
 
