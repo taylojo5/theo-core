@@ -54,7 +54,7 @@ import {
   upsertTasksFromSource,
   TasksServiceError,
 } from "@/services/context/tasks";
-import type { CreateTaskInput, UpdateTaskInput, Task } from "@/services/context/tasks";
+import type { CreateTaskInput, UpdateTaskInput, Task, Person } from "@/services/context/tasks";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -196,7 +196,7 @@ describe("createTask", () => {
 
   it("verifies assigned person exists", async () => {
     const mockPerson = { id: mockPersonId, userId: mockUserId, deletedAt: null };
-    vi.mocked(db.person.findFirst).mockResolvedValue(mockPerson as any);
+    vi.mocked(db.person.findFirst).mockResolvedValue(mockPerson as Person);
     vi.mocked(db.task.create).mockResolvedValue({ ...mockTask, assignedToId: mockPersonId });
 
     await createTask(mockUserId, {
@@ -214,7 +214,7 @@ describe("createTask", () => {
     const lastSibling = { position: 2 };
     vi.mocked(db.task.findFirst)
       .mockResolvedValueOnce(mockParent) // Parent exists check
-      .mockResolvedValueOnce(lastSibling as any); // Last sibling for position
+      .mockResolvedValueOnce(lastSibling as Task); // Last sibling for position
     vi.mocked(db.task.create).mockResolvedValue({ ...mockTask, parentId: mockParentTaskId, position: 3 });
 
     await createTask(mockUserId, {
@@ -295,7 +295,7 @@ describe("getTaskByIdWithRelations", () => {
       subtasks: [],
       assignedTo: null,
     };
-    vi.mocked(db.task.findFirst).mockResolvedValue(taskWithRelations as any);
+    vi.mocked(db.task.findFirst).mockResolvedValue(taskWithRelations as Task);
 
     const result = await getTaskByIdWithRelations(mockUserId, mockTaskId);
 
@@ -387,7 +387,7 @@ describe("updateTask", () => {
     vi.mocked(db.task.findFirst)
       .mockResolvedValueOnce(taskA) // Existing task check
       .mockResolvedValueOnce(taskB) // Parent exists check
-      .mockResolvedValueOnce({ parentId: "task-a" }); // Walk up chain - finds cycle
+      .mockResolvedValueOnce({ parentId: "task-a" } as Task); // Walk up chain - finds cycle
 
     await expect(
       updateTask(mockUserId, "task-a", { parentId: "task-b" })
@@ -539,7 +539,7 @@ describe("setTaskParent", () => {
   it("sets parent for a task", async () => {
     const parentTask = { ...mockTask, id: mockParentTaskId, parentId: null };
     vi.mocked(db.task.findFirst)
-      .mockResolvedValueOnce({ parentId: null }) // Circular check walk - parent has no parent
+      .mockResolvedValueOnce({ parentId: null } as Task) // Circular check walk - parent has no parent
       .mockResolvedValueOnce(mockTask) // Task exists check (in updateTask)
       .mockResolvedValueOnce(parentTask); // Parent exists check in updateTask
 
@@ -564,7 +564,7 @@ describe("setTaskParent", () => {
     vi.mocked(db.task.findFirst)
       .mockResolvedValueOnce(mockTask) // in updateTask - task exists
       .mockResolvedValueOnce({ ...mockTask, id: "parent-id", parentId: null }) // parent check
-      .mockResolvedValueOnce({ parentId: mockTaskId }); // Circular check finds the task
+      .mockResolvedValueOnce({ parentId: mockTaskId } as Task); // Circular check finds the task
 
     await expect(
       setTaskParent(mockUserId, mockTaskId, "parent-id")

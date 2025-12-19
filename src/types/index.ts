@@ -12,6 +12,7 @@ export type EntityType =
   | "event"
   | "task"
   | "deadline"
+  | "relationship"
   | "message"
   | "email"
   | "conversation";

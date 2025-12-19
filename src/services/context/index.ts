@@ -326,8 +326,47 @@ export type {
 } from "./deadlines";
 
 // ─────────────────────────────────────────────────────────────
+// Relationships Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  RelationshipsService,
+  // Individual functions
+  createRelationship,
+  getRelationshipById,
+  updateRelationship,
+  deleteRelationship,
+  restoreRelationship,
+  listRelationships,
+  getRelationshipsFor,
+  getRelatedEntities,
+  findRelationshipBetween,
+  relationshipExists,
+  syncRelationships,
+  createManyRelationships,
+  deleteRelationshipsForEntity,
+  // Error class
+  RelationshipsServiceError,
+} from "./relationships";
+
+export type {
+  // Service interface
+  IRelationshipsService,
+  // Query options
+  RelationshipQueryOptions,
+  GetRelatedEntitiesOptions,
+  // Entity types
+  ContextEntity,
+  RelationshipWithEntities,
+  // Sync input
+  SyncRelationshipsInput,
+  // Error types
+  RelationshipsErrorCode,
+} from "./relationships";
+
+// ─────────────────────────────────────────────────────────────
 // Services (to be added in subsequent chunks)
 // ─────────────────────────────────────────────────────────────
 
-// export { RelationshipsService } from "./relationships";
 // export { ContextSearchService } from "./search";
