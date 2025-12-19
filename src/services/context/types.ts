@@ -306,17 +306,17 @@ export interface CreateTaskInput {
 export interface UpdateTaskInput {
   title?: string;
   description?: string;
-  parentId?: string;
+  parentId?: string | null;
   position?: number;
   status?: TaskStatus;
   priority?: TaskPriority;
-  dueDate?: Date;
-  startDate?: Date;
-  completedAt?: Date;
-  estimatedMinutes?: number;
-  actualMinutes?: number;
-  notes?: string;
-  assignedToId?: string;
+  dueDate?: Date | null;
+  startDate?: Date | null;
+  completedAt?: Date | null;
+  estimatedMinutes?: number | null;
+  actualMinutes?: number | null;
+  notes?: string | null;
+  assignedToId?: string | null;
   metadata?: Record<string, unknown>;
   tags?: string[];
 }
