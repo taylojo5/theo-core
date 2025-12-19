@@ -215,8 +215,67 @@ npm run dev
 
 ## Phase 1: Core Foundation
 
-**Status**: Not Started  
-**Planned**: Authentication, Chat UI, Message Storage
+**Status**: In Progress  
+**Started**: December 2024
+
+### Goals
+- Authentication system with Google OAuth
+- Basic chat interface
+- Message storage in database
+- Audit logging foundation
+
+### What Was Built
+
+#### 1. Authentication (NextAuth.js v5)
+
+**Files Created**:
+- `src/lib/auth/index.ts` - NextAuth configuration with Google OAuth
+- `src/app/api/auth/[...nextauth]/route.ts` - Auth API handlers
+- `src/types/next-auth.d.ts` - TypeScript module augmentation
+- `middleware.ts` - Route protection middleware
+- `src/components/providers/session-provider.tsx` - Client session provider
+
+**Features**:
+- Google OAuth with offline access (refresh tokens)
+- JWT session strategy (30-day sessions)
+- User ID exposed in session for client components
+- Protected routes: `/chat/*`, `/settings/*`
+- Custom login page at `/login`
+
+#### 2. UI Component Library (shadcn/ui)
+
+**Decision**: Adopted shadcn/ui as the component library.
+
+**Why shadcn/ui**:
+- Full code ownership - components live in codebase
+- Built on Radix UI (excellent accessibility)
+- Tailwind CSS native - perfect stack alignment
+- Highly customizable without fighting the library
+- Modern, clean aesthetic fits Theo's personal assistant character
+- Massive community adoption for Next.js projects
+
+**Alternatives Considered**:
+- Material UI - Too opinionated, large bundle, not Tailwind-native
+- Chakra UI - Different styling paradigm, mixing with Tailwind awkward
+- Radix + DIY - More work, no pre-built styles
+- Headless UI - Too limited component set
+
+### Dependencies Added
+
+**Production**:
+- `next-auth@beta` - Authentication (v5)
+- `@auth/prisma-adapter` - Prisma adapter for NextAuth
+
+**Development** (via shadcn):
+- Radix UI primitives (added per-component)
+- `class-variance-authority` - Variant styling
+- `lucide-react` - Icons
+
+### Decisions Made
+
+1. **NextAuth v5 over v4**: Better Edge runtime support, cleaner API
+2. **JWT over Database sessions**: Works with Edge middleware, simpler
+3. **shadcn/ui over other libraries**: Full ownership, Tailwind-native, accessible
 
 ---
 
