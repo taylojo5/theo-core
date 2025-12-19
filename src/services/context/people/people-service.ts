@@ -16,6 +16,11 @@ import {
   normalizeTags,
   validateImportance,
 } from "../utils";
+import {
+  embedPerson,
+  removePersonEmbedding,
+  type EmbeddingContext,
+} from "../embedding-integration";
 import type {
   Person,
   CreatePersonInput,
@@ -96,6 +101,9 @@ export async function createPerson(
       entitySnapshot: person as unknown as Prisma.InputJsonValue,
       outputSummary: `Created person: ${person.name}`,
     });
+
+    // Generate embedding (fire-and-forget, errors don't fail the operation)
+    void embedPerson(person, context as EmbeddingContext);
 
     return person;
   } catch (error) {
@@ -213,6 +221,9 @@ export async function updatePerson(
       outputSummary: `Updated person: ${person.name}`,
     });
 
+    // Update embedding (fire-and-forget, errors don't fail the operation)
+    void embedPerson(person, context as EmbeddingContext);
+
     return person;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -264,6 +275,9 @@ export async function deletePerson(
     entityId: id,
     outputSummary: `Deleted person: ${existing.name}`,
   });
+
+  // Remove embedding (fire-and-forget, errors don't fail the operation)
+  void removePersonEmbedding(userId, id, context as EmbeddingContext);
 }
 
 /**

@@ -14,6 +14,11 @@ import {
   normalizeTags,
   validateImportance,
 } from "../utils";
+import {
+  embedPlace,
+  removePlaceEmbedding,
+  type EmbeddingContext,
+} from "../embedding-integration";
 import type {
   Place,
   CreatePlaceInput,
@@ -120,6 +125,9 @@ export async function createPlace(
       outputSummary: `Created place: ${place.name}`,
     });
 
+    // Generate embedding (fire-and-forget, errors don't fail the operation)
+    void embedPlace(place, context as EmbeddingContext);
+
     return place;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -219,6 +227,9 @@ export async function updatePlace(
       outputSummary: `Updated place: ${place.name}`,
     });
 
+    // Update embedding (fire-and-forget, errors don't fail the operation)
+    void embedPlace(place, context as EmbeddingContext);
+
     return place;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -270,6 +281,9 @@ export async function deletePlace(
     entityId: id,
     outputSummary: `Deleted place: ${existing.name}`,
   });
+
+  // Remove embedding (fire-and-forget, errors don't fail the operation)
+  void removePlaceEmbedding(userId, id, context as EmbeddingContext);
 }
 
 /**

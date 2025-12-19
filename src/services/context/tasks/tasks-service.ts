@@ -13,6 +13,11 @@ import {
   buildOrderBy,
   normalizeTags,
 } from "../utils";
+import {
+  embedTask,
+  removeTaskEmbedding,
+  type EmbeddingContext,
+} from "../embedding-integration";
 import type {
   Task,
   CreateTaskInput,
@@ -177,6 +182,9 @@ export async function createTask(
       outputSummary: `Created task: ${task.title}`,
     });
 
+    // Generate embedding (fire-and-forget, errors don't fail the operation)
+    void embedTask(task, context as EmbeddingContext);
+
     return task;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -324,6 +332,9 @@ export async function updateTask(
       entitySnapshot: task as unknown as Prisma.InputJsonValue,
       outputSummary: `Updated task: ${task.title}`,
     });
+
+    // Update embedding (fire-and-forget, errors don't fail the operation)
+    void embedTask(task, context as EmbeddingContext);
 
     return task;
   } catch (error) {
@@ -540,6 +551,9 @@ export async function deleteTask(
     entityId: id,
     outputSummary: `Deleted task: ${existing.title}`,
   });
+
+  // Remove embedding (fire-and-forget, errors don't fail the operation)
+  void removeTaskEmbedding(userId, id, context as EmbeddingContext);
 }
 
 /**

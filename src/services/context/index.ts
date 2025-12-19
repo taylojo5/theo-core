@@ -386,3 +386,40 @@ export type {
   // Search options
   UnifiedSearchOptions,
 } from "./context-search";
+
+// ─────────────────────────────────────────────────────────────
+// Embedding Integration
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Content builders
+  buildPersonContent,
+  buildPlaceContent,
+  buildEventContent,
+  buildTaskContent,
+  buildDeadlineContent,
+  buildEntityContent,
+  // Embedding operations
+  storeEntityEmbedding,
+  removeEntityEmbedding,
+  // Entity lifecycle hooks
+  afterEntityCreate,
+  afterEntityUpdate,
+  afterEntityDelete,
+  // Convenience functions
+  embedPerson,
+  removePersonEmbedding,
+  embedPlace,
+  removePlaceEmbedding,
+  embedEvent,
+  removeEventEmbedding,
+  embedTask,
+  removeTaskEmbedding,
+  embedDeadline,
+  removeDeadlineEmbedding,
+} from "./embedding-integration";
+
+export type {
+  EmbeddingContext,
+  EmbeddingResult,
+} from "./embedding-integration";

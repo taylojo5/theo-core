@@ -15,6 +15,11 @@ import {
   validateImportance,
   getDateRange,
 } from "../utils";
+import {
+  embedEvent,
+  removeEventEmbedding,
+  type EmbeddingContext,
+} from "../embedding-integration";
 import type {
   Event,
   CreateEventInput,
@@ -191,6 +196,9 @@ export async function createEvent(
       outputSummary: `Created event: ${event.title}`,
     });
 
+    // Generate embedding (fire-and-forget, errors don't fail the operation)
+    void embedEvent(event, context as EmbeddingContext);
+
     return event;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -322,6 +330,9 @@ export async function updateEvent(
       outputSummary: `Updated event: ${event.title}`,
     });
 
+    // Update embedding (fire-and-forget, errors don't fail the operation)
+    void embedEvent(event, context as EmbeddingContext);
+
     return event;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -412,6 +423,9 @@ export async function deleteEvent(
     entityId: id,
     outputSummary: `Deleted event: ${existing.title}`,
   });
+
+  // Remove embedding (fire-and-forget, errors don't fail the operation)
+  void removeEventEmbedding(userId, id, context as EmbeddingContext);
 }
 
 /**

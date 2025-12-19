@@ -14,6 +14,11 @@ import {
   normalizeTags,
   validateImportance,
 } from "../utils";
+import {
+  embedDeadline,
+  removeDeadlineEmbedding,
+  type EmbeddingContext,
+} from "../embedding-integration";
 import type {
   Deadline,
   CreateDeadlineInput,
@@ -178,6 +183,9 @@ export async function createDeadline(
       outputSummary: `Created deadline: ${deadline.title}`,
     });
 
+    // Generate embedding (fire-and-forget, errors don't fail the operation)
+    void embedDeadline(deadline, context as EmbeddingContext);
+
     return deadline;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -307,6 +315,9 @@ export async function updateDeadline(
       entitySnapshot: deadline as unknown as Prisma.InputJsonValue,
       outputSummary: `Updated deadline: ${deadline.title}`,
     });
+
+    // Update embedding (fire-and-forget, errors don't fail the operation)
+    void embedDeadline(deadline, context as EmbeddingContext);
 
     return deadline;
   } catch (error) {
@@ -441,6 +452,9 @@ export async function deleteDeadline(
     entityId: id,
     outputSummary: `Deleted deadline: ${existing.title}`,
   });
+
+  // Remove embedding (fire-and-forget, errors don't fail the operation)
+  void removeDeadlineEmbedding(userId, id, context as EmbeddingContext);
 }
 
 /**
