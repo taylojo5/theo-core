@@ -195,6 +195,7 @@ describe("createEvent", () => {
 
   it("verifies place exists before creating", async () => {
     const mockPlace = { id: mockPlaceId, userId: mockUserId, deletedAt: null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.place.findFirst).mockResolvedValue(mockPlace as any);
     vi.mocked(db.event.create).mockResolvedValue({ ...mockEvent, placeId: mockPlaceId });
 
@@ -267,6 +268,7 @@ describe("getEventByIdWithPlace", () => {
 
   it("returns event with place relation", async () => {
     const eventWithPlace = { ...mockEvent, place: { id: mockPlaceId, name: "Office" } };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.event.findFirst).mockResolvedValue(eventWithPlace as any);
 
     const result = await getEventByIdWithPlace(mockUserId, mockEventId);

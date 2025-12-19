@@ -179,6 +179,7 @@ describe("createDeadline", () => {
 
   it("verifies task exists before creating", async () => {
     const mockTask = { id: mockTaskId, userId: mockUserId, deletedAt: null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.task.findFirst).mockResolvedValue(mockTask as any);
     vi.mocked(db.deadline.create).mockResolvedValue({ ...mockDeadline, taskId: mockTaskId });
 
@@ -207,6 +208,7 @@ describe("createDeadline", () => {
 
   it("verifies event exists before creating", async () => {
     const mockEvent = { id: mockEventId, userId: mockUserId, deletedAt: null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.event.findFirst).mockResolvedValue(mockEvent as any);
     vi.mocked(db.deadline.create).mockResolvedValue({ ...mockDeadline, eventId: mockEventId });
 
@@ -283,6 +285,7 @@ describe("getDeadlineByIdWithRelations", () => {
       task: null,
       event: null,
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.deadline.findFirst).mockResolvedValue(deadlineWithRelations as any);
 
     const result = await getDeadlineByIdWithRelations(mockUserId, mockDeadlineId);
