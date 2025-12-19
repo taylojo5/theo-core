@@ -271,11 +271,92 @@ npm run dev
 - `class-variance-authority` - Variant styling
 - `lucide-react` - Icons
 
+#### 3. Authentication UI & Flow
+
+**Files Created**:
+- `src/app/(auth)/layout.tsx` - Auth layout with session redirect
+- `src/app/(auth)/login/page.tsx` - Google OAuth login page
+- `src/components/user-dropdown.tsx` - User avatar dropdown with sign out
+- `src/components/ui/index.ts` - Barrel exports for UI components
+
+**shadcn/ui Components Added**:
+- `button` - Primary button component
+- `avatar` - User avatar with image/fallback
+- `dropdown-menu` - Accessible dropdown menus
+- `card` - Card container for login form
+- `input` - Text input component
+
+**Features**:
+- Clean login UI with Google OAuth button
+- Session-aware layout (redirects authenticated users)
+- User dropdown with avatar, name, email, and sign out
+- Loading states and error handling
+- Suspense boundary for search params
+
+#### 4. Database Migrations
+
+**Migration Created**: `20251219192018_init`
+
+Formalized the database schema with proper Prisma migrations:
+
+**PostgreSQL Extensions**:
+- `pgcrypto` - Cryptographic functions
+- `uuid-ossp` - UUID generation
+- `vector` - pgvector for embeddings (1536 dimensions)
+
+**Tables Created** (16 total):
+- `User`, `Account`, `Session`, `VerificationToken` - Authentication
+- `Conversation`, `Message` - Chat history
+- `Person`, `Place`, `Event`, `Task`, `Deadline` - Context entities
+- `EntityRelationship` - Entity connections
+- `ConnectedAccount` - Integration OAuth tokens
+- `AuditLog`, `AgentAssumption` - Audit trail
+- `Embedding` - Vector store
+
+**Indexes Created**:
+- User email (unique)
+- Message by conversation + timestamp
+- Person by userId, email, source
+- Event by startsAt
+- Task by status, dueDate
+- Deadline by dueAt, status
+- AuditLog by sessionId, actionType, createdAt
+- Embedding by entityType + entityId
+
+**Foreign Keys**:
+- Cascade deletes for user-owned data
+- SetNull for optional relationships (place, task, person assignments)
+
 ### Decisions Made
 
 1. **NextAuth v5 over v4**: Better Edge runtime support, cleaner API
 2. **JWT over Database sessions**: Works with Edge middleware, simpler
 3. **shadcn/ui over other libraries**: Full ownership, Tailwind-native, accessible
+4. **Prisma migrations over db:push**: Proper migration history for production deployments
+
+### Files Created (Phase 1)
+
+```
+Created/Modified:
+├── src/lib/auth/index.ts
+├── src/app/api/auth/[...nextauth]/route.ts
+├── src/types/next-auth.d.ts
+├── middleware.ts
+├── src/components/providers/session-provider.tsx
+├── src/components/providers/index.ts
+├── src/app/(auth)/layout.tsx
+├── src/app/(auth)/login/page.tsx
+├── src/components/user-dropdown.tsx
+├── src/components/ui/button.tsx
+├── src/components/ui/avatar.tsx
+├── src/components/ui/dropdown-menu.tsx
+├── src/components/ui/card.tsx
+├── src/components/ui/input.tsx
+├── src/components/ui/index.ts
+├── src/lib/utils.ts (consolidated)
+├── components.json (shadcn config)
+└── prisma/migrations/20251219192018_init/migration.sql
+```
 
 ---
 
