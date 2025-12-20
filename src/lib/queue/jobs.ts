@@ -16,6 +16,10 @@ export const JOB_NAMES = {
   DELETE_EMBEDDING: "delete-embedding",
   BULK_EMBED: "bulk-embed",
 
+  // Email embedding jobs (Phase 3)
+  GENERATE_EMAIL_EMBEDDING: "generate-email-embedding",
+  BULK_EMAIL_EMBED: "bulk-email-embed",
+
   // Contact sync jobs (Phase 3)
   SYNC_CONTACTS: "sync-contacts",
 
@@ -81,6 +85,21 @@ export interface ProcessEmailJobData {
   accountId: string;
   messageId: string;
   threadId: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Email Embedding Jobs (Phase 3)
+// ─────────────────────────────────────────────────────────────
+
+export interface EmailEmbeddingJobData {
+  userId: string;
+  emailId: string;
+  operation: "create" | "update" | "delete";
+}
+
+export interface BulkEmailEmbedJobData {
+  userId: string;
+  emailIds: string[];
 }
 
 // ─────────────────────────────────────────────────────────────

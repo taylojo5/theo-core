@@ -6,7 +6,12 @@
 import { Job } from "bullmq";
 import { registerWorker } from "./workers";
 import { QUEUE_NAMES } from "./index";
-import { type EmbeddingJobData, type BulkEmbedJobData } from "./jobs";
+import {
+  type EmbeddingJobData,
+  type BulkEmbedJobData,
+  type EmailEmbeddingJobData,
+  type BulkEmailEmbedJobData,
+} from "./jobs";
 import {
   removeEntityEmbedding,
   buildEntityContent,
@@ -14,22 +19,47 @@ import {
 import { db } from "@/lib/db";
 import type { EntityType } from "@/services/context";
 import { getEmbeddingService } from "@/lib/embeddings";
+import {
+  generateEmailEmbeddingById,
+  deleteEmailEmbedding,
+  generateEmailEmbeddings,
+} from "@/integrations/gmail/embeddings";
+import { emailRepository } from "@/integrations/gmail/repository";
+
+/** All embedding job data types */
+type AnyEmbeddingJobData =
+  | EmbeddingJobData
+  | BulkEmbedJobData
+  | EmailEmbeddingJobData
+  | BulkEmailEmbedJobData;
 
 /**
  * Initialize the embedding worker
  * Call this on server startup to start processing embedding jobs
  */
 export function initializeEmbeddingWorker() {
-  return registerWorker<EmbeddingJobData | BulkEmbedJobData>(
+  return registerWorker<AnyEmbeddingJobData>(
     QUEUE_NAMES.EMBEDDINGS,
-    async (job: Job<EmbeddingJobData | BulkEmbedJobData>) => {
-      // Handle bulk embedding jobs
+    async (job: Job<AnyEmbeddingJobData>) => {
+      // Handle bulk email embedding jobs
+      if ("emailIds" in job.data) {
+        await processBulkEmailEmbedding(job.data);
+        return;
+      }
+
+      // Handle single email embedding jobs
+      if ("emailId" in job.data) {
+        await processSingleEmailEmbedding(job.data);
+        return;
+      }
+
+      // Handle bulk entity embedding jobs
       if ("entityIds" in job.data) {
         await processBulkEmbedding(job.data);
         return;
       }
 
-      // Handle single embedding jobs
+      // Handle single entity embedding jobs
       await processSingleEmbedding(job.data);
     },
     { concurrency: 3 }
@@ -147,4 +177,65 @@ async function processBulkEmbedding(data: BulkEmbedJobData): Promise<void> {
       })
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Email Embedding Processing
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Process a single email embedding job
+ */
+async function processSingleEmailEmbedding(
+  data: EmailEmbeddingJobData
+): Promise<void> {
+  const { userId, emailId, operation } = data;
+
+  console.log(
+    `[EmbeddingWorker] Processing email ${operation} for email:${emailId}`
+  );
+
+  if (operation === "delete") {
+    await deleteEmailEmbedding(userId, emailId);
+    return;
+  }
+
+  // For create/update, generate the embedding
+  const result = await generateEmailEmbeddingById(userId, emailId);
+  if (!result.success) {
+    console.warn(
+      `[EmbeddingWorker] Email embedding failed for ${emailId}: ${result.error}`
+    );
+  }
+}
+
+/**
+ * Process a bulk email embedding job
+ */
+async function processBulkEmailEmbedding(
+  data: BulkEmailEmbedJobData
+): Promise<void> {
+  const { userId, emailIds } = data;
+
+  console.log(
+    `[EmbeddingWorker] Processing bulk email embed for ${emailIds.length} emails`
+  );
+
+  // Fetch all emails in one query
+  const emails = await db.email.findMany({
+    where: {
+      id: { in: emailIds },
+      userId,
+    },
+  });
+
+  if (emails.length === 0) {
+    console.warn("[EmbeddingWorker] No emails found for bulk embedding");
+    return;
+  }
+
+  const result = await generateEmailEmbeddings(emails);
+  console.log(
+    `[EmbeddingWorker] Bulk email embed complete: ${result.succeeded}/${result.total} succeeded`
+  );
 }

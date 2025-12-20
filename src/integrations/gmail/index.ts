@@ -353,3 +353,35 @@ export type {
   // Input types
   EmailInput,
 } from "./extraction";
+
+// ─────────────────────────────────────────────────────────────
+// Email Embeddings
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Content building
+  buildEmailContent,
+  buildEmailMetadata,
+
+  // Single embedding
+  generateEmailEmbedding,
+  generateEmailEmbeddingById,
+
+  // Bulk embeddings
+  generateEmailEmbeddings,
+  generateUserEmailEmbeddings,
+
+  // Management
+  deleteEmailEmbedding,
+  deleteEmailEmbeddings,
+  emailNeedsReembedding,
+
+  // Constants
+  EMAIL_ENTITY_TYPE,
+} from "./embeddings";
+
+export type {
+  EmailEmbeddingResult,
+  BulkEmailEmbeddingResult,
+  EmailEmbeddingMetadata,
+} from "./embeddings";

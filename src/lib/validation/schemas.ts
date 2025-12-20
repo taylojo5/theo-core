@@ -42,7 +42,7 @@ export const searchQuerySchema = z.object({
   useSemanticSearch: z
     .string()
     .optional()
-    .transform((val) => val !== "false"),
+    .transform((val) => val === "true"),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -489,4 +489,41 @@ export const createMessageSchema = z.object({
 
 export const listMessagesQuerySchema = paginationSchema.extend({
   direction: z.enum(["asc", "desc"]).default("asc"),
+});
+
+// ─────────────────────────────────────────────────────────────
+// Email Search Schemas (Phase 3)
+// ─────────────────────────────────────────────────────────────
+
+export const emailSearchQuerySchema = z.object({
+  q: z.string().min(1, "Search query is required").max(500),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  useSemanticSearch: z
+    .string()
+    .optional()
+    .transform((val) => val === "true"),
+  minSimilarity: z.coerce.number().min(0).max(1).optional(),
+  semanticWeight: z.coerce.number().min(0).max(1).optional(),
+  labelIds: z.string().optional(), // comma-separated
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  fromEmail: z.string().optional(),
+  isRead: z
+    .string()
+    .optional()
+    .transform((val) => (val === undefined ? undefined : val === "true")),
+  isStarred: z
+    .string()
+    .optional()
+    .transform((val) => (val === undefined ? undefined : val === "true")),
+  hasAttachments: z
+    .string()
+    .optional()
+    .transform((val) => (val === undefined ? undefined : val === "true")),
+});
+
+export const findSimilarEmailsSchema = z.object({
+  emailId: z.string().min(1, "Email ID is required"),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  minSimilarity: z.coerce.number().min(0).max(1).optional(),
 });

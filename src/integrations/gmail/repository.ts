@@ -124,6 +124,30 @@ export const emailRepository = {
   },
 
   /**
+   * Find an email by internal database ID
+   */
+  findById: async (id: string): Promise<Email | null> => {
+    return db.email.findUnique({
+      where: { id },
+    });
+  },
+
+  /**
+   * Find an email by internal database ID for a specific user
+   */
+  findByUserAndId: async (
+    userId: string,
+    id: string
+  ): Promise<Email | null> => {
+    return db.email.findFirst({
+      where: {
+        id,
+        userId,
+      },
+    });
+  },
+
+  /**
    * Find an email by Gmail ID
    */
   findByGmailId: async (gmailId: string): Promise<Email | null> => {

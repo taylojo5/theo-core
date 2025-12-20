@@ -8,6 +8,9 @@ import { emailRepository, syncStateRepository } from "../repository";
 import { mapGmailMessageToEmail } from "../mappers";
 import { GmailError, GmailErrorCode } from "../errors";
 import { logAuditEntry } from "@/services/audit";
+import { addJob, QUEUE_NAMES } from "@/lib/queue";
+import { JOB_NAMES } from "@/lib/queue/jobs";
+import { deleteEmailEmbeddings } from "../embeddings";
 import type { ParsedGmailMessage, GmailHistory } from "../types";
 import type {
   EmailSyncResult,
@@ -321,6 +324,8 @@ async function processHistoryChanges(
   deleted: number;
 }> {
   const stats = { added: 0, updated: 0, deleted: 0 };
+  const newEmailIds: string[] = [];
+  const deletedEmailIds: string[] = [];
 
   // Collect unique message IDs for each operation type
   const messagesToAdd = new Set<string>();
@@ -368,11 +373,31 @@ async function processHistoryChanges(
     }
   }
 
-  // Process deletions
+  // Process deletions (need to get email IDs before deleting)
   if (messagesToDelete.size > 0) {
+    // First, get the internal email IDs for embedding cleanup
+    for (const gmailId of messagesToDelete) {
+      const email = await emailRepository.findByGmailId(gmailId);
+      if (email) {
+        deletedEmailIds.push(email.id);
+      }
+    }
+
     stats.deleted = await emailRepository.deleteMany(
       Array.from(messagesToDelete)
     );
+
+    // Delete embeddings for removed emails
+    if (deletedEmailIds.length > 0) {
+      try {
+        await deleteEmailEmbeddings(userId, deletedEmailIds);
+      } catch (error) {
+        console.warn(
+          `[IncrementalSync] Failed to delete embeddings for ${deletedEmailIds.length} emails:`,
+          error
+        );
+      }
+    }
   }
 
   // Process additions
@@ -386,8 +411,9 @@ async function processHistoryChanges(
     for (const message of messages) {
       try {
         const input = mapGmailMessageToEmail(message, userId);
-        await emailRepository.create(input);
+        const email = await emailRepository.create(input);
         stats.added++;
+        newEmailIds.push(email.id);
       } catch (error) {
         // If email already exists, update instead
         if (
@@ -435,7 +461,44 @@ async function processHistoryChanges(
     }
   }
 
+  // Queue embedding generation for new emails
+  if (newEmailIds.length > 0) {
+    try {
+      await queueEmailEmbeddings(userId, newEmailIds);
+    } catch (error) {
+      console.warn(
+        `[IncrementalSync] Failed to queue embeddings for ${newEmailIds.length} emails:`,
+        error
+      );
+    }
+  }
+
   return stats;
+}
+
+/**
+ * Queue embedding generation jobs for emails
+ */
+async function queueEmailEmbeddings(
+  userId: string,
+  emailIds: string[]
+): Promise<void> {
+  // For incremental sync, we typically have fewer emails
+  // so we can queue individual jobs or smaller batches
+  const batchSize = 10;
+
+  for (let i = 0; i < emailIds.length; i += batchSize) {
+    const batch = emailIds.slice(i, i + batchSize);
+
+    await addJob(
+      QUEUE_NAMES.EMBEDDINGS,
+      JOB_NAMES.BULK_EMAIL_EMBED,
+      { userId, emailIds: batch },
+      {
+        priority: 5, // Slightly higher priority for incremental
+      }
+    );
+  }
 }
 
 /**

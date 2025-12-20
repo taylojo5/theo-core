@@ -15,6 +15,8 @@ import {
 } from "../mappers";
 import { GmailError, GmailErrorCode } from "../errors";
 import { logAuditEntry } from "@/services/audit";
+import { addJob, QUEUE_NAMES } from "@/lib/queue";
+import { JOB_NAMES } from "@/lib/queue/jobs";
 import type { ParsedGmailMessage, GmailLabel } from "../types";
 import type { EmailSyncResult, EmailSyncError, FullSyncOptions } from "./types";
 
@@ -320,9 +322,10 @@ async function storeMessages(
   messages: ParsedGmailMessage[],
   userId: string,
   errors: EmailSyncError[]
-): Promise<{ created: number; updated: number }> {
+): Promise<{ created: number; updated: number; emailIds: string[] }> {
   let created = 0;
   let updated = 0;
+  const newEmailIds: string[] = [];
 
   // Map messages to email inputs
   const emailInputs = messages.map((msg) =>
@@ -332,8 +335,9 @@ async function storeMessages(
   for (const input of emailInputs) {
     try {
       // Attempt create first (optimistic - assumes most messages are new)
-      await emailRepository.create(input);
+      const email = await emailRepository.create(input);
       created++;
+      newEmailIds.push(email.id);
     } catch (error) {
       // If email already exists (unique constraint), upsert instead
       if (
@@ -370,7 +374,45 @@ async function storeMessages(
     }
   }
 
-  return { created, updated };
+  // Queue embedding generation for new emails (in batches)
+  if (newEmailIds.length > 0) {
+    try {
+      await queueEmailEmbeddings(userId, newEmailIds);
+    } catch (error) {
+      console.warn(
+        `[FullSync] Failed to queue embeddings for ${newEmailIds.length} emails:`,
+        error
+      );
+      // Don't fail the sync if embedding queue fails
+    }
+  }
+
+  return { created, updated, emailIds: newEmailIds };
+}
+
+/**
+ * Queue embedding generation jobs for emails
+ */
+async function queueEmailEmbeddings(
+  userId: string,
+  emailIds: string[]
+): Promise<void> {
+  // Batch into groups of 20 emails
+  const batchSize = 20;
+
+  for (let i = 0; i < emailIds.length; i += batchSize) {
+    const batch = emailIds.slice(i, i + batchSize);
+
+    await addJob(
+      QUEUE_NAMES.EMBEDDINGS,
+      JOB_NAMES.BULK_EMAIL_EMBED,
+      { userId, emailIds: batch },
+      {
+        // Low priority - sync is more important
+        priority: 10,
+      }
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

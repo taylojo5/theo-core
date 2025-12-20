@@ -2,13 +2,18 @@
 
 > **Status**: Complete  
 > **Last Updated**: December 2024  
-> **Related**: [AI_EMBEDDINGS.md](../AI_EMBEDDINGS.md), [CONTEXT_SERVICES.md](./CONTEXT_SERVICES.md)
+> **Related**: [AI_EMBEDDINGS.md](../AI_EMBEDDINGS.md), [CONTEXT_SERVICES.md](./CONTEXT_SERVICES.md), [GMAIL_SERVICE.md](./GMAIL_SERVICE.md)
 
 ---
 
 ## Overview
 
-Theo provides unified search across all context entities using a combination of **text matching** and **semantic (vector) search**. Results are intelligently merged and ranked to provide the most relevant matches.
+Theo provides unified search across all context entities and emails using a combination of **text matching** and **semantic (vector) search**. Results are intelligently merged and ranked to provide the most relevant matches.
+
+This document covers:
+
+- **Context Search** - Search across People, Places, Events, Tasks, Deadlines
+- **Email Search** - Semantic and text search across synced emails
 
 ---
 
@@ -485,9 +490,180 @@ describe("Context Search", () => {
 
 ---
 
+## Email Search Service
+
+Email search provides semantic and text-based search across synced Gmail emails.
+
+### Quick Start
+
+```typescript
+import {
+  searchEmails,
+  semanticSearchEmails,
+  findSimilarEmails,
+} from "@/services/search";
+
+// Combined text + semantic search
+const results = await searchEmails(userId, "quarterly report", {
+  limit: 20,
+  useSemanticSearch: true,
+  minSimilarity: 0.5,
+});
+
+// Find emails similar to a specific email
+const similar = await findSimilarEmails(userId, emailId, {
+  limit: 10,
+  minSimilarity: 0.6,
+});
+```
+
+### Email Search Options
+
+```typescript
+interface EmailSearchOptions {
+  limit?: number; // Max results (default: 20)
+  minSimilarity?: number; // Min similarity (0-1, default: 0.5)
+  useSemanticSearch?: boolean; // Enable semantic search (default: true)
+  semanticWeight?: number; // Semantic weight in ranking (default: 0.7)
+
+  // Filters
+  labelIds?: string[]; // Filter by Gmail labels
+  startDate?: Date; // Filter by date range start
+  endDate?: Date; // Filter by date range end
+  fromEmail?: string; // Filter by sender
+  isRead?: boolean; // Filter by read status
+  isStarred?: boolean; // Filter by starred status
+  hasAttachments?: boolean; // Filter by attachments
+}
+```
+
+### Email Search Result
+
+```typescript
+interface EmailSearchResult {
+  email: Email; // Full email record
+  score: number; // Relevance score (0-1)
+  matchType: "text" | "semantic" | "both"; // How match was found
+  snippet?: string; // Matched content snippet
+}
+```
+
+### API Endpoint
+
+#### `GET /api/search/emails`
+
+Search emails:
+
+```
+GET /api/search/emails?q=budget+meeting&limit=20&isRead=false
+```
+
+**Query Parameters:**
+
+| Param               | Type    | Required | Description               |
+| ------------------- | ------- | -------- | ------------------------- |
+| `q`                 | string  | Yes      | Search query              |
+| `limit`             | number  | No       | Max results (default: 20) |
+| `useSemanticSearch` | boolean | No       | Enable semantic search    |
+| `minSimilarity`     | number  | No       | Min similarity (0-1)      |
+| `semanticWeight`    | number  | No       | Semantic weight (0-1)     |
+| `labelIds`          | string  | No       | Comma-separated labels    |
+| `startDate`         | string  | No       | ISO date                  |
+| `endDate`           | string  | No       | ISO date                  |
+| `fromEmail`         | string  | No       | Sender email filter       |
+| `isRead`            | boolean | No       | Filter by read status     |
+| `isStarred`         | boolean | No       | Filter by starred         |
+| `hasAttachments`    | boolean | No       | Filter by attachments     |
+
+Find similar emails:
+
+```
+GET /api/search/emails?similarTo=email-id-123&limit=10
+```
+
+**Response:**
+
+```json
+{
+  "query": "budget meeting",
+  "totalResults": 15,
+  "usedSemanticSearch": true,
+  "results": [
+    {
+      "email": {
+        "id": "email-123",
+        "subject": "Q4 Budget Meeting Notes",
+        "fromEmail": "cfo@company.com",
+        "snippet": "..."
+      },
+      "score": 0.89,
+      "matchType": "both",
+      "snippet": "...discussed the Q4 budget allocations..."
+    }
+  ]
+}
+```
+
+### Email Embedding Generation
+
+Emails are automatically embedded when synced:
+
+```typescript
+import {
+  generateEmailEmbedding,
+  generateEmailEmbeddings,
+  deleteEmailEmbedding,
+} from "@/integrations/gmail";
+
+// Generate embedding for a single email
+const result = await generateEmailEmbedding(email);
+
+// Bulk generate embeddings
+const bulkResult = await generateEmailEmbeddings(emails);
+
+// Delete embedding when email is removed
+await deleteEmailEmbedding(userId, emailId);
+```
+
+### Email Content for Embeddings
+
+The embedding content includes:
+
+- Subject line
+- Sender name and email
+- Recipients
+- Email snippet
+- Body text (truncated to 2000 chars)
+- Meaningful labels (excluding INBOX, UNREAD, etc.)
+
+### Background Processing
+
+Email embeddings are queued as background jobs during sync:
+
+1. **Full Sync**: Batches of 20 emails queued with low priority
+2. **Incremental Sync**: Smaller batches of 10 with higher priority
+3. **Delete**: Embeddings cleaned up when emails are deleted
+
+```typescript
+// Job types for email embeddings
+type EmailEmbeddingJobData = {
+  userId: string;
+  emailId: string;
+  operation: "create" | "update" | "delete";
+};
+
+type BulkEmailEmbedJobData = {
+  userId: string;
+  emailIds: string[];
+};
+```
+
+---
+
 ## Related Documentation
 
 - [AI_EMBEDDINGS.md](../AI_EMBEDDINGS.md) - Vector embeddings & semantic search
 - [CONTEXT_SERVICES.md](./CONTEXT_SERVICES.md) - Entity services
+- [GMAIL_SERVICE.md](./GMAIL_SERVICE.md) - Gmail integration
 - [API_REFERENCE.md](../API_REFERENCE.md) - Search API endpoint
 - [DATA_LAYER.md](../DATA_LAYER.md) - Database indexing

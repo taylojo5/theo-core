@@ -10,6 +10,7 @@
 **Duration**: ~1 session
 
 ### Goals
+
 - Establish development environment
 - Create project structure
 - Set up CI/CD foundation
@@ -18,6 +19,7 @@
 ### What Was Built
 
 #### 1. Next.js Application
+
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS v4
@@ -25,18 +27,19 @@
 
 #### 2. Docker Compose Stack
 
-| Service | Image | Port | Purpose |
-|---------|-------|------|---------|
-| PostgreSQL | pgvector/pgvector:pg16 | 5432 | Primary database with vector search |
-| Redis | redis:7-alpine | 6379 | Cache, sessions, job queues |
-| pgAdmin | dpage/pgadmin4 | 5050 | Database GUI (optional) |
-| Redis Commander | rediscommander | 8081 | Redis GUI (optional) |
-| LocalStack | localstack | 4566 | AWS emulation (optional) |
-| Mailpit | axllent/mailpit | 8025 | Email testing (optional) |
+| Service         | Image                  | Port | Purpose                             |
+| --------------- | ---------------------- | ---- | ----------------------------------- |
+| PostgreSQL      | pgvector/pgvector:pg16 | 5432 | Primary database with vector search |
+| Redis           | redis:7-alpine         | 6379 | Cache, sessions, job queues         |
+| pgAdmin         | dpage/pgadmin4         | 5050 | Database GUI (optional)             |
+| Redis Commander | rediscommander         | 8081 | Redis GUI (optional)                |
+| LocalStack      | localstack             | 4566 | AWS emulation (optional)            |
+| Mailpit         | axllent/mailpit        | 8025 | Email testing (optional)            |
 
 #### 3. Database Schema (Prisma)
 
 **Core Entities Created**:
+
 - `User` - Account owner with preferences
 - `Account` / `Session` / `VerificationToken` - NextAuth.js tables
 - `Conversation` / `Message` - Chat history
@@ -50,6 +53,7 @@
 - `AuditLog` / `AgentAssumption` - Full audit trail
 
 **Extensions Enabled**:
+
 - `uuid-ossp` - UUID generation
 - `pgcrypto` - Cryptographic functions
 - `vector` - pgvector for embeddings
@@ -90,33 +94,34 @@ theo-core/
 
 #### 5. Development Scripts
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Start Next.js dev server |
-| `npm run dev:all` | Docker + Next.js together |
-| `npm run db:start` | Start PostgreSQL + Redis |
-| `npm run db:push` | Push Prisma schema |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run db:seed` | Seed sample data |
-| `npm run db:reset` | Reset database (destructive) |
+| Command                | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `npm run dev`          | Start Next.js dev server      |
+| `npm run dev:all`      | Docker + Next.js together     |
+| `npm run db:start`     | Start PostgreSQL + Redis      |
+| `npm run db:push`      | Push Prisma schema            |
+| `npm run db:studio`    | Open Prisma Studio            |
+| `npm run db:seed`      | Seed sample data              |
+| `npm run db:reset`     | Reset database (destructive)  |
 | `npm run docker:clean` | Remove all containers/volumes |
 
 #### 6. Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `docker-compose.yml` | Local services definition |
-| `Dockerfile` | Production multi-stage build |
-| `.dockerignore` | Docker build exclusions |
-| `.env.example` | Environment variable template |
-| `.prettierrc` | Code formatting rules |
-| `next.config.ts` | Next.js configuration |
+| File                 | Purpose                       |
+| -------------------- | ----------------------------- |
+| `docker-compose.yml` | Local services definition     |
+| `Dockerfile`         | Production multi-stage build  |
+| `.dockerignore`      | Docker build exclusions       |
+| `.env.example`       | Environment variable template |
+| `.prettierrc`        | Code formatting rules         |
+| `next.config.ts`     | Next.js configuration         |
 
 ### Services Implemented
 
 #### Audit Service (`src/services/audit/`)
 
 Full audit logging with:
+
 - `logAuditEntry()` - Log completed actions
 - `startAuditEntry()` - Start pending actions
 - `completeAuditEntry()` - Complete pending actions
@@ -128,23 +133,25 @@ Full audit logging with:
 #### Integration Stubs
 
 **Gmail** (`src/integrations/gmail/`):
+
 - Scope definitions (readonly, send, full)
 - `GmailClient` class with method stubs
 - Type definitions for messages
 
 **Slack** (`src/integrations/slack/`):
+
 - Scope definitions (user, bot)
 - `SlackClient` class with method stubs
 - Type definitions for users, channels, messages
 
 ### Build Verification
 
-| Check | Result |
-|-------|--------|
-| TypeScript | ✅ No errors |
-| ESLint | ✅ 0 errors, 13 warnings (stub methods) |
-| Build | ✅ Successful |
-| Prisma Generate | ✅ Client generated |
+| Check           | Result                                  |
+| --------------- | --------------------------------------- |
+| TypeScript      | ✅ No errors                            |
+| ESLint          | ✅ 0 errors, 13 warnings (stub methods) |
+| Build           | ✅ Successful                           |
+| Prisma Generate | ✅ Client generated                     |
 
 ### Decisions Made
 
@@ -157,12 +164,14 @@ Full audit logging with:
 ### Dependencies Added
 
 **Production**:
+
 - `@prisma/client` - Database ORM
 - `clsx` - Conditional class names
 - `tailwind-merge` - Tailwind class merging
 - `zod` - Schema validation
 
 **Development**:
+
 - `prisma` - Schema management and migrations
 - `prettier` - Code formatting
 - `prettier-plugin-tailwindcss` - Tailwind class sorting
@@ -219,6 +228,7 @@ npm run dev
 **Started**: December 2024
 
 ### Goals
+
 - Authentication system with Google OAuth
 - Basic chat interface
 - Message storage in database
@@ -229,6 +239,7 @@ npm run dev
 #### 1. Authentication (NextAuth.js v5)
 
 **Files Created**:
+
 - `src/lib/auth/index.ts` - NextAuth configuration with Google OAuth
 - `src/app/api/auth/[...nextauth]/route.ts` - Auth API handlers
 - `src/types/next-auth.d.ts` - TypeScript module augmentation
@@ -236,6 +247,7 @@ npm run dev
 - `src/components/providers/session-provider.tsx` - Client session provider
 
 **Features**:
+
 - Google OAuth with offline access (refresh tokens)
 - JWT session strategy (30-day sessions)
 - User ID exposed in session for client components
@@ -247,6 +259,7 @@ npm run dev
 **Decision**: Adopted shadcn/ui as the component library.
 
 **Why shadcn/ui**:
+
 - Full code ownership - components live in codebase
 - Built on Radix UI (excellent accessibility)
 - Tailwind CSS native - perfect stack alignment
@@ -255,6 +268,7 @@ npm run dev
 - Massive community adoption for Next.js projects
 
 **Alternatives Considered**:
+
 - Material UI - Too opinionated, large bundle, not Tailwind-native
 - Chakra UI - Different styling paradigm, mixing with Tailwind awkward
 - Radix + DIY - More work, no pre-built styles
@@ -263,10 +277,12 @@ npm run dev
 ### Dependencies Added
 
 **Production**:
+
 - `next-auth@beta` - Authentication (v5)
 - `@auth/prisma-adapter` - Prisma adapter for NextAuth
 
 **Development** (via shadcn):
+
 - Radix UI primitives (added per-component)
 - `class-variance-authority` - Variant styling
 - `lucide-react` - Icons
@@ -274,12 +290,14 @@ npm run dev
 #### 3. Authentication UI & Flow
 
 **Files Created**:
+
 - `src/app/(auth)/layout.tsx` - Auth layout with session redirect
 - `src/app/(auth)/login/page.tsx` - Google OAuth login page
 - `src/components/user-dropdown.tsx` - User avatar dropdown with sign out
 - `src/components/ui/index.ts` - Barrel exports for UI components
 
 **shadcn/ui Components Added**:
+
 - `button` - Primary button component
 - `avatar` - User avatar with image/fallback
 - `dropdown-menu` - Accessible dropdown menus
@@ -287,6 +305,7 @@ npm run dev
 - `input` - Text input component
 
 **Features**:
+
 - Clean login UI with Google OAuth button
 - Session-aware layout (redirects authenticated users)
 - User dropdown with avatar, name, email, and sign out
@@ -300,11 +319,13 @@ npm run dev
 Formalized the database schema with proper Prisma migrations:
 
 **PostgreSQL Extensions**:
+
 - `pgcrypto` - Cryptographic functions
 - `uuid-ossp` - UUID generation
 - `vector` - pgvector for embeddings (1536 dimensions)
 
 **Tables Created** (16 total):
+
 - `User`, `Account`, `Session`, `VerificationToken` - Authentication
 - `Conversation`, `Message` - Chat history
 - `Person`, `Place`, `Event`, `Task`, `Deadline` - Context entities
@@ -314,6 +335,7 @@ Formalized the database schema with proper Prisma migrations:
 - `Embedding` - Vector store
 
 **Indexes Created**:
+
 - User email (unique)
 - Message by conversation + timestamp
 - Person by userId, email, source
@@ -324,6 +346,7 @@ Formalized the database schema with proper Prisma migrations:
 - Embedding by entityType + entityId
 
 **Foreign Keys**:
+
 - Cascade deletes for user-owned data
 - SetNull for optional relationships (place, task, person assignments)
 
@@ -337,12 +360,14 @@ Formalized the database schema with proper Prisma migrations:
 #### 5. Chat Services
 
 **Files Created**:
+
 - `src/services/chat/index.ts` - Service barrel exports
 - `src/services/chat/types.ts` - TypeScript interfaces and DTOs
 - `src/services/chat/conversation.ts` - Conversation CRUD operations
 - `src/services/chat/message.ts` - Message operations
 
 **ConversationService Functions**:
+
 - `createConversation()` - Create new conversation with optional title
 - `getConversation()` - Get by ID with optional messages
 - `listConversations()` - Paginated list with cursor-based pagination
@@ -351,11 +376,13 @@ Formalized the database schema with proper Prisma migrations:
 - `generateTitleFromContent()` - Auto-generate title from first message
 
 **MessageService Functions**:
+
 - `createMessage()` - Create message with role (user/assistant/system/tool)
 - `listMessages()` - Paginated message history with bi-directional pagination
 - `getMessagesForContext()` - Get messages for AI context window
 
 **Features**:
+
 - Full audit logging for all CRUD operations
 - Automatic title generation from first user message
 - Cursor-based pagination for infinite scroll
@@ -366,23 +393,25 @@ Formalized the database schema with proper Prisma migrations:
 #### 6. Chat API Routes
 
 **Files Created**:
+
 - `src/app/api/chat/conversations/route.ts` - List and create conversations
 - `src/app/api/chat/conversations/[id]/route.ts` - Get, update, delete conversation
 - `src/app/api/chat/conversations/[id]/messages/route.ts` - List and create messages
 
 **API Endpoints**:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/chat/conversations` | Create new conversation |
-| `GET` | `/api/chat/conversations` | List user's conversations (paginated) |
-| `GET` | `/api/chat/conversations/[id]` | Get conversation with messages |
-| `PATCH` | `/api/chat/conversations/[id]` | Update conversation title/summary |
-| `DELETE` | `/api/chat/conversations/[id]` | Delete conversation and messages |
-| `POST` | `/api/chat/conversations/[id]/messages` | Create message in conversation |
-| `GET` | `/api/chat/conversations/[id]/messages` | List messages (paginated) |
+| Method   | Endpoint                                | Description                           |
+| -------- | --------------------------------------- | ------------------------------------- |
+| `POST`   | `/api/chat/conversations`               | Create new conversation               |
+| `GET`    | `/api/chat/conversations`               | List user's conversations (paginated) |
+| `GET`    | `/api/chat/conversations/[id]`          | Get conversation with messages        |
+| `PATCH`  | `/api/chat/conversations/[id]`          | Update conversation title/summary     |
+| `DELETE` | `/api/chat/conversations/[id]`          | Delete conversation and messages      |
+| `POST`   | `/api/chat/conversations/[id]/messages` | Create message in conversation        |
+| `GET`    | `/api/chat/conversations/[id]/messages` | List messages (paginated)             |
 
 **Features**:
+
 - Full authentication on all routes (via `auth()`)
 - User ownership verification (users can only access their data)
 - Request validation with helpful error messages
@@ -441,11 +470,13 @@ Created/Modified:
 ### What Was Built
 
 #### Chunk 1: Foundation & Types
+
 - `src/services/context/types.ts` - Comprehensive type definitions for all context entities
 - `src/services/context/utils.ts` - Shared utilities (soft delete, pagination, email normalization, content hashing, date helpers)
 - Full barrel exports in `src/services/context/index.ts`
 
 #### Chunk 2: People Service
+
 - `src/services/context/people/` - Full CRUD operations for Person entities
 - Create, read, update, soft-delete, restore operations
 - Find by email, find by source, text search
@@ -453,12 +484,14 @@ Created/Modified:
 - Full audit logging on all mutations
 
 #### Chunk 3: Remaining Entity Services
+
 - `src/services/context/places/` - Places with geocoding stub, city/nearby search
 - `src/services/context/events/` - Events with time range queries, status transitions
 - `src/services/context/tasks/` - Tasks with hierarchy support, status workflow
 - `src/services/context/deadlines/` - Deadlines with urgency calculation
 
 #### Chunk 4: Relationships Service
+
 - `src/services/context/relationships/` - Bidirectional relationship management
 - Create/update/delete relationships between any entity types
 - Query relationships from either direction
@@ -466,6 +499,7 @@ Created/Modified:
 - Sync relationships for integration imports
 
 #### Chunk 5: Context API Routes
+
 - `src/app/api/context/people/` - Person CRUD endpoints
 - `src/app/api/context/places/` - Place CRUD endpoints
 - `src/app/api/context/events/` - Event CRUD endpoints
@@ -475,6 +509,7 @@ Created/Modified:
 - `src/app/api/context/search/` - Unified search endpoint
 
 #### Chunk 6: Embedding Service Foundation
+
 - `src/lib/embeddings/types.ts` - Embedding types and configuration
 - `src/lib/embeddings/openai-provider.ts` - OpenAI embedding provider with rate limiting
 - `src/lib/embeddings/embedding-service.ts` - Core embedding generation and storage
@@ -482,12 +517,14 @@ Created/Modified:
 - Content hash deduplication to avoid redundant API calls
 
 #### Chunk 7: Semantic Search
+
 - `src/lib/embeddings/search-service.ts` - Vector similarity search using pgvector
 - `src/services/context/context-search.ts` - Unified context search (text + semantic)
 - Support for filtering by entity type
 - Configurable similarity threshold and result limits
 
 #### Chunk 8: Entity Embedding Integration
+
 - `src/services/context/embedding-integration.ts` - Embedding lifecycle hooks
 - Content builders for each entity type (Person, Place, Event, Task, Deadline)
 - Automatic embedding generation on entity create/update
@@ -553,20 +590,20 @@ tests/lib/embeddings/
 
 ### Test Coverage
 
-| Test File | Tests |
-|-----------|-------|
-| utils.test.ts | 44 |
-| people-service.test.ts | 47 |
-| places-service.test.ts | 43 |
-| events-service.test.ts | 55 |
-| tasks-service.test.ts | 51 |
-| deadlines-service.test.ts | 57 |
-| relationships-service.test.ts | 68 |
-| context-search.test.ts | 21 |
-| embedding-service.test.ts | 30 |
-| search-service.test.ts | ~20 |
-| embedding-integration.test.ts | 21 |
-| **Total** | **437 tests** |
+| Test File                     | Tests         |
+| ----------------------------- | ------------- |
+| utils.test.ts                 | 44            |
+| people-service.test.ts        | 47            |
+| places-service.test.ts        | 43            |
+| events-service.test.ts        | 55            |
+| tasks-service.test.ts         | 51            |
+| deadlines-service.test.ts     | 57            |
+| relationships-service.test.ts | 68            |
+| context-search.test.ts        | 21            |
+| embedding-service.test.ts     | 30            |
+| search-service.test.ts        | ~20           |
+| embedding-integration.test.ts | 21            |
+| **Total**                     | **437 tests** |
 
 ### Key Design Decisions
 
@@ -595,8 +632,87 @@ tests/lib/embeddings/
 
 ## Phase 3: Gmail Integration
 
-**Status**: Not Started  
-**Planned**: OAuth, Email Sync, Contact Import
+**Status**: In Progress  
+**Started**: December 2024
+
+### Chunk 7: Email Search & Embeddings (Complete)
+
+**Completed**: December 2024
+
+#### What Was Built
+
+1. **Email Embedding Generation** (`src/integrations/gmail/embeddings.ts`)
+   - Content building from email fields (subject, sender, recipients, body)
+   - Single and bulk embedding generation
+   - Automatic chunking for long emails
+   - Metadata storage with embeddings
+
+2. **Email Search Service** (`src/services/search/email-search.ts`)
+   - Combined text + semantic search
+   - Filtering by labels, dates, sender, read/starred status
+   - "Find similar" functionality using vector similarity
+   - Deduplication and weighted ranking
+
+3. **Email Search API** (`src/app/api/search/emails/route.ts`)
+   - `GET /api/search/emails?q=...` - Search emails
+   - `GET /api/search/emails?similarTo=...` - Find similar emails
+   - Full filtering support via query parameters
+
+4. **Background Job Integration**
+   - `BulkEmailEmbedJobData` job type for batched embedding generation
+   - Integration with full sync (batches of 20, low priority)
+   - Integration with incremental sync (batches of 10, higher priority)
+   - Embedding cleanup on email deletion
+
+5. **Embedding Worker Support** (`src/lib/queue/embedding-worker.ts`)
+   - Added `BULK_EMAIL_EMBED` and `GENERATE_EMAIL_EMBEDDING` job processing
+   - Handles single and bulk email embedding operations
+
+#### Files Created/Modified
+
+**New Files:**
+
+- `src/integrations/gmail/embeddings.ts` - Email embedding generation
+- `src/services/search/email-search.ts` - Email search service
+- `src/services/search/index.ts` - Search service exports
+- `src/app/api/search/emails/route.ts` - Email search API
+
+**Modified Files:**
+
+- `src/lib/queue/jobs.ts` - Added email embedding job types
+- `src/lib/queue/embedding-worker.ts` - Added email embedding processing
+- `src/lib/validation/schemas.ts` - Added email search validation
+- `src/integrations/gmail/index.ts` - Export embeddings module
+- `src/integrations/gmail/sync/full-sync.ts` - Queue embeddings on sync
+- `src/integrations/gmail/sync/incremental-sync.ts` - Queue embeddings on sync
+- `docs/services/SEARCH_SERVICES.md` - Added email search documentation
+
+#### Technical Decisions
+
+1. **Entity Type**: Emails use `"email"` as their entity type in the embedding system, separate from context entities.
+
+2. **Content Truncation**: Email body is truncated to 2000 characters to manage embedding token costs while preserving semantic meaning.
+
+3. **Batch Processing**: Embeddings are queued in batches (10-20 emails) to balance throughput and API rate limits.
+
+4. **Priority Levels**: Full sync uses priority 10 (low), incremental sync uses priority 5 (medium) to prioritize new mail.
+
+5. **Graceful Degradation**: If embedding generation fails, sync continues - embeddings are not critical path.
+
+### Remaining Chunks
+
+| Chunk | Description                   | Status          |
+| ----- | ----------------------------- | --------------- |
+| 1     | Gmail OAuth & Scopes          | ✅ Complete     |
+| 2     | Gmail Client Library          | ✅ Complete     |
+| 3     | Email Database Models         | ✅ Complete     |
+| 4     | Contact Sync Pipeline         | ✅ Complete     |
+| 5     | Email Sync Worker             | ✅ Complete     |
+| 6     | Email Content Processing      | ✅ Complete     |
+| **7** | **Email Search & Embeddings** | **✅ Complete** |
+| 8     | Email Actions (Draft/Send)    | Pending         |
+| 9     | Gmail Settings UI             | Pending         |
+| 10    | Integration Testing & Polish  | Pending         |
 
 ---
 
@@ -618,4 +734,3 @@ tests/lib/embeddings/
 
 **Status**: Not Started  
 **Planned**: UI Polish, Error Handling, Deployment
-

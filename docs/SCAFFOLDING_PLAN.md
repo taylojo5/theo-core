@@ -608,11 +608,14 @@ Socket Mode for real-time message events.
 
 > **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
 
+> **Rate Limit Note**: Kroger API has a limit of 10,000 calls/day. Implement aggressive caching: store product information in the database with a long TTL (7-30 days for stable product data). Always consult the local DB cache before making API calls.
+
 ### Goals
 
 - Kroger OAuth authentication
-- Product search and browsing
-- Shopping list management
+- Product search and browsing with local caching
+- Shopping list management with DB-first lookups
+- Recipe and preference context for smart ingredient selection
 - Order history access
 
 ### 7.1 Kroger OAuth
@@ -627,13 +630,33 @@ export async function handleKrogerCallback(
 export async function refreshKrogerToken(userId: string): Promise<void>;
 ```
 
-### 7.2 Kroger Client
+### 7.2 Product Cache
+
+```typescript
+// src/integrations/kroger/cache.ts
+export class KrogerProductCache {
+  // TTL: 7-30 days for product data (rarely changes)
+  private readonly PRODUCT_TTL_DAYS = 14;
+
+  async getCachedProduct(productId: string): Promise<KrogerProduct | null>;
+  async getCachedProducts(query: string): Promise<KrogerProduct[] | null>;
+  async cacheProduct(product: KrogerProduct): Promise<void>;
+  async cacheSearchResults(
+    query: string,
+    products: KrogerProduct[]
+  ): Promise<void>;
+  async invalidateProduct(productId: string): Promise<void>;
+}
+```
+
+### 7.3 Kroger Client
 
 ```typescript
 // src/integrations/kroger/client.ts
 export class KrogerClient {
-  constructor(accessToken: string);
+  constructor(accessToken: string, cache: KrogerProductCache);
 
+  // DB-first: checks cache before API call
   async searchProducts(
     query: string,
     options?: SearchOptions
@@ -649,30 +672,103 @@ export class KrogerClient {
 }
 ```
 
-### 7.3 Shopping List Integration
+### 7.4 Recipe & Preference Context
+
+```typescript
+// src/integrations/kroger/context.ts
+
+// User preferences for product selection
+export interface ProductPreferences {
+  preferred: ProductPreference[]; // Brands/products user prefers
+  avoided: ProductPreference[]; // Allergies, dislikes, dietary restrictions
+  substitutions: SubstitutionRule[]; // e.g., "always use oat milk instead of dairy"
+}
+
+export interface ProductPreference {
+  type: "brand" | "product" | "category" | "ingredient";
+  value: string;
+  reason?: string; // "allergy", "taste", "dietary", "budget"
+}
+
+export interface SubstitutionRule {
+  original: string;
+  substitute: string;
+  context?: string; // When to apply: "always", "if_available", "for_recipe:X"
+}
+
+// Recipe context for smart ingredient lists
+export interface Recipe {
+  id: string;
+  userId: string;
+  name: string;
+  source?: string; // URL, cookbook, custom
+  ingredients: RecipeIngredient[];
+  servings: number;
+  notes?: string;
+  preferredProducts?: string[]; // Specific product IDs user prefers for this recipe
+}
+
+export interface RecipeIngredient {
+  name: string;
+  quantity: number;
+  unit: string;
+  notes?: string; // "optional", "to taste", etc.
+  productId?: string; // Cached Kroger product match
+}
+```
+
+### 7.5 Shopping List Integration
 
 ```typescript
 // src/integrations/kroger/shopping.ts
 export class KrogerShoppingService {
+  constructor(
+    private cache: KrogerProductCache,
+    private preferences: ProductPreferences
+  );
+
   async syncShoppingList(userId: string): Promise<SyncResult>;
+
   async createShoppingListFromTasks(
     userId: string,
     taskIds: string[]
   ): Promise<ShoppingList>;
+
+  // DB-first: consults cache and preferences before API
   async findProductsForIngredients(
-    ingredients: string[]
+    ingredients: string[],
+    options?: { applyPreferences?: boolean; recipeId?: string }
   ): Promise<ProductMatch[]>;
+
+  // Generate ingredient list from recipe with preference-aware product matching
+  async createShoppingListFromRecipe(
+    userId: string,
+    recipeId: string,
+    servingMultiplier?: number
+  ): Promise<ShoppingList>;
+
+  // Apply user preferences to filter/sort product results
+  async applyPreferences(
+    products: KrogerProduct[],
+    userId: string
+  ): Promise<RankedProduct[]>;
 }
 ```
 
 ### Deliverables
 
 - [ ] Kroger OAuth working
-- [ ] Product search working
+- [ ] Product cache with long TTL implemented
+- [ ] DB-first product lookups working
+- [ ] Product search working (cache → API fallback)
 - [ ] Location finder working
 - [ ] Cart management working
+- [ ] Recipe context model created
+- [ ] Product preferences (prefer/avoid) working
+- [ ] Substitution rules implemented
 - [ ] Shopping lists synced to context
-- [ ] Agent can search products and manage cart
+- [ ] Agent can search products with preference awareness
+- [ ] Agent can generate shopping lists from recipes
 
 ---
 
@@ -727,10 +823,12 @@ export class KrogerShoppingService {
 - [ ] Gmail connected and syncing
 - [ ] Google Calendar connected and syncing
 - [ ] Slack connected and syncing
-- [ ] Kroger connected for shopping
+- [ ] Kroger connected for shopping with product caching
+- [ ] Recipe and product preference context working
 - [ ] Context entities created from integrations
 - [ ] Agent can answer questions about context
 - [ ] Agent can perform simple actions (draft email, create task, manage shopping)
+- [ ] Agent can generate preference-aware shopping lists from recipes
 - [ ] Full audit trail visible to user
 
 ---
