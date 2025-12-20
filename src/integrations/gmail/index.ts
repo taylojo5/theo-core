@@ -209,6 +209,34 @@ export {
   syncContacts,
   syncContactsForUser,
   getContactSyncStatus,
+
+  // Email sync
+  fullSync,
+  resumeFullSync,
+  incrementalSync,
+
+  // Scheduler
+  scheduleFullSync,
+  triggerFullSync,
+  scheduleIncrementalSync,
+  triggerIncrementalSync,
+  scheduleSyncAuto,
+  triggerSync,
+  startRecurringSync,
+  stopRecurringSync,
+  hasRecurringSync,
+  scheduleLabelSync,
+  scheduleMultipleUserSyncs,
+  getPendingSyncJobs,
+  cancelPendingSyncs,
+
+  // Worker registration
+  registerGmailSyncWorker,
+
+  // Job constants
+  GMAIL_JOB_NAMES,
+  GMAIL_JOB_OPTIONS,
+  INCREMENTAL_SYNC_REPEAT,
 } from "./sync";
 
 export type {
@@ -217,7 +245,7 @@ export type {
   ContactSyncError,
   ContactSyncOptions,
 
-  // Email sync types (for future chunks)
+  // Email sync types
   EmailSyncType,
   EmailSyncResult,
   EmailSyncError,
@@ -229,7 +257,16 @@ export type {
   SyncState,
 
   // Job data types
-  // Note: ContactSyncJobData is defined in @/lib/queue/jobs.ts
   FullEmailSyncJobData,
   IncrementalEmailSyncJobData,
+
+  // Progress types
+  FullSyncProgress,
+  IncrementalSyncProgress,
+
+  // Job types
+  GmailJobName,
+  FullSyncJobData,
+  IncrementalSyncJobData,
+  LabelSyncJobData,
 } from "./sync";

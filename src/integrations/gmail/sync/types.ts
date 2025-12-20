@@ -134,8 +134,8 @@ export interface FullSyncOptions {
  * Options for incremental email sync
  */
 export interface IncrementalSyncOptions {
-  /** Starting history ID */
-  startHistoryId: string;
+  /** Starting history ID (fetched from sync state if not provided) */
+  startHistoryId?: string;
   /** Labels to watch (default: all) */
   labelIds?: string[];
   /** Maximum history entries to process (default: 500) */

@@ -14,6 +14,72 @@ export {
 } from "./contacts";
 
 // ─────────────────────────────────────────────────────────────
+// Email Sync
+// ─────────────────────────────────────────────────────────────
+
+export { fullSync, resumeFullSync, type FullSyncProgress } from "./full-sync";
+
+export {
+  incrementalSync,
+  type IncrementalSyncProgress,
+} from "./incremental-sync";
+
+// ─────────────────────────────────────────────────────────────
+// Scheduler
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Full sync scheduling
+  scheduleFullSync,
+  triggerFullSync,
+
+  // Incremental sync scheduling
+  scheduleIncrementalSync,
+  triggerIncrementalSync,
+
+  // Auto sync (detects type)
+  scheduleSyncAuto,
+  triggerSync,
+
+  // Recurring sync management
+  startRecurringSync,
+  stopRecurringSync,
+  hasRecurringSync,
+
+  // Label sync
+  scheduleLabelSync,
+
+  // Batch operations
+  scheduleMultipleUserSyncs,
+
+  // Status
+  getPendingSyncJobs,
+  cancelPendingSyncs,
+} from "./scheduler";
+
+// ─────────────────────────────────────────────────────────────
+// Worker
+// ─────────────────────────────────────────────────────────────
+
+export { registerGmailSyncWorker } from "./worker";
+
+// ─────────────────────────────────────────────────────────────
+// Job Types
+// ─────────────────────────────────────────────────────────────
+
+export {
+  GMAIL_JOB_NAMES,
+  GMAIL_JOB_OPTIONS,
+  INCREMENTAL_SYNC_REPEAT,
+  type GmailJobName,
+  type FullSyncJobData,
+  type IncrementalSyncJobData,
+  type LabelSyncJobData,
+  type FullSyncProgress as FullSyncJobProgress,
+  type IncrementalSyncProgress as IncrementalSyncJobProgress,
+} from "./jobs";
+
+// ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
@@ -23,7 +89,7 @@ export type {
   ContactSyncError,
   ContactSyncOptions,
 
-  // Email sync types (for future chunks)
+  // Email sync types
   EmailSyncType,
   EmailSyncResult,
   EmailSyncError,
@@ -35,7 +101,6 @@ export type {
   SyncState,
 
   // Job data types
-  // Note: ContactSyncJobData is defined in @/lib/queue/jobs.ts
   FullEmailSyncJobData,
   IncrementalEmailSyncJobData,
 } from "./types";

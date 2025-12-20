@@ -138,6 +138,3 @@ export type {
   ServiceContext,
   UpsertResult,
 };
-
-// Export UpsertPeopleOptions (defined in this file)
-export type { UpsertPeopleOptions };
