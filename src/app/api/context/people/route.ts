@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createPersonSchema,
+  listPeopleQuerySchema,
+} from "@/lib/validation";
+import {
   createPerson,
   listPeople,
   searchPeople,
@@ -15,7 +21,6 @@ import {
   type ListPeopleOptions,
   type Source,
   type PersonType,
-  type SortOrder,
 } from "@/services/context";
 
 // ─────────────────────────────────────────────────────────────
@@ -27,53 +32,18 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(request, createPersonSchema);
+    if (!validation.success) {
+      return validation.error;
     }
-
-    // Validate required fields
-    if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json(
-        { error: "Name is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreatePersonInput = {
-      name: body.name,
-      email: body.email,
-      phone: body.phone,
-      avatarUrl: body.avatarUrl,
-      type: body.type,
-      importance: body.importance,
-      company: body.company,
-      title: body.title,
-      location: body.location,
-      timezone: body.timezone,
-      bio: body.bio,
-      notes: body.notes,
-      preferences: body.preferences,
-      source: body.source ?? "manual",
-      sourceId: body.sourceId,
-      metadata: body.metadata,
-      tags: body.tags,
-    };
 
     const person = await createPerson(
       session.user.id,
-      input,
+      validation.data as CreatePersonInput,
       { userId: session.user.id }
     );
 
@@ -105,32 +75,22 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(searchParams, listPeopleQuerySchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as SortOrder;
-    const type = searchParams.get("type") as PersonType | undefined;
-    const company = searchParams.get("company") || undefined;
-    const source = searchParams.get("source") as Source | undefined;
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean) || undefined;
-    const minImportance = searchParams.get("minImportance")
-      ? parseInt(searchParams.get("minImportance")!, 10)
-      : undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
+    const { limit, cursor, type, source, search, tags, includeDeleted } =
+      validation.data;
 
     // If search query provided, use search function
-    if (q) {
-      const results = await searchPeople(session.user.id, q, { limit });
+    if (search) {
+      const results = await searchPeople(session.user.id, search, { limit });
       return NextResponse.json({
         items: results,
         hasMore: false,
@@ -141,13 +101,9 @@ export async function GET(request: NextRequest) {
     const options: ListPeopleOptions = {
       limit,
       cursor,
-      sortBy,
-      sortOrder,
-      type,
-      company,
-      source,
-      tags,
-      minImportance,
+      type: type as PersonType,
+      source: source as Source,
+      tags: tags?.split(",").filter(Boolean),
       includeDeleted,
     };
 
@@ -162,4 +118,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

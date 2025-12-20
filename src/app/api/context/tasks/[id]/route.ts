@@ -8,6 +8,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  validateParams,
+  validateObject,
+  updateTaskSchema,
+  idParamSchema,
+} from "@/lib/validation";
+import {
   getTaskById,
   getTaskByIdWithRelations,
   updateTask,
@@ -19,6 +25,7 @@ import {
   getSubtasks,
   TasksServiceError,
   type TaskStatus,
+  type UpdateTaskInput,
 } from "@/services/context";
 
 interface RouteParams {
@@ -31,15 +38,18 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check for options
@@ -49,28 +59,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Get task with optional relations
     if (includeRelations) {
-      const task = await getTaskByIdWithRelations(session.user.id, id);
+      const task = await getTaskByIdWithRelations(
+        session.user.id,
+        paramValidation.data.id
+      );
       if (!task) {
-        return NextResponse.json(
-          { error: "Task not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
       return NextResponse.json(task);
     }
 
-    const task = await getTaskById(session.user.id, id);
+    const task = await getTaskById(session.user.id, paramValidation.data.id);
 
     if (!task) {
-      return NextResponse.json(
-        { error: "Task not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     // Optionally include subtasks
     if (includeSubtasks) {
-      const subtasks = await getSubtasks(session.user.id, id);
+      const subtasks = await getSubtasks(
+        session.user.id,
+        paramValidation.data.id
+      );
       return NextResponse.json({
         ...task,
         subtasks,
@@ -93,29 +103,31 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     // Check if this is a restore operation
     if (body.restore === true) {
-      const task = await restoreTask(session.user.id, id, {
+      const task = await restoreTask(session.user.id, paramValidation.data.id, {
         userId: session.user.id,
       });
       return NextResponse.json(task);
@@ -123,15 +135,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Check if this is a complete operation
     if (body.complete === true) {
-      const task = await completeTask(session.user.id, id, {
-        userId: session.user.id,
-      });
+      const task = await completeTask(
+        session.user.id,
+        paramValidation.data.id,
+        { userId: session.user.id }
+      );
       return NextResponse.json(task);
     }
 
     // Check if this is a start operation
     if (body.start === true) {
-      const task = await startTask(session.user.id, id, {
+      const task = await startTask(session.user.id, paramValidation.data.id, {
         userId: session.user.id,
       });
       return NextResponse.json(task);
@@ -141,21 +155,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (body.status && Object.keys(body).length === 1) {
       const task = await updateTaskStatus(
         session.user.id,
-        id,
+        paramValidation.data.id,
         body.status as TaskStatus,
         { userId: session.user.id }
       );
       return NextResponse.json(task);
     }
 
-    // Validate at least one field is being updated
-    const updateFields = [
-      "title", "description", "parentId", "position", "status", "priority",
-      "dueDate", "startDate", "completedAt", "estimatedMinutes", "actualMinutes",
-      "notes", "assignedToId", "metadata", "tags"
-    ];
-    const hasUpdate = updateFields.some((field) => body[field] !== undefined);
+    // Validate update body
+    const validation = validateObject(body, updateTaskSchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
+    // Ensure at least one field is being updated
+    const hasUpdate = Object.keys(validation.data).length > 0;
     if (!hasUpdate) {
       return NextResponse.json(
         { error: "At least one field must be provided for update" },
@@ -163,26 +177,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Convert date strings to Date objects
+    const updateData = {
+      ...validation.data,
+      dueDate: validation.data.dueDate
+        ? new Date(validation.data.dueDate)
+        : undefined,
+      startDate: validation.data.startDate
+        ? new Date(validation.data.startDate)
+        : undefined,
+    } as UpdateTaskInput;
+
     const task = await updateTask(
       session.user.id,
-      id,
-      {
-        title: body.title,
-        description: body.description,
-        parentId: body.parentId,
-        position: body.position,
-        status: body.status,
-        priority: body.priority,
-        dueDate: body.dueDate ? new Date(body.dueDate) : body.dueDate,
-        startDate: body.startDate ? new Date(body.startDate) : body.startDate,
-        completedAt: body.completedAt ? new Date(body.completedAt) : body.completedAt,
-        estimatedMinutes: body.estimatedMinutes,
-        actualMinutes: body.actualMinutes,
-        notes: body.notes,
-        assignedToId: body.assignedToId,
-        metadata: body.metadata,
-        tags: body.tags,
-      },
+      paramValidation.data.id,
+      updateData,
       { userId: session.user.id }
     );
 
@@ -192,10 +201,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof TasksServiceError) {
       if (error.code === "TASK_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Task not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -216,18 +222,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await deleteTask(session.user.id, id, { userId: session.user.id });
+    await deleteTask(session.user.id, paramValidation.data.id, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -235,10 +246,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof TasksServiceError) {
       if (error.code === "TASK_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Task not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
     }
 
@@ -248,4 +256,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

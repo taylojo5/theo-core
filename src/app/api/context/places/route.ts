@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createPlaceSchema,
+  listPlacesQuerySchema,
+} from "@/lib/validation";
+import {
   createPlace,
   listPlaces,
   searchPlaces,
@@ -15,7 +21,6 @@ import {
   type ListPlacesOptions,
   type Source,
   type PlaceType,
-  type SortOrder,
 } from "@/services/context";
 
 // ─────────────────────────────────────────────────────────────
@@ -27,52 +32,18 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(request, createPlaceSchema);
+    if (!validation.success) {
+      return validation.error;
     }
-
-    // Validate required fields
-    if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json(
-        { error: "Name is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreatePlaceInput = {
-      name: body.name,
-      type: body.type,
-      address: body.address,
-      city: body.city,
-      state: body.state,
-      country: body.country,
-      postalCode: body.postalCode,
-      latitude: body.latitude,
-      longitude: body.longitude,
-      timezone: body.timezone,
-      notes: body.notes,
-      importance: body.importance,
-      source: body.source ?? "manual",
-      sourceId: body.sourceId,
-      metadata: body.metadata,
-      tags: body.tags,
-    };
 
     const place = await createPlace(
       session.user.id,
-      input,
+      validation.data as CreatePlaceInput,
       { userId: session.user.id }
     );
 
@@ -103,30 +74,22 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(searchParams, listPlacesQuerySchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as SortOrder;
-    const type = searchParams.get("type") as PlaceType | undefined;
-    const city = searchParams.get("city") || undefined;
-    const country = searchParams.get("country") || undefined;
-    const source = searchParams.get("source") as Source | undefined;
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean) || undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
+    const { limit, cursor, type, city, country, search, includeDeleted } =
+      validation.data;
 
     // If search query provided, use search function
-    if (q) {
-      const results = await searchPlaces(session.user.id, q, { limit });
+    if (search) {
+      const results = await searchPlaces(session.user.id, search, { limit });
       return NextResponse.json({
         items: results,
         hasMore: false,
@@ -137,13 +100,9 @@ export async function GET(request: NextRequest) {
     const options: ListPlacesOptions = {
       limit,
       cursor,
-      sortBy,
-      sortOrder,
-      type,
+      type: type as PlaceType,
       city,
       country,
-      source,
-      tags,
       includeDeleted,
     };
 
@@ -158,4 +117,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

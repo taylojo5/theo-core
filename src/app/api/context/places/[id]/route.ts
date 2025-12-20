@@ -8,11 +8,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  validateParams,
+  validateObject,
+  updatePlaceSchema,
+  idParamSchema,
+} from "@/lib/validation";
+import {
   getPlaceById,
   updatePlace,
   deletePlace,
   restorePlace,
   PlacesServiceError,
+  type UpdatePlaceInput,
 } from "@/services/context";
 
 interface RouteParams {
@@ -25,24 +32,24 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const place = await getPlaceById(session.user.id, id);
+    const place = await getPlaceById(session.user.id, paramValidation.data.id);
 
     if (!place) {
-      return NextResponse.json(
-        { error: "Place not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Place not found" }, { status: 404 });
     }
 
     return NextResponse.json(place);
@@ -61,41 +68,46 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Parse and check for restore operation first
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     // Check if this is a restore operation
     if (body.restore === true) {
-      const place = await restorePlace(session.user.id, id, {
-        userId: session.user.id,
-      });
+      const place = await restorePlace(
+        session.user.id,
+        paramValidation.data.id,
+        { userId: session.user.id }
+      );
       return NextResponse.json(place);
     }
 
-    // Validate at least one field is being updated
-    const updateFields = [
-      "name", "type", "address", "city", "state", "country", "postalCode",
-      "latitude", "longitude", "timezone", "notes", "importance", "metadata", "tags"
-    ];
-    const hasUpdate = updateFields.some((field) => body[field] !== undefined);
+    // Validate update body
+    const validation = validateObject(body, updatePlaceSchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
+    // Ensure at least one field is being updated
+    const hasUpdate = Object.keys(validation.data).length > 0;
     if (!hasUpdate) {
       return NextResponse.json(
         { error: "At least one field must be provided for update" },
@@ -105,23 +117,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const place = await updatePlace(
       session.user.id,
-      id,
-      {
-        name: body.name,
-        type: body.type,
-        address: body.address,
-        city: body.city,
-        state: body.state,
-        country: body.country,
-        postalCode: body.postalCode,
-        latitude: body.latitude,
-        longitude: body.longitude,
-        timezone: body.timezone,
-        notes: body.notes,
-        importance: body.importance,
-        metadata: body.metadata,
-        tags: body.tags,
-      },
+      paramValidation.data.id,
+      validation.data as UpdatePlaceInput,
       { userId: session.user.id }
     );
 
@@ -131,10 +128,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof PlacesServiceError) {
       if (error.code === "PLACE_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Place not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Place not found" }, { status: 404 });
       }
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -155,18 +149,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await deletePlace(session.user.id, id, { userId: session.user.id });
+    await deletePlace(session.user.id, paramValidation.data.id, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -174,10 +173,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof PlacesServiceError) {
       if (error.code === "PLACE_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Place not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Place not found" }, { status: 404 });
       }
     }
 
@@ -187,4 +183,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

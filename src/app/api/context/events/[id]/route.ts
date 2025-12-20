@@ -8,6 +8,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  validateParams,
+  validateObject,
+  updateEventSchema,
+  idParamSchema,
+} from "@/lib/validation";
+import {
   getEventById,
   getEventByIdWithPlace,
   updateEvent,
@@ -16,6 +22,7 @@ import {
   restoreEvent,
   EventsServiceError,
   type EventStatus,
+  type UpdateEventInput,
 } from "@/services/context";
 
 interface RouteParams {
@@ -28,15 +35,18 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check for options
@@ -45,23 +55,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Get event with optional place relation
     if (includePlace) {
-      const event = await getEventByIdWithPlace(session.user.id, id);
+      const event = await getEventByIdWithPlace(
+        session.user.id,
+        paramValidation.data.id
+      );
       if (!event) {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
       return NextResponse.json(event);
     }
 
-    const event = await getEventById(session.user.id, id);
+    const event = await getEventById(session.user.id, paramValidation.data.id);
 
     if (!event) {
-      return NextResponse.json(
-        { error: "Event not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
     return NextResponse.json(event);
@@ -80,31 +87,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Parse and check for restore operation first
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     // Check if this is a restore operation
     if (body.restore === true) {
-      const event = await restoreEvent(session.user.id, id, {
-        userId: session.user.id,
-      });
+      const event = await restoreEvent(
+        session.user.id,
+        paramValidation.data.id,
+        { userId: session.user.id }
+      );
       return NextResponse.json(event);
     }
 
@@ -112,21 +123,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (body.status && Object.keys(body).length === 1) {
       const event = await updateEventStatus(
         session.user.id,
-        id,
+        paramValidation.data.id,
         body.status as EventStatus,
         { userId: session.user.id }
       );
       return NextResponse.json(event);
     }
 
-    // Validate at least one field is being updated
-    const updateFields = [
-      "title", "description", "type", "startsAt", "endsAt", "allDay",
-      "timezone", "location", "placeId", "virtualUrl", "status", "visibility",
-      "notes", "importance", "metadata", "tags"
-    ];
-    const hasUpdate = updateFields.some((field) => body[field] !== undefined);
+    // Validate update body
+    const validation = validateObject(body, updateEventSchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
+    // Ensure at least one field is being updated
+    const hasUpdate = Object.keys(validation.data).length > 0;
     if (!hasUpdate) {
       return NextResponse.json(
         { error: "At least one field must be provided for update" },
@@ -134,27 +145,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Convert date strings to Date objects
+    const updateData = {
+      ...validation.data,
+      startsAt: validation.data.startsAt
+        ? new Date(validation.data.startsAt)
+        : undefined,
+      endsAt: validation.data.endsAt
+        ? new Date(validation.data.endsAt)
+        : undefined,
+    } as UpdateEventInput;
+
     const event = await updateEvent(
       session.user.id,
-      id,
-      {
-        title: body.title,
-        description: body.description,
-        type: body.type,
-        startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
-        endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-        allDay: body.allDay,
-        timezone: body.timezone,
-        location: body.location,
-        placeId: body.placeId,
-        virtualUrl: body.virtualUrl,
-        status: body.status,
-        visibility: body.visibility,
-        notes: body.notes,
-        importance: body.importance,
-        metadata: body.metadata,
-        tags: body.tags,
-      },
+      paramValidation.data.id,
+      updateData,
       { userId: session.user.id }
     );
 
@@ -164,10 +169,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof EventsServiceError) {
       if (error.code === "EVENT_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -188,18 +190,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await deleteEvent(session.user.id, id, { userId: session.user.id });
+    await deleteEvent(session.user.id, paramValidation.data.id, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -207,10 +214,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error instanceof EventsServiceError) {
       if (error.code === "EVENT_NOT_FOUND") {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
     }
 
@@ -220,4 +224,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

@@ -7,18 +7,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createTaskSchema,
+  listTasksQuerySchema,
+} from "@/lib/validation";
+import {
   createTask,
   listTasks,
   searchTasks,
   getOverdueTasks,
   getTasksDueSoon,
   TasksServiceError,
-  type CreateTaskInput,
   type ListTasksOptions,
-  type Source,
   type TaskStatus,
   type TaskPriority,
-  type SortOrder,
 } from "@/services/context";
 
 // ─────────────────────────────────────────────────────────────
@@ -30,53 +33,29 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(request, createTaskSchema);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate required fields
-    if (!body.title || typeof body.title !== "string") {
-      return NextResponse.json(
-        { error: "Title is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreateTaskInput = {
-      title: body.title,
-      description: body.description,
-      parentId: body.parentId,
-      position: body.position,
-      status: body.status,
-      priority: body.priority,
-      dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-      startDate: body.startDate ? new Date(body.startDate) : undefined,
-      estimatedMinutes: body.estimatedMinutes,
-      notes: body.notes,
-      assignedToId: body.assignedToId,
-      source: body.source ?? "manual",
-      sourceId: body.sourceId,
-      metadata: body.metadata,
-      tags: body.tags,
+    // Convert date strings to Date objects
+    const input = {
+      ...validation.data,
+      dueDate: validation.data.dueDate
+        ? new Date(validation.data.dueDate)
+        : undefined,
+      startDate: validation.data.startDate
+        ? new Date(validation.data.startDate)
+        : undefined,
     };
 
-    const task = await createTask(
-      session.user.id,
-      input,
-      { userId: session.user.id }
-    );
+    const task = await createTask(session.user.id, input, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
@@ -105,39 +84,27 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(searchParams, listTasksQuerySchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as SortOrder;
-    const status = searchParams.get("status") as TaskStatus | undefined;
-    const priority = searchParams.get("priority") as TaskPriority | undefined;
-    const assignedToId = searchParams.get("assignedToId") || undefined;
-    const source = searchParams.get("source") as Source | undefined;
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean) || undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
-    const includeSubtasks = searchParams.get("includeSubtasks") === "true";
-
-    // Parent filter (null for top-level only)
-    const parentIdParam = searchParams.get("parentId");
-    const parentId = parentIdParam === "null" ? null : parentIdParam || undefined;
-
-    // Date filters
-    const dueBefore = searchParams.get("dueBefore")
-      ? new Date(searchParams.get("dueBefore")!)
-      : undefined;
-    const dueAfter = searchParams.get("dueAfter")
-      ? new Date(searchParams.get("dueAfter")!)
-      : undefined;
+    const {
+      limit,
+      cursor,
+      status,
+      priority,
+      parentId,
+      dueBefore,
+      dueAfter,
+      search,
+      includeDeleted,
+    } = validation.data;
 
     // Special filter: overdue tasks
     const overdue = searchParams.get("overdue") === "true";
@@ -161,8 +128,8 @@ export async function GET(request: NextRequest) {
     }
 
     // If search query provided, use search function
-    if (q) {
-      const results = await searchTasks(session.user.id, q, { limit });
+    if (search) {
+      const results = await searchTasks(session.user.id, search, { limit });
       return NextResponse.json({
         items: results,
         hasMore: false,
@@ -173,17 +140,11 @@ export async function GET(request: NextRequest) {
     const options: ListTasksOptions = {
       limit,
       cursor,
-      sortBy,
-      sortOrder,
-      status,
-      priority,
-      parentId,
-      assignedToId,
-      dueBefore,
-      dueAfter,
-      includeSubtasks,
-      source,
-      tags,
+      status: status as TaskStatus,
+      priority: priority as TaskPriority,
+      parentId: parentId === "null" ? null : parentId,
+      dueBefore: dueBefore ? new Date(dueBefore) : undefined,
+      dueAfter: dueAfter ? new Date(dueAfter) : undefined,
       includeDeleted,
     };
 
@@ -198,4 +159,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

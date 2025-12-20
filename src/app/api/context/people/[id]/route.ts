@@ -8,11 +8,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  validateParams,
+  validateObject,
+  updatePersonSchema,
+  idParamSchema,
+} from "@/lib/validation";
+import {
   getPersonById,
   updatePerson,
   deletePerson,
   restorePerson,
   PeopleServiceError,
+  type UpdatePersonInput,
 } from "@/services/context";
 
 interface RouteParams {
@@ -25,24 +32,27 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const person = await getPersonById(session.user.id, id);
+    const person = await getPersonById(
+      session.user.id,
+      paramValidation.data.id
+    );
 
     if (!person) {
-      return NextResponse.json(
-        { error: "Person not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Person not found" }, { status: 404 });
     }
 
     return NextResponse.json(person);
@@ -61,42 +71,46 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Parse and check for restore operation first
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     // Check if this is a restore operation
     if (body.restore === true) {
-      const person = await restorePerson(session.user.id, id, {
-        userId: session.user.id,
-      });
+      const person = await restorePerson(
+        session.user.id,
+        paramValidation.data.id,
+        { userId: session.user.id }
+      );
       return NextResponse.json(person);
     }
 
-    // Validate at least one field is being updated
-    const updateFields = [
-      "name", "email", "phone", "avatarUrl", "type", "importance",
-      "company", "title", "location", "timezone", "bio", "notes",
-      "preferences", "metadata", "tags"
-    ];
-    const hasUpdate = updateFields.some((field) => body[field] !== undefined);
+    // Validate update body
+    const validation = validateObject(body, updatePersonSchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
+    // Ensure at least one field is being updated
+    const hasUpdate = Object.keys(validation.data).length > 0;
     if (!hasUpdate) {
       return NextResponse.json(
         { error: "At least one field must be provided for update" },
@@ -106,24 +120,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const person = await updatePerson(
       session.user.id,
-      id,
-      {
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
-        avatarUrl: body.avatarUrl,
-        type: body.type,
-        importance: body.importance,
-        company: body.company,
-        title: body.title,
-        location: body.location,
-        timezone: body.timezone,
-        bio: body.bio,
-        notes: body.notes,
-        preferences: body.preferences,
-        metadata: body.metadata,
-        tags: body.tags,
-      },
+      paramValidation.data.id,
+      validation.data as UpdatePersonInput,
       { userId: session.user.id }
     );
 
@@ -157,18 +155,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+
+    // Validate params
+    const paramValidation = validateParams(resolvedParams, idParamSchema);
+    if (!paramValidation.success) {
+      return paramValidation.error;
+    }
 
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await deletePerson(session.user.id, id, { userId: session.user.id });
+    await deletePerson(session.user.id, paramValidation.data.id, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -189,4 +192,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createEventSchema,
+  listEventsQuerySchema,
+} from "@/lib/validation";
+import {
   createEvent,
   listEvents,
   searchEvents,
@@ -14,10 +20,8 @@ import {
   EventsServiceError,
   type CreateEventInput,
   type ListEventsOptions,
-  type Source,
   type EventType,
   type EventStatus,
-  type SortOrder,
 } from "@/services/context";
 
 // ─────────────────────────────────────────────────────────────
@@ -29,63 +33,29 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(request, createEventSchema);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate required fields
-    if (!body.title || typeof body.title !== "string") {
-      return NextResponse.json(
-        { error: "Title is required and must be a string" },
-        { status: 400 }
-      );
-    }
+    // Convert date strings to Date objects and cast types
+    const input = {
+      ...validation.data,
+      type: validation.data.type as EventType,
+      startsAt: new Date(validation.data.startsAt),
+      endsAt: validation.data.endsAt
+        ? new Date(validation.data.endsAt)
+        : undefined,
+      virtualUrl: validation.data.virtualUrl || undefined,
+    } as CreateEventInput;
 
-    if (!body.startsAt) {
-      return NextResponse.json(
-        { error: "startsAt is required" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreateEventInput = {
-      title: body.title,
-      description: body.description,
-      type: body.type,
-      startsAt: new Date(body.startsAt),
-      endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-      allDay: body.allDay,
-      timezone: body.timezone,
-      location: body.location,
-      placeId: body.placeId,
-      virtualUrl: body.virtualUrl,
-      status: body.status,
-      visibility: body.visibility,
-      notes: body.notes,
-      importance: body.importance,
-      source: body.source ?? "manual",
-      sourceId: body.sourceId,
-      metadata: body.metadata,
-      tags: body.tags,
-    };
-
-    const event = await createEvent(
-      session.user.id,
-      input,
-      { userId: session.user.id }
-    );
+    const event = await createEvent(session.user.id, input, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
@@ -114,40 +84,26 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(searchParams, listEventsQuerySchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
-    const sortBy = searchParams.get("sortBy") || "startsAt";
-    const sortOrder = (searchParams.get("sortOrder") || "asc") as SortOrder;
-    const type = searchParams.get("type") as EventType | undefined;
-    const status = searchParams.get("status") as EventStatus | undefined;
-    const placeId = searchParams.get("placeId") || undefined;
-    const source = searchParams.get("source") as Source | undefined;
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean) || undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
-
-    // Date filters
-    const startsAfter = searchParams.get("startsAfter")
-      ? new Date(searchParams.get("startsAfter")!)
-      : undefined;
-    const startsBefore = searchParams.get("startsBefore")
-      ? new Date(searchParams.get("startsBefore")!)
-      : undefined;
-    const endsAfter = searchParams.get("endsAfter")
-      ? new Date(searchParams.get("endsAfter")!)
-      : undefined;
-    const endsBefore = searchParams.get("endsBefore")
-      ? new Date(searchParams.get("endsBefore")!)
-      : undefined;
+    const {
+      limit,
+      cursor,
+      type,
+      status,
+      startsAfter,
+      startsBefore,
+      search,
+      includeDeleted,
+    } = validation.data;
 
     // Special filter: upcoming events
     const upcoming = searchParams.get("upcoming") === "true";
@@ -160,8 +116,8 @@ export async function GET(request: NextRequest) {
     }
 
     // If search query provided, use search function
-    if (q) {
-      const results = await searchEvents(session.user.id, q, { limit });
+    if (search) {
+      const results = await searchEvents(session.user.id, search, { limit });
       return NextResponse.json({
         items: results,
         hasMore: false,
@@ -172,17 +128,10 @@ export async function GET(request: NextRequest) {
     const options: ListEventsOptions = {
       limit,
       cursor,
-      sortBy,
-      sortOrder,
-      type,
-      status,
-      startsAfter,
-      startsBefore,
-      endsAfter,
-      endsBefore,
-      placeId,
-      source,
-      tags,
+      type: type as EventType,
+      status: status as EventStatus,
+      startsAfter: startsAfter ? new Date(startsAfter) : undefined,
+      startsBefore: startsBefore ? new Date(startsBefore) : undefined,
       includeDeleted,
     };
 
@@ -197,4 +146,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

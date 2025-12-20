@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { validateQuery, searchQuerySchema } from "@/lib/validation";
 import {
   searchContext,
   type EntityType,
@@ -45,28 +46,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
-
-    const q = searchParams.get("q");
-    if (!q || q.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Query parameter 'q' is required" },
-        { status: 400 }
-      );
+    const validation = validateQuery(searchParams, searchQuerySchema);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Parse limit (default 20, max 100)
-    const limit = Math.min(
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
-      100
-    );
+    const { q, types, limit, useSemanticSearch } = validation.data;
 
     // Parse entity types filter
-    const typesParam = searchParams.get("types");
     let entityTypes: EntityType[] = VALID_ENTITY_TYPES;
-    if (typesParam) {
-      entityTypes = typesParam
+    if (types) {
+      entityTypes = types
         .split(",")
         .filter((t) =>
           VALID_ENTITY_TYPES.includes(t as EntityType)
@@ -82,8 +74,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Parse semantic search options
-    const useSemanticSearch = searchParams.get("semantic") !== "false";
+    // Parse additional semantic search options
     const minSimilarity = parseFloat(
       searchParams.get("minSimilarity") || "0.5"
     );

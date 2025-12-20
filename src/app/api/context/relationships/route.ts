@@ -7,12 +7,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createRelationshipSchema,
+  listRelationshipsQuerySchema,
+} from "@/lib/validation";
+import {
   createRelationship,
   listRelationships,
   getRelationshipsFor,
   getRelatedEntities,
   RelationshipsServiceError,
-  type CreateRelationshipInput,
   type ListRelationshipsOptions,
   type EntityType,
 } from "@/services/context";
@@ -26,73 +31,21 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(
+      request,
+      createRelationshipSchema
+    );
+    if (!validation.success) {
+      return validation.error;
     }
-
-    // Validate required fields
-    if (!body.sourceType || typeof body.sourceType !== "string") {
-      return NextResponse.json(
-        { error: "sourceType is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.sourceId || typeof body.sourceId !== "string") {
-      return NextResponse.json(
-        { error: "sourceId is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.targetType || typeof body.targetType !== "string") {
-      return NextResponse.json(
-        { error: "targetType is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.targetId || typeof body.targetId !== "string") {
-      return NextResponse.json(
-        { error: "targetId is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.relationship || typeof body.relationship !== "string") {
-      return NextResponse.json(
-        { error: "relationship is required" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreateRelationshipInput = {
-      sourceType: body.sourceType,
-      sourceId: body.sourceId,
-      targetType: body.targetType,
-      targetId: body.targetId,
-      relationship: body.relationship,
-      strength: body.strength,
-      bidirectional: body.bidirectional,
-      notes: body.notes,
-      metadata: body.metadata,
-    };
 
     const relationship = await createRelationship(
       session.user.id,
-      input,
+      validation.data,
       { userId: session.user.id }
     );
 
@@ -124,28 +77,37 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(
+      searchParams,
+      listRelationshipsQuerySchema
+    );
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
+    const { limit, cursor, entityType, entityId, relationship } =
+      validation.data;
+
+    const includeDeleted = searchParams.get("includeDeleted") === "true";
+
+    // Additional query params not in base schema
     const sourceType = searchParams.get("sourceType") as EntityType | undefined;
     const sourceId = searchParams.get("sourceId") || undefined;
     const targetType = searchParams.get("targetType") as EntityType | undefined;
     const targetId = searchParams.get("targetId") || undefined;
-    const relationship = searchParams.get("relationship") || undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
 
     // Special query: get all relationships for a specific entity
-    const forEntityType = searchParams.get("forEntityType") as EntityType | undefined;
-    const forEntityId = searchParams.get("forEntityId") || undefined;
-    
+    const forEntityType =
+      entityType ||
+      (searchParams.get("forEntityType") as EntityType | undefined);
+    const forEntityId =
+      entityId || searchParams.get("forEntityId") || undefined;
+
     if (forEntityType && forEntityId) {
       const relationships = await getRelationshipsFor(
         session.user.id,
@@ -206,4 +168,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

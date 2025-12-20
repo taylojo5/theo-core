@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
+  parseAndValidateBody,
+  validateQuery,
+  createDeadlineSchema,
+  listDeadlinesQuerySchema,
+} from "@/lib/validation";
+import {
   createDeadline,
   listDeadlines,
   searchDeadlines,
@@ -14,12 +20,9 @@ import {
   getApproachingDeadlines,
   getDeadlinesByUrgency,
   DeadlinesServiceError,
-  type CreateDeadlineInput,
   type ListDeadlinesOptions,
-  type Source,
   type DeadlineType,
   type DeadlineStatus,
-  type SortOrder,
   type UrgencyLevel,
 } from "@/services/context";
 
@@ -32,60 +35,30 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await parseAndValidateBody(
+      request,
+      createDeadlineSchema
+    );
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate required fields
-    if (!body.title || typeof body.title !== "string") {
-      return NextResponse.json(
-        { error: "Title is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.dueAt) {
-      return NextResponse.json(
-        { error: "dueAt is required" },
-        { status: 400 }
-      );
-    }
-
-    // Build input
-    const input: CreateDeadlineInput = {
-      title: body.title,
-      description: body.description,
-      type: body.type,
-      dueAt: new Date(body.dueAt),
-      reminderAt: body.reminderAt ? new Date(body.reminderAt) : undefined,
-      status: body.status,
-      importance: body.importance,
-      taskId: body.taskId,
-      eventId: body.eventId,
-      notes: body.notes,
-      consequences: body.consequences,
-      source: body.source ?? "manual",
-      sourceId: body.sourceId,
-      metadata: body.metadata,
-      tags: body.tags,
+    // Convert date strings to Date objects
+    const input = {
+      ...validation.data,
+      dueAt: new Date(validation.data.dueAt),
+      reminderAt: validation.data.reminderAt
+        ? new Date(validation.data.reminderAt)
+        : undefined,
     };
 
-    const deadline = await createDeadline(
-      session.user.id,
-      input,
-      { userId: session.user.id }
-    );
+    const deadline = await createDeadline(session.user.id, input, {
+      userId: session.user.id,
+    });
 
     return NextResponse.json(deadline, { status: 201 });
   } catch (error) {
@@ -114,38 +87,26 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
+    const validation = validateQuery(searchParams, listDeadlinesQuerySchema);
+    if (!validation.success) {
+      return validation.error;
+    }
 
-    const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
-    const cursor = searchParams.get("cursor") || undefined;
-    const sortBy = searchParams.get("sortBy") || "dueAt";
-    const sortOrder = (searchParams.get("sortOrder") || "asc") as SortOrder;
-    const type = searchParams.get("type") as DeadlineType | undefined;
-    const status = searchParams.get("status") as DeadlineStatus | undefined;
-    const taskId = searchParams.get("taskId") || undefined;
-    const eventId = searchParams.get("eventId") || undefined;
-    const source = searchParams.get("source") as Source | undefined;
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean) || undefined;
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
-    const minImportance = searchParams.get("minImportance")
-      ? parseInt(searchParams.get("minImportance")!, 10)
-      : undefined;
-
-    // Date filters
-    const dueBefore = searchParams.get("dueBefore")
-      ? new Date(searchParams.get("dueBefore")!)
-      : undefined;
-    const dueAfter = searchParams.get("dueAfter")
-      ? new Date(searchParams.get("dueAfter")!)
-      : undefined;
+    const {
+      limit,
+      cursor,
+      status,
+      type,
+      dueBefore,
+      dueAfter,
+      search,
+      includeDeleted,
+    } = validation.data;
 
     // Special filter: overdue deadlines
     const overdue = searchParams.get("overdue") === "true";
@@ -161,7 +122,11 @@ export async function GET(request: NextRequest) {
     const approaching = searchParams.get("approaching") === "true";
     if (approaching) {
       const days = parseInt(searchParams.get("days") || "7", 10);
-      const results = await getApproachingDeadlines(session.user.id, days, limit);
+      const results = await getApproachingDeadlines(
+        session.user.id,
+        days,
+        limit
+      );
       return NextResponse.json({
         items: results,
         hasMore: results.length === limit,
@@ -171,7 +136,9 @@ export async function GET(request: NextRequest) {
     // Special filter: by urgency level
     const urgency = searchParams.get("urgency") as UrgencyLevel | undefined;
     if (urgency) {
-      const results = await getDeadlinesByUrgency(session.user.id, { minUrgency: urgency });
+      const results = await getDeadlinesByUrgency(session.user.id, {
+        minUrgency: urgency,
+      });
       return NextResponse.json({
         items: results.slice(0, limit),
         hasMore: results.length > limit,
@@ -179,8 +146,8 @@ export async function GET(request: NextRequest) {
     }
 
     // If search query provided, use search function
-    if (q) {
-      const results = await searchDeadlines(session.user.id, q, { limit });
+    if (search) {
+      const results = await searchDeadlines(session.user.id, search, { limit });
       return NextResponse.json({
         items: results,
         hasMore: false,
@@ -191,17 +158,10 @@ export async function GET(request: NextRequest) {
     const options: ListDeadlinesOptions = {
       limit,
       cursor,
-      sortBy,
-      sortOrder,
-      type,
-      status,
-      dueBefore,
-      dueAfter,
-      taskId,
-      eventId,
-      minImportance,
-      source,
-      tags,
+      type: type as DeadlineType,
+      status: status as DeadlineStatus,
+      dueBefore: dueBefore ? new Date(dueBefore) : undefined,
+      dueAfter: dueAfter ? new Date(dueAfter) : undefined,
       includeDeleted,
     };
 
@@ -216,4 +176,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
