@@ -5,13 +5,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  createMessage,
-  listMessages,
-  type MessageRole,
-} from "@/services/chat";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { createMessage, listMessages, type MessageRole } from "@/services/chat";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,16 +19,22 @@ interface RouteParams {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: conversationId } = await params;
+    // Apply rate limiting (chat limits - 20/min due to LLM cost)
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.chat);
 
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: conversationId } = await params;
 
     // Parse request body
     const body = await request.json();
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         toolCallId,
         metadata,
       },
-      { userId: session.user.id }
+      { userId }
     );
 
     // For user messages, generate an assistant response
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             note: "Replace with actual LLM response",
           },
         },
-        { userId: session.user.id }
+        { userId }
       );
     }
 
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         assistantMessage,
         conversation,
       },
-      { status: 201 }
+      { status: 201, headers }
     );
   } catch (error) {
     console.error("Error creating message:", error);
@@ -129,7 +131,11 @@ function generatePlaceholderResponse(userMessage: string): string {
   const lowered = userMessage.toLowerCase();
 
   // Simple pattern matching for demo purposes
-  if (lowered.includes("hello") || lowered.includes("hi ") || lowered === "hi") {
+  if (
+    lowered.includes("hello") ||
+    lowered.includes("hi ") ||
+    lowered === "hi"
+  ) {
     return "Hello! I'm Theo, your personal AI assistant. I can help you manage your schedule, remember important details about people and places, and keep track of your tasks. What can I help you with today?";
   }
 
@@ -151,16 +157,22 @@ function generatePlaceholderResponse(userMessage: string): string {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: conversationId } = await params;
+    // Apply rate limiting (standard API limits)
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.api);
 
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: conversationId } = await params;
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -178,10 +190,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         beforeId,
         afterId,
       },
-      { userId: session.user.id }
+      { userId }
     );
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("Error listing messages:", error);
 
@@ -198,4 +210,3 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

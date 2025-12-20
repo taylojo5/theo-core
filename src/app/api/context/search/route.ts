@@ -5,8 +5,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { validateQuery, searchQuerySchema } from "@/lib/validation";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   searchContext,
   type EntityType,
@@ -40,9 +40,19 @@ const VALID_ENTITY_TYPES: EntityType[] = [
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting (uses search limits - 30/min due to OpenAI cost)
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.search);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    // Check authentication
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -88,7 +98,7 @@ export async function GET(request: NextRequest) {
       : "text";
 
     // Perform unified search
-    const results = await searchContext(session.user.id, q, {
+    const results = await searchContext(userId, q, {
       entityTypes,
       limit,
       useSemanticSearch,
@@ -122,7 +132,7 @@ export async function GET(request: NextRequest) {
       results,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers });
   } catch (error) {
     console.error("Error in context search:", error);
     return NextResponse.json(

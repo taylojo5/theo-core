@@ -25,7 +25,8 @@
     "db:generate": "prisma generate",
     "docker:clean": "docker compose down -v --remove-orphans",
     "docker:logs": "docker compose logs -f",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"
@@ -38,6 +39,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ioredis": "^5.8.2",
     "lucide-react": "^0.562.0",
     "next": "16.1.0",
     "next-auth": "^5.0.0-beta.30",
