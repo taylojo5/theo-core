@@ -6,7 +6,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import {
-  checkRateLimit,
+  checkRateLimitAsync,
   RATE_LIMITS,
   type RateLimitConfig,
   type RateLimitResult,
@@ -31,7 +31,7 @@ export async function withRateLimit(
   const realIp = request.headers.get("x-real-ip");
   const key = userId || forwardedFor?.split(",")[0] || realIp || "anonymous";
 
-  const result = checkRateLimit(key, config);
+  const result = await checkRateLimitAsync(key, config);
 
   return { result, userId };
 }

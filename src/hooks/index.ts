@@ -1,12 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Shared Components
-// Re-export all shared UI components
+// Custom Hooks
+// Re-export all custom React hooks
 // ═══════════════════════════════════════════════════════════════════════════
 
-export {
-  ErrorBoundary,
-  ErrorFallback,
-  PageErrorFallback,
-} from "./error-boundary";
-
-export { ConnectionStatus } from "./connection-status";
+export { useEventSource } from "./use-event-source";
