@@ -151,3 +151,51 @@ export {
   hasContactsAccess,
   getIntegrationStatus,
 } from "@/lib/auth/scopes";
+
+// ─────────────────────────────────────────────────────────────
+// Database Repository
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Repositories
+  emailRepository,
+  labelRepository,
+  syncStateRepository,
+} from "./repository";
+
+export type {
+  // Repository types
+  CreateEmailInput,
+  UpsertEmailInput,
+  UpdateEmailInput,
+  EmailSearchQuery,
+  EmailSearchResult,
+  CreateLabelInput,
+  SyncStateUpdate,
+} from "./repository";
+
+// ─────────────────────────────────────────────────────────────
+// Mappers
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Email mappers
+  mapGmailMessageToEmail,
+  mapGmailMessagesToEmails,
+
+  // Label mappers
+  mapGmailLabelToEmailLabel,
+  mapGmailLabelsToEmailLabels,
+
+  // Contact mappers
+  mapContactToPerson,
+  mapContactsToPersons,
+  personInputToPrisma,
+
+  // Utility mappers
+  extractEmailParticipants,
+  prepareEmailForEmbedding,
+  prepareEmailEmbeddingMetadata,
+} from "./mappers";
+
+export type { CreatePersonFromContactInput } from "./mappers";

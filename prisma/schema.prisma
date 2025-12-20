@@ -42,6 +42,11 @@ model User {
   connectedAccounts ConnectedAccount[]
   auditLogs         AuditLog[]
   embeddings        Embedding[]
+
+  // Gmail integration
+  emails         Email[]
+  emailLabels    EmailLabel[]
+  gmailSyncState GmailSyncState?
 }
 
 model Account {
@@ -548,4 +553,124 @@ model Embedding {
   @@unique([userId, entityType, entityId, chunkIndex])
   @@index([userId])
   @@index([entityType, entityId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Emails
+// ─────────────────────────────────────────────────────────────
+
+model Email {
+  id       String @id @default(cuid())
+  userId   String
+  gmailId  String @unique
+  threadId String
+
+  // History tracking for sync
+  historyId String?
+
+  // Headers
+  subject   String?
+  fromEmail String
+  fromName  String?
+  toEmails  String[]
+  ccEmails  String[]
+  bccEmails String[]
+  replyTo   String?
+
+  // Content
+  snippet  String? @db.Text
+  bodyText String? @db.Text
+  bodyHtml String? @db.Text
+
+  // Metadata
+  labelIds       String[]
+  isRead         Boolean @default(false)
+  isStarred      Boolean @default(false)
+  isImportant    Boolean @default(false)
+  isDraft        Boolean @default(false)
+  hasAttachments Boolean @default(false)
+
+  // Attachment info (stored as JSON)
+  attachments Json @default("[]")
+
+  // Timestamps
+  internalDate DateTime // Gmail's internal date
+  receivedAt   DateTime // When the email was received
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient queries
+  @@index([userId, internalDate(sort: Desc)])
+  @@index([userId, threadId])
+  @@index([userId, fromEmail])
+  @@index([userId, isRead])
+  @@index([gmailId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Email Labels
+// ─────────────────────────────────────────────────────────────
+
+model EmailLabel {
+  id           String @id @default(cuid())
+  userId       String
+  gmailId      String
+  name         String
+  type         String // system, user
+  color        Json?  // { textColor, backgroundColor }
+  messageCount Int    @default(0)
+  unreadCount  Int    @default(0)
+
+  // Visibility settings
+  messageListVisibility String? // show, hide
+  labelListVisibility   String? // labelShow, labelShowIfUnread, labelHide
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gmailId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Sync State
+// ─────────────────────────────────────────────────────────────
+
+model GmailSyncState {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Sync tracking
+  historyId      String? // Gmail history ID for incremental sync
+  lastSyncAt     DateTime?
+  lastFullSyncAt DateTime?
+
+  // Status
+  syncStatus String  @default("idle") // idle, syncing, error
+  syncError  String?
+
+  // Statistics
+  emailCount   Int @default(0)
+  labelCount   Int @default(0)
+  contactCount Int @default(0)
+
+  // Sync configuration
+  syncLabels       String[] @default([]) // Labels to sync (empty = all)
+  excludeLabels    String[] @default([]) // Labels to exclude
+  maxEmailAgeDays  Int?     // Only sync emails from last N days
+  syncAttachments  Boolean  @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
