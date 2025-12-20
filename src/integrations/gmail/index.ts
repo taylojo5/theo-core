@@ -1,9 +1,148 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Integration
-// Gmail API client and utilities for email operations
+// Complete Gmail API client with rate limiting, error handling, and utilities
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Re-export centralized scope definitions from auth module
+// ─────────────────────────────────────────────────────────────
+// Client
+// ─────────────────────────────────────────────────────────────
+
+export { GmailClient, createGmailClient } from "./client";
+export type { GmailClientConfig } from "./client";
+
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+
+export type {
+  // Message types
+  GmailMessage,
+  GmailMessagePayload,
+  GmailMessagePart,
+  GmailHeader,
+  ParsedGmailMessage,
+  EmailAddress,
+  AttachmentInfo,
+
+  // Thread types
+  GmailThread,
+  ParsedGmailThread,
+
+  // Label types
+  GmailLabel,
+  SystemLabelId,
+
+  // Draft types
+  GmailDraft,
+
+  // History types
+  GmailHistory,
+  GmailHistoryList,
+
+  // Contact types
+  GoogleContact,
+  ParsedContact,
+  GoogleContactList,
+
+  // Client options
+  ListMessagesOptions,
+  ListThreadsOptions,
+  GetMessageOptions,
+  ListContactsOptions,
+  ListHistoryOptions,
+  MessageFormat,
+
+  // Response types
+  GmailMessageList,
+  GmailThreadList,
+
+  // Action types
+  SendMessageParams,
+  CreateDraftParams,
+  UpdateDraftParams,
+
+  // Profile types
+  GmailProfile,
+
+  // Rate limit types
+  GmailOperation,
+} from "./types";
+
+export { SYSTEM_LABELS, GMAIL_QUOTA_UNITS } from "./types";
+
+// ─────────────────────────────────────────────────────────────
+// Errors
+// ─────────────────────────────────────────────────────────────
+
+export {
+  GmailError,
+  GmailErrorCode,
+  parseGoogleApiError,
+  isGmailError,
+  isRetryableError,
+  needsTokenRefresh,
+  needsScopeUpgrade,
+} from "./errors";
+
+// ─────────────────────────────────────────────────────────────
+// Rate Limiting
+// ─────────────────────────────────────────────────────────────
+
+export {
+  GmailRateLimiter,
+  createRateLimiter,
+  calculateBatchQuota,
+  estimateRemainingOperations,
+  GMAIL_RATE_LIMITS,
+} from "./rate-limiter";
+
+export type { RateLimitCheckResult } from "./rate-limiter";
+
+// ─────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Message parsing
+  parseGmailMessage,
+  parseGmailThread,
+  getHeader,
+
+  // Email address parsing
+  parseEmailAddress,
+  parseEmailAddressList,
+  formatEmailAddress,
+
+  // Body extraction
+  extractBody,
+  extractAttachments,
+
+  // Contact parsing
+  parseGoogleContact,
+
+  // Message composition
+  buildRawMessage,
+
+  // Base64 encoding
+  decodeBase64Url,
+  encodeBase64Url,
+
+  // Label utilities
+  isSystemLabel,
+  getLabelDisplayName,
+
+  // Query building
+  buildSearchQuery,
+
+  // HTML utilities
+  stripHtml,
+  truncateText,
+} from "./utils";
+
+// ─────────────────────────────────────────────────────────────
+// Auth Scope Utilities (re-exported from auth module)
+// ─────────────────────────────────────────────────────────────
+
 export {
   GMAIL_SCOPES,
   ALL_GMAIL_SCOPES,
@@ -12,63 +151,3 @@ export {
   hasContactsAccess,
   getIntegrationStatus,
 } from "@/lib/auth/scopes";
-
-export interface GmailMessage {
-  id: string;
-  threadId: string;
-  labelIds: string[];
-  snippet: string;
-  payload: {
-    headers: Array<{ name: string; value: string }>;
-    body?: { data?: string };
-    parts?: Array<{
-      mimeType: string;
-      body?: { data?: string };
-    }>;
-  };
-  internalDate: string;
-}
-
-export interface SendMessageParams {
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
-  subject: string;
-  body: string;
-  threadId?: string;
-}
-
-/**
- * Gmail client - to be implemented
- */
-export class GmailClient {
-  constructor(private accessToken: string) {}
-
-  async listMessages(_options?: {
-    query?: string;
-    maxResults?: number;
-    pageToken?: string;
-  }): Promise<{ messages: GmailMessage[]; nextPageToken?: string }> {
-    // TODO: Implement with Gmail API
-    throw new Error("Not implemented");
-  }
-
-  async getMessage(_id: string): Promise<GmailMessage> {
-    // TODO: Implement with Gmail API
-    throw new Error("Not implemented");
-  }
-
-  async sendMessage(_params: SendMessageParams): Promise<{ id: string }> {
-    // TODO: Implement with Gmail API
-    throw new Error("Not implemented");
-  }
-
-  async createDraft(
-    _params: SendMessageParams
-  ): Promise<{ id: string; message: GmailMessage }> {
-    // TODO: Implement with Gmail API
-    throw new Error("Not implemented");
-  }
-}
-
-export default GmailClient;

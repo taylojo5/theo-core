@@ -1,6 +1,6 @@
 # Gmail Integration Service
 
-> **Status**: Phase 3 - Chunk 1 Complete  
+> **Status**: Phase 3 - Chunk 2 Complete  
 > **Last Updated**: December 2024  
 > **Related**: [AUTH_SECURITY.md](../AUTH_SECURITY.md), [INTEGRATIONS_GUIDE.md](../INTEGRATIONS_GUIDE.md)
 
@@ -22,7 +22,7 @@ The Gmail integration enables Theo to:
 | Chunk | Description               | Status      |
 | ----- | ------------------------- | ----------- |
 | 1     | Gmail OAuth & Scopes      | ✅ Complete |
-| 2     | Gmail Client Library      | 🔲 Pending  |
+| 2     | Gmail Client Library      | ✅ Complete |
 | 3     | Email Database Models     | 🔲 Pending  |
 | 4     | Contact Sync Pipeline     | 🔲 Pending  |
 | 5     | Email Sync Worker         | 🔲 Pending  |
@@ -54,6 +54,7 @@ The Gmail integration enables Theo to:
 │  │                   Gmail Client                            │   │
 │  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐  │   │
 │  │  │  Messages   │  │   Labels     │  │   Contacts     │  │   │
+│  │  │  Threads    │  │   History    │  │   Drafts       │  │   │
 │  │  └─────────────┘  └──────────────┘  └────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                           │                                      │
@@ -137,14 +138,327 @@ const authUrl = generateUpgradeUrl(
 );
 ```
 
-### Files
+---
+
+## Gmail Client Library (Chunk 2)
+
+The Gmail client provides a type-safe wrapper around the Google Gmail and People APIs with built-in rate limiting, retry logic, and error handling.
+
+### Installation
+
+The client uses the `googleapis` package:
+
+```bash
+npm install googleapis
+```
+
+### Basic Usage
+
+```typescript
+import { GmailClient, createGmailClient } from "@/integrations/gmail";
+
+// Create a client
+const client = createGmailClient(accessToken, userId);
+
+// Or with custom config
+const client = new GmailClient({
+  accessToken,
+  userId,
+  enableRateLimiting: true,
+  maxRetries: 3,
+  timeoutMs: 30000,
+});
+```
+
+### Message Operations
+
+```typescript
+// List messages
+const { messages, nextPageToken } = await client.listMessages({
+  query: "from:sender@example.com",
+  maxResults: 50,
+  labelIds: ["INBOX"],
+});
+
+// Get message with full details
+const message = await client.getMessage(messageId, { format: "full" });
+
+// List with full message details (fetches each message)
+const { messages } = await client.listMessagesFull({ maxResults: 10 });
+
+// Modify message labels
+await client.modifyMessage(messageId, {
+  addLabelIds: ["STARRED"],
+  removeLabelIds: ["UNREAD"],
+});
+
+// Convenience methods
+await client.markAsRead(messageId);
+await client.markAsUnread(messageId);
+await client.starMessage(messageId);
+await client.unstarMessage(messageId);
+await client.trashMessage(messageId);
+await client.untrashMessage(messageId);
+```
+
+### Thread Operations
+
+```typescript
+// List threads
+const { threads, nextPageToken } = await client.listThreads({
+  query: "subject:meeting",
+  maxResults: 20,
+});
+
+// Get thread with all messages
+const thread = await client.getThread(threadId);
+console.log(thread.messages); // Array of ParsedGmailMessage
+console.log(thread.participants); // Array of EmailAddress
+console.log(thread.latestDate);
+
+// Trash/untrash thread
+await client.trashThread(threadId);
+await client.untrashThread(threadId);
+```
+
+### Label Operations
+
+```typescript
+// List all labels
+const labels = await client.listLabels();
+
+// Get specific label
+const label = await client.getLabel("INBOX");
+console.log(label.messagesTotal);
+console.log(label.messagesUnread);
+
+// Create label
+const newLabel = await client.createLabel("Important Projects", {
+  labelListVisibility: "labelShow",
+  backgroundColor: "#4285f4",
+  textColor: "#ffffff",
+});
+
+// Delete label
+await client.deleteLabel(labelId);
+```
+
+### Contact Operations
+
+```typescript
+// List contacts
+const { contacts, nextPageToken } = await client.listContacts({
+  pageSize: 100,
+  sortOrder: "LAST_MODIFIED_DESCENDING",
+});
+
+// List contacts with parsed format
+const { contacts } = await client.listContactsParsed();
+contacts.forEach((c) => {
+  console.log(c.name, c.email, c.company);
+});
+
+// Get specific contact
+const contact = await client.getContact("people/c12345");
+
+// Search contacts
+const results = await client.searchContacts("John", 10);
+```
+
+### History (Sync) Operations
+
+```typescript
+// Get current history ID
+const historyId = await client.getHistoryId();
+
+// List changes since a history ID
+const history = await client.listHistory({
+  startHistoryId: previousHistoryId,
+  historyTypes: ["messageAdded", "messageDeleted"],
+});
+
+history.history?.forEach((h) => {
+  h.messagesAdded?.forEach((m) => console.log("Added:", m.message.id));
+  h.messagesDeleted?.forEach((m) => console.log("Deleted:", m.message.id));
+});
+```
+
+### Send & Draft Operations
+
+```typescript
+// Send an email
+const sent = await client.sendMessage({
+  to: ["recipient@example.com"],
+  cc: ["cc@example.com"],
+  subject: "Hello from Theo",
+  body: "This is the email body",
+  bodyHtml: "<p>This is the <strong>HTML</strong> body</p>",
+});
+
+// Create a draft
+const draft = await client.createDraft({
+  to: ["recipient@example.com"],
+  subject: "Draft Subject",
+  body: "Draft content",
+});
+
+// Update a draft
+await client.updateDraft(draft.id, {
+  to: ["recipient@example.com"],
+  subject: "Updated Subject",
+  body: "Updated content",
+});
+
+// Send a draft
+const sentMessage = await client.sendDraft(draft.id);
+
+// List drafts
+const { drafts } = await client.listDrafts();
+
+// Get draft details
+const draftDetails = await client.getDraft(draftId);
+
+// Delete draft
+await client.deleteDraft(draftId);
+```
+
+### Profile
+
+```typescript
+const profile = await client.getProfile();
+console.log(profile.emailAddress);
+console.log(profile.messagesTotal);
+console.log(profile.historyId);
+```
+
+### Error Handling
+
+```typescript
+import {
+  GmailError,
+  GmailErrorCode,
+  isGmailError,
+  isRetryableError,
+  needsTokenRefresh,
+  needsScopeUpgrade,
+} from "@/integrations/gmail";
+
+try {
+  await client.getMessage(messageId);
+} catch (error) {
+  if (isGmailError(error)) {
+    switch (error.code) {
+      case GmailErrorCode.UNAUTHORIZED:
+        // Token expired, need refresh
+        break;
+      case GmailErrorCode.RATE_LIMITED:
+        // Wait and retry
+        console.log(`Retry after ${error.retryAfterMs}ms`);
+        break;
+      case GmailErrorCode.NOT_FOUND:
+        // Message doesn't exist
+        break;
+      case GmailErrorCode.INSUFFICIENT_PERMISSION:
+        // Need scope upgrade
+        break;
+    }
+  }
+}
+```
+
+### Rate Limiting
+
+The client includes built-in rate limiting that respects Gmail API quotas:
+
+```typescript
+import {
+  GmailRateLimiter,
+  createRateLimiter,
+  GMAIL_RATE_LIMITS,
+  GMAIL_QUOTA_UNITS,
+} from "@/integrations/gmail";
+
+// Create a rate limiter
+const limiter = createRateLimiter(userId);
+
+// Check if operation is allowed
+const result = await limiter.check("messages.get");
+if (result.allowed) {
+  // Proceed with operation
+} else {
+  console.log(`Wait ${result.waitMs}ms`);
+}
+
+// Wait for quota
+await limiter.waitForQuota("messages.send");
+
+// Get current status
+const status = await limiter.getStatus();
+console.log(status.perSecond.remaining);
+console.log(status.perMinute.remaining);
+```
+
+### Utility Functions
+
+```typescript
+import {
+  parseGmailMessage,
+  parseGmailThread,
+  parseEmailAddress,
+  parseEmailAddressList,
+  formatEmailAddress,
+  extractBody,
+  extractAttachments,
+  parseGoogleContact,
+  buildRawMessage,
+  isSystemLabel,
+  getLabelDisplayName,
+  buildSearchQuery,
+  stripHtml,
+  truncateText,
+} from "@/integrations/gmail";
+
+// Parse email addresses
+const addr = parseEmailAddress("John Doe <john@example.com>");
+// { name: "John Doe", email: "john@example.com" }
+
+// Parse list of addresses
+const addrs = parseEmailAddressList("John <j@ex.com>, Jane <jane@ex.com>");
+
+// Format back to string
+const str = formatEmailAddress(addr);
+// "John Doe <john@example.com>"
+
+// Build a search query
+const query = buildSearchQuery({
+  from: "sender@example.com",
+  hasAttachment: true,
+  after: new Date("2024-01-01"),
+  isUnread: true,
+});
+// "from:sender@example.com has:attachment after:2024/01/01 is:unread"
+
+// Check system labels
+isSystemLabel("INBOX"); // true
+isSystemLabel("my-label"); // false
+
+// Get display name
+getLabelDisplayName("CATEGORY_SOCIAL"); // "Social"
+
+// Strip HTML from email body
+const plainText = stripHtml(htmlBody);
+```
+
+### File Structure
 
 ```
-src/lib/auth/
-├── index.ts           # NextAuth config with configurable scopes
-├── scopes.ts          # Scope definitions and utilities
-├── scope-upgrade.ts   # Scope checking and upgrade flow
-└── token-refresh.ts   # Token refresh utilities
+src/integrations/gmail/
+├── index.ts           # Public API exports
+├── client.ts          # GmailClient class
+├── types.ts           # TypeScript type definitions
+├── errors.ts          # Error types and parsing
+├── rate-limiter.ts    # Gmail-specific rate limiting
+└── utils.ts           # Parsing and utility functions
 ```
 
 ---
@@ -330,10 +644,23 @@ await logAuditEntry({
 
 Gmail API has quotas that must be respected:
 
-- 250 quota units per user per second
-- 1,000,000,000 quota units per day
+| Limit Type              | Value                  |
+| ----------------------- | ---------------------- |
+| Per-user per second     | 250 quota units        |
+| Daily quota (Workspace) | 1,000,000,000 units    |
+| Client rate limiting    | 100 units/sec, 15k/min |
 
-The Gmail client (Chunk 2) will implement rate limiting to stay within these limits.
+Different operations consume different quota units:
+
+| Operation     | Quota Units |
+| ------------- | ----------- |
+| messages.list | 5           |
+| messages.get  | 5           |
+| messages.send | 100         |
+| threads.list  | 10          |
+| threads.get   | 10          |
+| drafts.create | 10          |
+| drafts.send   | 100         |
 
 ---
 
@@ -356,22 +683,38 @@ npm test -- tests/lib/auth/scope-upgrade.test.ts
 6. Verify connection: `GET /api/integrations/status`
 7. Disconnect: `DELETE /api/integrations/gmail/disconnect`
 
+### Testing the Client
+
+```typescript
+import { GmailClient, createGmailClient } from "@/integrations/gmail";
+
+// Create client with test token
+const client = createGmailClient(testAccessToken, "test-user-id");
+
+// Test message listing
+const { messages } = await client.listMessages({ maxResults: 5 });
+console.log(`Found ${messages.length} messages`);
+
+// Test profile
+const profile = await client.getProfile();
+console.log(`Logged in as ${profile.emailAddress}`);
+```
+
 ---
 
 ## Next Steps
-
-### Chunk 2: Gmail Client Library
-
-- Install `googleapis` package
-- Create `GmailClient` class
-- Implement message listing and fetching
-- Add rate limiting and error handling
 
 ### Chunk 3: Email Database Models
 
 - Add Email, EmailLabel, GmailSyncState models to Prisma
 - Create migrations
 - Implement repository pattern for data access
+
+### Chunk 4: Contact Sync Pipeline
+
+- Create contact sync worker job
+- Map Google Contacts to Person entities
+- Implement deduplication logic
 
 ---
 
