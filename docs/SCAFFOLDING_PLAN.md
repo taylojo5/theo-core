@@ -46,7 +46,9 @@ theo-core/
 │   │   └── utils/            # Utilities
 │   ├── integrations/          # External integrations
 │   │   ├── gmail/
+│   │   ├── calendar/
 │   │   ├── slack/
+│   │   ├── kroger/
 │   │   └── types.ts
 │   ├── services/              # Business logic
 │   │   ├── context/          # Context management
@@ -101,6 +103,10 @@ GOOGLE_CLIENT_SECRET=""
 # Slack OAuth
 SLACK_CLIENT_ID=""
 SLACK_CLIENT_SECRET=""
+
+# Kroger OAuth
+KROGER_CLIENT_ID=""
+KROGER_CLIENT_SECRET=""
 
 # AI
 OPENAI_API_KEY=""
@@ -348,6 +354,8 @@ export async function searchSimilar(
 
 ## Phase 3: Gmail Integration (Weeks 8-10)
 
+> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
+
 ### Goals
 
 - Google OAuth with Gmail scopes
@@ -410,6 +418,8 @@ export class GmailSyncWorker {
 ---
 
 ## Phase 4: Google Calendar Integration (Weeks 11-13)
+
+> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
 
 ### Goals
 
@@ -510,8 +520,12 @@ export const tools = {
   query_context: queryContextTool,
   create_task: createTaskTool,
   send_email: sendEmailTool,
-  send_slack: sendSlackTool,
   search_emails: searchEmailsTool,
+  create_calendar_event: createCalendarEventTool,
+  list_calendar_events: listCalendarEventsTool,
+  send_slack: sendSlackTool,
+  search_products: searchProductsTool,
+  add_to_cart: addToCartTool,
 };
 ```
 
@@ -536,7 +550,133 @@ export class Planner {
 
 ---
 
-## Phase 6: Polish & Launch (Weeks 18-20)
+## Phase 6: Slack Integration (Weeks 18-20)
+
+> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
+
+### Goals
+
+- Slack OAuth
+- Workspace user import
+- Channel message sync
+- Message send action
+
+### 6.1 Slack OAuth
+
+```typescript
+// src/integrations/slack/auth.ts
+export async function getSlackAuthUrl(userId: string): Promise<string>;
+export async function handleSlackCallback(
+  code: string,
+  userId: string
+): Promise<void>;
+```
+
+### 6.2 Slack Client
+
+```typescript
+// src/integrations/slack/client.ts
+export class SlackClient {
+  constructor(accessToken: string);
+
+  async listUsers(): Promise<SlackUser[]>;
+  async listChannels(): Promise<SlackChannel[]>;
+  async getChannelHistory(
+    channelId: string,
+    options?: HistoryOptions
+  ): Promise<SlackMessage[]>;
+  async sendMessage(params: SendMessageParams): Promise<void>;
+}
+```
+
+### 6.3 Real-time Events (Optional)
+
+Socket Mode for real-time message events.
+
+### Deliverables
+
+- [ ] Slack OAuth working
+- [ ] User import working
+- [ ] Channel list/read working
+- [ ] Message history sync
+- [ ] Message send working
+- [ ] People created from Slack users
+
+---
+
+## Phase 7: Kroger Integration (Weeks 21-23)
+
+> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
+
+### Goals
+
+- Kroger OAuth authentication
+- Product search and browsing
+- Shopping list management
+- Order history access
+
+### 7.1 Kroger OAuth
+
+```typescript
+// src/integrations/kroger/auth.ts
+export async function getKrogerAuthUrl(userId: string): Promise<string>;
+export async function handleKrogerCallback(
+  code: string,
+  userId: string
+): Promise<void>;
+export async function refreshKrogerToken(userId: string): Promise<void>;
+```
+
+### 7.2 Kroger Client
+
+```typescript
+// src/integrations/kroger/client.ts
+export class KrogerClient {
+  constructor(accessToken: string);
+
+  async searchProducts(
+    query: string,
+    options?: SearchOptions
+  ): Promise<KrogerProduct[]>;
+  async getProduct(productId: string): Promise<KrogerProduct>;
+  async getLocations(
+    zipCode: string,
+    options?: LocationOptions
+  ): Promise<KrogerLocation[]>;
+  async getCart(): Promise<CartItem[]>;
+  async addToCart(productId: string, quantity: number): Promise<void>;
+  async removeFromCart(productId: string): Promise<void>;
+}
+```
+
+### 7.3 Shopping List Integration
+
+```typescript
+// src/integrations/kroger/shopping.ts
+export class KrogerShoppingService {
+  async syncShoppingList(userId: string): Promise<SyncResult>;
+  async createShoppingListFromTasks(
+    userId: string,
+    taskIds: string[]
+  ): Promise<ShoppingList>;
+  async findProductsForIngredients(
+    ingredients: string[]
+  ): Promise<ProductMatch[]>;
+}
+```
+
+### Deliverables
+
+- [ ] Kroger OAuth working
+- [ ] Product search working
+- [ ] Location finder working
+- [ ] Cart management working
+- [ ] Shopping lists synced to context
+- [ ] Agent can search products and manage cart
+
+---
+
+## Phase 8: Polish & Launch (Weeks 24-26)
 
 ### Goals
 
@@ -546,21 +686,21 @@ export class Planner {
 - Documentation
 - Initial deployment
 
-### 6.1 UI Improvements
+### 8.1 UI Improvements
 
 - Loading states
 - Error boundaries
 - Responsive design
 - Accessibility
 
-### 6.2 Reliability
+### 8.2 Reliability
 
 - Error handling
 - Retry logic
 - Rate limiting
 - Health checks
 
-### 6.3 Deployment
+### 8.3 Deployment
 
 - Vercel/Railway setup
 - Database hosting
@@ -580,15 +720,17 @@ export class Planner {
 
 ## Success Criteria
 
-### MVP (End of Phase 6)
+### MVP (End of Phase 8)
 
 - [ ] User can sign up and authenticate
 - [ ] User can chat with Theo
 - [ ] Gmail connected and syncing
+- [ ] Google Calendar connected and syncing
 - [ ] Slack connected and syncing
+- [ ] Kroger connected for shopping
 - [ ] Context entities created from integrations
 - [ ] Agent can answer questions about context
-- [ ] Agent can perform simple actions (draft email, create task)
+- [ ] Agent can perform simple actions (draft email, create task, manage shopping)
 - [ ] Full audit trail visible to user
 
 ---
