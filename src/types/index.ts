@@ -15,14 +15,11 @@ export type EntityType =
   | "relationship"
   | "message"
   | "email"
-  | "conversation";
+  | "conversation"
+  | "gmail_connection"
+  | "integration";
 
-export type SourceType =
-  | "manual"
-  | "gmail"
-  | "slack"
-  | "calendar"
-  | "import";
+export type SourceType = "manual" | "gmail" | "slack" | "calendar" | "import";
 
 // ─────────────────────────────────────────────────────────────
 // Agent Types
@@ -58,11 +55,7 @@ export interface ToolResult {
 // Audit Types
 // ─────────────────────────────────────────────────────────────
 
-export type ActionCategory =
-  | "context"
-  | "integration"
-  | "agent"
-  | "user";
+export type ActionCategory = "context" | "integration" | "agent" | "user";
 
 export type ActionType =
   | "query"
@@ -72,11 +65,7 @@ export type ActionType =
   | "send"
   | "analyze";
 
-export type AuditStatus =
-  | "pending"
-  | "completed"
-  | "failed"
-  | "rolled_back";
+export type AuditStatus = "pending" | "completed" | "failed" | "rolled_back";
 
 export interface AuditEntry {
   userId: string;
@@ -132,4 +121,3 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   hasMore: boolean;
 }
-

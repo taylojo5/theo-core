@@ -136,13 +136,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
 ### OAuth Scopes
 
+Theo uses a tiered scope system for OAuth:
+
+#### Base Scopes (Always Requested)
+
 | Scope     | Purpose                       |
 | --------- | ----------------------------- |
 | `openid`  | OpenID Connect authentication |
 | `email`   | User email address            |
 | `profile` | User name and profile picture |
 
-**Note:** Additional scopes (Gmail, Calendar) are requested when connecting integrations, not during initial auth.
+#### Gmail Integration Scopes
+
+These are requested when the user connects Gmail integration:
+
+| Scope                                               | Purpose              |
+| --------------------------------------------------- | -------------------- |
+| `https://www.googleapis.com/auth/gmail.readonly`    | Read email messages  |
+| `https://www.googleapis.com/auth/gmail.send`        | Send emails          |
+| `https://www.googleapis.com/auth/gmail.labels`      | Manage email labels  |
+| `https://www.googleapis.com/auth/contacts.readonly` | Read user's contacts |
+
+#### Scope Configuration
+
+The initial OAuth scopes can be configured via environment variable:
+
+```env
+# Options: "basic", "gmail-readonly", "gmail-full"
+GMAIL_OAUTH_SCOPES=basic  # Default: only basic auth scopes
+```
+
+| Setting          | Scopes Included                                |
+| ---------------- | ---------------------------------------------- |
+| `basic`          | openid, email, profile                         |
+| `gmail-readonly` | basic + gmail.readonly, gmail.labels, contacts |
+| `gmail-full`     | gmail-readonly + gmail.send                    |
+
+**Note:** Users can upgrade their scopes later via the scope upgrade flow without re-authenticating completely.
 
 ---
 
@@ -650,9 +680,149 @@ describe("Token Refresh", () => {
 
 ---
 
+## Scope Upgrade Flow
+
+Theo supports upgrading OAuth scopes without requiring complete re-authentication. This allows users to start with basic auth and later enable Gmail integration.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SCOPE UPGRADE FLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. User clicks "Connect Gmail" in settings                 │
+│     │                                                        │
+│     ▼                                                        │
+│  2. POST /api/integrations/gmail/connect                    │
+│     │                                                        │
+│     ▼                                                        │
+│  3. Check current scopes vs required scopes                 │
+│     │                                                        │
+│     ├─ All scopes present ──▶ Return "already connected"    │
+│     │                                                        │
+│     ▼                                                        │
+│  4. Generate OAuth URL with include_granted_scopes=true     │
+│     │                                                        │
+│     ▼                                                        │
+│  5. Redirect user to Google consent screen                  │
+│     │                                                        │
+│     ▼                                                        │
+│  6. Google callback updates Account with merged scopes      │
+│     │                                                        │
+│     ▼                                                        │
+│  7. User redirected to Gmail settings with success          │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Scope Utilities
+
+```typescript
+import {
+  checkGmailScopes,
+  generateUpgradeUrl,
+  isGmailConnected,
+} from "@/lib/auth/scope-upgrade";
+
+// Check if user has Gmail scopes
+const { hasRequiredScopes, missingScopes } = await checkGmailScopes(userId);
+
+// Generate OAuth URL for scope upgrade
+const authUrl = generateUpgradeUrl(ALL_GMAIL_SCOPES, state);
+
+// Quick check if Gmail is connected
+const connected = await isGmailConnected(userId);
+```
+
+---
+
+## Integration Status API
+
+### Check Integration Status
+
+```
+GET /api/integrations/status
+```
+
+Response:
+
+```json
+{
+  "authenticated": true,
+  "google": {
+    "connected": true,
+    "email": "user@example.com",
+    "tokenHealth": {
+      "hasRefreshToken": true,
+      "isExpired": false,
+      "expiresIn": 3400,
+      "expiresInHuman": "56m"
+    }
+  },
+  "gmail": {
+    "connected": true,
+    "canRead": true,
+    "canSend": true,
+    "canManageLabels": true,
+    "syncStatus": "idle",
+    "lastSyncAt": "2024-12-20T10:30:00Z"
+  },
+  "contacts": {
+    "connected": true,
+    "contactCount": 142
+  },
+  "missingScopes": [],
+  "upgradeRequired": false
+}
+```
+
+### Connect Gmail
+
+```
+POST /api/integrations/gmail/connect
+```
+
+Request body (optional):
+
+```json
+{
+  "force": false,
+  "redirectUrl": "/settings/integrations/gmail"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?...",
+  "message": "Authorization required to connect Gmail"
+}
+```
+
+### Disconnect Gmail
+
+```
+DELETE /api/integrations/gmail/disconnect
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Gmail has been disconnected successfully"
+}
+```
+
+---
+
 ## Related Documentation
 
 - [RATE_LIMITING.md](./RATE_LIMITING.md) - Rate limiting for API protection
 - [DATA_LAYER.md](./DATA_LAYER.md) - User and Account models
 - [API_REFERENCE.md](./API_REFERENCE.md) - Protected API endpoints
+- [services/GMAIL_SERVICE.md](./services/GMAIL_SERVICE.md) - Gmail integration details
 - [NextAuth.js Docs](https://authjs.dev/) - Official documentation

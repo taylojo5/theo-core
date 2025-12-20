@@ -1,29 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Integration
-// Placeholder for Gmail API integration
+// Gmail API client and utilities for email operations
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const GMAIL_SCOPES = {
-  // Read-only access
-  readonly: ["https://www.googleapis.com/auth/gmail.readonly"],
-
-  // With send capability
-  send: [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-  ],
-
-  // Full access
-  full: [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.labels",
-    "https://www.googleapis.com/auth/gmail.modify",
-  ],
-
-  // Contacts (separate API)
-  contacts: ["https://www.googleapis.com/auth/contacts.readonly"],
-} as const;
+// Re-export centralized scope definitions from auth module
+export {
+  GMAIL_SCOPES,
+  ALL_GMAIL_SCOPES,
+  hasGmailReadAccess,
+  hasGmailSendAccess,
+  hasContactsAccess,
+  getIntegrationStatus,
+} from "@/lib/auth/scopes";
 
 export interface GmailMessage {
   id: string;
@@ -84,4 +72,3 @@ export class GmailClient {
 }
 
 export default GmailClient;
-

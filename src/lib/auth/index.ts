@@ -2,6 +2,33 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
+import { formatScopes, SCOPE_SETS } from "./scopes";
+
+// Re-export scope utilities for convenience
+export * from "./scopes";
+export * from "./scope-upgrade";
+export * from "./token-refresh";
+
+/**
+ * Get the OAuth scopes to request based on configuration
+ * Uses GMAIL_OAUTH_SCOPES env var to control scope level:
+ * - "basic" (default): Only basic auth scopes
+ * - "gmail-readonly": Gmail read + contacts
+ * - "gmail-full": Full Gmail + contacts (read, send, manage)
+ */
+function getConfiguredScopes(): string {
+  const scopeLevel = process.env.GMAIL_OAUTH_SCOPES || "basic";
+
+  switch (scopeLevel) {
+    case "gmail-full":
+      return formatScopes(SCOPE_SETS.gmailFull);
+    case "gmail-readonly":
+      return formatScopes(SCOPE_SETS.gmailReadOnly);
+    case "basic":
+    default:
+      return formatScopes(SCOPE_SETS.basic);
+  }
+}
 
 /**
  * NextAuth.js v5 configuration
@@ -19,8 +46,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Request offline access for refresh tokens
           access_type: "offline",
           prompt: "consent",
-          // Basic profile scopes for authentication
-          scope: "openid email profile",
+          // Scopes based on configuration
+          scope: getConfiguredScopes(),
         },
       },
     }),
@@ -104,4 +131,3 @@ export type SessionUser = {
   email?: string | null;
   image?: string | null;
 };
-
