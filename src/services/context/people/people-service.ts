@@ -33,6 +33,7 @@ import type {
   IPeopleService,
   SearchPeopleOptions,
   SourcePersonInput,
+  UpsertPeopleOptions,
 } from "./types";
 import { PeopleServiceError as PeopleError } from "./types";
 
@@ -52,7 +53,10 @@ export async function createPerson(
   let normalizedEmail: string | undefined;
   if (data.email) {
     if (!isValidEmail(data.email)) {
-      throw new PeopleError("INVALID_EMAIL", `Invalid email format: ${data.email}`);
+      throw new PeopleError(
+        "INVALID_EMAIL",
+        `Invalid email format: ${data.email}`
+      );
     }
     normalizedEmail = normalizeEmail(data.email);
   }
@@ -61,9 +65,8 @@ export async function createPerson(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : [];
 
   // Validate importance
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : 5;
+  const importance =
+    data.importance !== undefined ? validateImportance(data.importance) : 5;
 
   try {
     const person = await db.person.create({
@@ -84,6 +87,7 @@ export async function createPerson(
         preferences: (data.preferences as Prisma.InputJsonValue) ?? {},
         source: data.source,
         sourceId: data.sourceId,
+        sourceSyncedAt: data.sourceSyncedAt,
         metadata: (data.metadata as Prisma.InputJsonValue) ?? {},
         tags: normalizedTags,
       },
@@ -169,7 +173,10 @@ export async function updatePerson(
   let normalizedEmail: string | undefined;
   if (data.email !== undefined) {
     if (data.email && !isValidEmail(data.email)) {
-      throw new PeopleError("INVALID_EMAIL", `Invalid email format: ${data.email}`);
+      throw new PeopleError(
+        "INVALID_EMAIL",
+        `Invalid email format: ${data.email}`
+      );
     }
     normalizedEmail = data.email ? normalizeEmail(data.email) : undefined;
   }
@@ -178,9 +185,10 @@ export async function updatePerson(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : undefined;
 
   // Validate importance if provided
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : undefined;
+  const importance =
+    data.importance !== undefined
+      ? validateImportance(data.importance)
+      : undefined;
 
   try {
     const person = await db.person.update({
@@ -200,6 +208,9 @@ export async function updatePerson(
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(data.preferences !== undefined && {
           preferences: data.preferences as Prisma.InputJsonValue,
+        }),
+        ...(data.sourceSyncedAt !== undefined && {
+          sourceSyncedAt: data.sourceSyncedAt,
         }),
         ...(data.metadata !== undefined && {
           metadata: data.metadata as Prisma.InputJsonValue,
@@ -332,7 +343,10 @@ export async function listPeople(
   options: ListPeopleOptions = {}
 ): Promise<PaginatedResult<Person>> {
   const pagination = normalizePagination(options);
-  const orderBy = buildOrderBy(options.sortBy ?? "name", options.sortOrder ?? "asc");
+  const orderBy = buildOrderBy(
+    options.sortBy ?? "name",
+    options.sortOrder ?? "asc"
+  );
 
   // Build where clause
   const where: Prisma.PersonWhereInput = {
@@ -342,7 +356,9 @@ export async function listPeople(
     ...(options.company && {
       company: { contains: options.company, mode: "insensitive" as const },
     }),
-    ...(options.minImportance && { importance: { gte: options.minImportance } }),
+    ...(options.minImportance && {
+      importance: { gte: options.minImportance },
+    }),
     ...(options.source && { source: options.source }),
     ...(options.tags?.length && { tags: { hasSome: options.tags } }),
     ...(options.search && {
@@ -443,11 +459,14 @@ export async function upsertPeopleFromSource(
   userId: string,
   source: Source,
   people: SourcePersonInput[],
-  context?: ServiceContext
+  context?: ServiceContext,
+  options?: UpsertPeopleOptions
 ): Promise<UpsertResult<Person>> {
   const created: Person[] = [];
   const updated: Person[] = [];
   let unchanged = 0;
+
+  const forceUpdate = options?.forceUpdate ?? false;
 
   for (const { sourceId, data } of people) {
     // Check if person exists
@@ -457,12 +476,14 @@ export async function upsertPeopleFromSource(
       // Check if data has changed (only compare fields that are explicitly provided)
       const hasChanges =
         existing.name !== data.name ||
-        (data.email !== undefined && existing.email !== (data.email ? normalizeEmail(data.email) : null)) ||
+        (data.email !== undefined &&
+          existing.email !==
+            (data.email ? normalizeEmail(data.email) : null)) ||
         (data.phone !== undefined && existing.phone !== data.phone) ||
         (data.company !== undefined && existing.company !== data.company) ||
         (data.title !== undefined && existing.title !== data.title);
 
-      if (hasChanges) {
+      if (hasChanges || forceUpdate) {
         const updatedPerson = await updatePerson(
           userId,
           existing.id,
@@ -507,4 +528,3 @@ export const PeopleService: IPeopleService = {
   search: searchPeople,
   upsertFromSource: upsertPeopleFromSource,
 };
-

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { type EntityType } from "@/services/context";
+import { type ContactSyncOptions } from "@/integrations/gmail/sync/types";
 
 // ─────────────────────────────────────────────────────────────
 // Job Names
@@ -14,6 +15,9 @@ export const JOB_NAMES = {
   GENERATE_EMBEDDING: "generate-embedding",
   DELETE_EMBEDDING: "delete-embedding",
   BULK_EMBED: "bulk-embed",
+
+  // Contact sync jobs (Phase 3)
+  SYNC_CONTACTS: "sync-contacts",
 
   // Email sync jobs (Phase 3)
   SYNC_GMAIL: "sync-gmail",
@@ -50,6 +54,15 @@ export interface BulkEmbedJobData {
   userId: string;
   entityType: EntityType;
   entityIds: string[];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Contact Sync Jobs (for Phase 3)
+// ─────────────────────────────────────────────────────────────
+
+export interface ContactSyncJobData {
+  userId: string;
+  options?: ContactSyncOptions;
 }
 
 // ─────────────────────────────────────────────────────────────

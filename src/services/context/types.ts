@@ -140,6 +140,7 @@ export interface CreatePersonInput {
   preferences?: Record<string, unknown>;
   source: Source;
   sourceId?: string;
+  sourceSyncedAt?: Date;
   metadata?: Record<string, unknown>;
   tags?: string[];
 }
@@ -158,6 +159,7 @@ export interface UpdatePersonInput {
   bio?: string;
   notes?: string;
   preferences?: Record<string, unknown>;
+  sourceSyncedAt?: Date;
   metadata?: Record<string, unknown>;
   tags?: string[];
 }
@@ -545,4 +547,3 @@ export interface UpsertResult<T> {
 
 // Re-export Prisma types for convenience
 export type { Person, Place, Event, Task, Deadline, EntityRelationship };
-

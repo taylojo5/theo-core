@@ -199,3 +199,37 @@ export {
 } from "./mappers";
 
 export type { CreatePersonFromContactInput } from "./mappers";
+
+// ─────────────────────────────────────────────────────────────
+// Sync Operations
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Contact sync
+  syncContacts,
+  syncContactsForUser,
+  getContactSyncStatus,
+} from "./sync";
+
+export type {
+  // Contact sync types
+  ContactSyncResult,
+  ContactSyncError,
+  ContactSyncOptions,
+
+  // Email sync types (for future chunks)
+  EmailSyncType,
+  EmailSyncResult,
+  EmailSyncError,
+  FullSyncOptions,
+  IncrementalSyncOptions,
+
+  // Sync status types
+  SyncStatus,
+  SyncState,
+
+  // Job data types
+  // Note: ContactSyncJobData is defined in @/lib/queue/jobs.ts
+  FullEmailSyncJobData,
+  IncrementalEmailSyncJobData,
+} from "./sync";

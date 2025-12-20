@@ -1,6 +1,6 @@
 # Gmail Integration Service
 
-> **Status**: Phase 3 - Chunk 2 Complete  
+> **Status**: Phase 3 - Chunk 4 Complete  
 > **Last Updated**: December 2024  
 > **Related**: [AUTH_SECURITY.md](../AUTH_SECURITY.md), [INTEGRATIONS_GUIDE.md](../INTEGRATIONS_GUIDE.md)
 
@@ -23,8 +23,8 @@ The Gmail integration enables Theo to:
 | ----- | ------------------------- | ----------- |
 | 1     | Gmail OAuth & Scopes      | ✅ Complete |
 | 2     | Gmail Client Library      | ✅ Complete |
-| 3     | Email Database Models     | 🔲 Pending  |
-| 4     | Contact Sync Pipeline     | 🔲 Pending  |
+| 3     | Email Database Models     | ✅ Complete |
+| 4     | Contact Sync Pipeline     | ✅ Complete |
 | 5     | Email Sync Worker         | 🔲 Pending  |
 | 6     | Email Content Processing  | 🔲 Pending  |
 | 7     | Email Search & Embeddings | 🔲 Pending  |
@@ -580,6 +580,159 @@ Response:
 }
 ```
 
+### Sync Contacts
+
+```
+POST /api/integrations/gmail/sync/contacts
+```
+
+Triggers a contact sync from Google Contacts to Person entities.
+
+Request:
+
+```json
+{
+  "maxContacts": 1000,
+  "requireEmail": true,
+  "forceUpdate": false
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Successfully synced 150 contacts",
+  "data": {
+    "created": 45,
+    "updated": 12,
+    "unchanged": 93,
+    "skipped": 8,
+    "total": 158,
+    "errors": 0,
+    "durationMs": 2341
+  }
+}
+```
+
+### Contact Sync Status
+
+```
+GET /api/integrations/gmail/sync/contacts
+```
+
+Returns the current contact sync status.
+
+Response:
+
+```json
+{
+  "contactCount": 150,
+  "lastSyncAt": "2024-12-20T12:00:00.000Z",
+  "status": "idle",
+  "hasContactsAccess": true
+}
+```
+
+---
+
+## Contact Sync Pipeline (Chunk 4)
+
+The contact sync pipeline imports Google Contacts as Person entities in the context system, with automatic deduplication and update detection.
+
+### How It Works
+
+1. **Fetch Contacts**: Uses the People API via GmailClient to paginate through all contacts
+2. **Filter & Validate**: Skips contacts without email (configurable) and handles duplicates
+3. **Map to Person**: Converts Google Contact fields to Person entity structure
+4. **Upsert**: Creates new people or updates existing ones via `upsertPeopleFromSource()`
+5. **Track State**: Updates sync state with contact count and last sync time
+
+### Usage
+
+```typescript
+import { syncContacts, getContactSyncStatus } from "@/integrations/gmail/sync";
+
+// Sync contacts for a user
+const result = await syncContacts(userId, accessToken, {
+  maxContacts: 1000,
+  requireEmail: true,
+  forceUpdate: false,
+});
+
+console.log(`Created: ${result.created}`);
+console.log(`Updated: ${result.updated}`);
+console.log(`Unchanged: ${result.unchanged}`);
+console.log(`Skipped: ${result.skipped}`);
+console.log(`Duration: ${result.durationMs}ms`);
+
+// Get sync status
+const status = await getContactSyncStatus(userId);
+console.log(`Total contacts: ${status.contactCount}`);
+console.log(`Last synced: ${status.lastSyncAt}`);
+```
+
+### Options
+
+| Option          | Type    | Default | Description                              |
+| --------------- | ------- | ------- | ---------------------------------------- |
+| `maxContacts`   | number  | 1000    | Maximum number of contacts to sync       |
+| `requireEmail`  | boolean | true    | Only sync contacts with email addresses  |
+| `forceUpdate`   | boolean | false   | Force update even if no changes detected |
+| `includePhotos` | boolean | true    | Include contact photo URLs               |
+| `pageSize`      | number  | 100     | Page size for API requests               |
+
+### Deduplication
+
+Contacts are deduplicated in two ways:
+
+1. **By Source ID**: Each contact's `resourceName` is stored as `sourceId` on the Person entity
+2. **By Email**: Duplicate emails within the same sync batch are skipped
+
+When an existing Person is found (by source or email), it is updated rather than duplicated.
+
+### Field Mapping
+
+| Google Contact Field      | Person Field |
+| ------------------------- | ------------ |
+| `names[0].displayName`    | `name`       |
+| `emailAddresses[0].value` | `email`      |
+| `phoneNumbers[0].value`   | `phone`      |
+| `organizations[0].name`   | `company`    |
+| `organizations[0].title`  | `title`      |
+| `photos[0].url`           | `avatarUrl`  |
+| `biographies[0].value`    | `bio`        |
+| `resourceName`            | `sourceId`   |
+| Full contact data         | `metadata`   |
+
+### Error Handling
+
+The sync process is resilient to individual contact failures:
+
+```typescript
+const result = await syncContacts(userId, accessToken);
+
+if (result.errors.length > 0) {
+  result.errors.forEach((err) => {
+    console.error(`Failed to sync ${err.contactName}: ${err.message}`);
+  });
+}
+```
+
+### File Structure
+
+```
+src/integrations/gmail/sync/
+├── index.ts           # Public exports
+├── contacts.ts        # Contact sync logic
+└── types.ts           # Sync type definitions
+
+src/app/api/integrations/gmail/sync/
+└── contacts/
+    └── route.ts       # API endpoint
+```
+
 ---
 
 ## Configuration
@@ -704,17 +857,19 @@ console.log(`Logged in as ${profile.emailAddress}`);
 
 ## Next Steps
 
-### Chunk 3: Email Database Models
+### Chunk 5: Email Sync Worker
 
-- Add Email, EmailLabel, GmailSyncState models to Prisma
-- Create migrations
-- Implement repository pattern for data access
+- Implement full sync (initial import of all emails)
+- Implement incremental sync using Gmail History API
+- Create BullMQ worker for background processing
+- Handle sync state management and error recovery
 
-### Chunk 4: Contact Sync Pipeline
+### Chunk 6: Email Content Processing
 
-- Create contact sync worker job
-- Map Google Contacts to Person entities
-- Implement deduplication logic
+- Extract people mentions from emails
+- Parse dates and potential deadlines
+- Identify action items
+- Categorize email topics
 
 ---
 

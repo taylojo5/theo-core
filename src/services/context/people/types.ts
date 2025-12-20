@@ -38,6 +38,12 @@ export interface SourcePersonInput {
   data: Omit<CreatePersonInput, "source" | "sourceId">;
 }
 
+/** Options for upserting people from external sources */
+export interface UpsertPeopleOptions {
+  /** Force update even if no changes detected (default: false) */
+  forceUpdate?: boolean;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Service Interface
 // ─────────────────────────────────────────────────────────────
@@ -61,7 +67,11 @@ export interface IPeopleService {
 
   delete(userId: string, id: string, context?: ServiceContext): Promise<void>;
 
-  restore(userId: string, id: string, context?: ServiceContext): Promise<Person>;
+  restore(
+    userId: string,
+    id: string,
+    context?: ServiceContext
+  ): Promise<Person>;
 
   // Query
   list(
@@ -88,7 +98,8 @@ export interface IPeopleService {
     userId: string,
     source: Source,
     people: SourcePersonInput[],
-    context?: ServiceContext
+    context?: ServiceContext,
+    options?: UpsertPeopleOptions
   ): Promise<UpsertResult<Person>>;
 }
 
@@ -128,3 +139,5 @@ export type {
   UpsertResult,
 };
 
+// Export UpsertPeopleOptions (defined in this file)
+export type { UpsertPeopleOptions };
