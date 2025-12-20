@@ -270,3 +270,86 @@ export type {
   IncrementalSyncJobData,
   LabelSyncJobData,
 } from "./sync";
+
+// ─────────────────────────────────────────────────────────────
+// Content Extraction
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Main processing
+  processEmailContent,
+  processEmailQuick,
+  processEmailBatch,
+
+  // Processing utilities
+  hasActionableContent,
+  getDeadlines,
+  getHighPriorityActions,
+  getLinkedPeople,
+  hasProcessingErrors,
+  getPrimaryTopic,
+  PROCESSING_VERSION,
+
+  // People extraction
+  extractPeople,
+  extractSender,
+  extractRecipients,
+  getUniqueEmails,
+  getPeopleByRole,
+  getLinkedPersonIds,
+
+  // Date extraction
+  extractDates,
+  extractDeadlines,
+  extractDatesFromSubject,
+  formatExtractedDate,
+
+  // Action item extraction
+  extractActionItems,
+  extractActionItemsWithAssignees,
+  extractListItems,
+  containsActionPatterns,
+
+  // Topic categorization
+  extractTopics,
+  getEmailPrimaryTopic,
+  matchesTopic,
+  getAllCategories,
+  isValidCategory,
+} from "./extraction";
+
+export type {
+  // Processing results
+  EmailProcessingResult,
+  ProcessingMetadata,
+  ProcessingError,
+  BatchProcessingResult,
+
+  // People
+  ExtractedPerson,
+  PersonRole,
+  PeopleExtractionOptions,
+
+  // Dates
+  ExtractedDate,
+  DateType,
+  DateExtractionOptions,
+
+  // Action items
+  ExtractedActionItem,
+  ActionPriority,
+  ActionIndicator,
+  ActionExtractionOptions,
+
+  // Topics
+  ExtractedTopic,
+  TopicCategory,
+  TopicExtractionOptions,
+
+  // Processing options
+  EmailProcessingOptions,
+  BatchProcessingOptions,
+
+  // Input types
+  EmailInput,
+} from "./extraction";

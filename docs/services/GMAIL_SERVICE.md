@@ -1,6 +1,6 @@
 # Gmail Integration Service
 
-> **Status**: Phase 3 - Chunk 4 Complete  
+> **Status**: Phase 3 - Chunk 6 Complete  
 > **Last Updated**: December 2024  
 > **Related**: [AUTH_SECURITY.md](../AUTH_SECURITY.md), [INTEGRATIONS_GUIDE.md](../INTEGRATIONS_GUIDE.md)
 
@@ -25,8 +25,8 @@ The Gmail integration enables Theo to:
 | 2     | Gmail Client Library      | ✅ Complete |
 | 3     | Email Database Models     | ✅ Complete |
 | 4     | Contact Sync Pipeline     | ✅ Complete |
-| 5     | Email Sync Worker         | 🔲 Pending  |
-| 6     | Email Content Processing  | 🔲 Pending  |
+| 5     | Email Sync Worker         | ✅ Complete |
+| 6     | Email Content Processing  | ✅ Complete |
 | 7     | Email Search & Embeddings | 🔲 Pending  |
 | 8     | Email Actions             | 🔲 Pending  |
 | 9     | Gmail Settings UI         | 🔲 Pending  |
@@ -855,21 +855,366 @@ console.log(`Logged in as ${profile.emailAddress}`);
 
 ---
 
+## Email Content Processing (Chunk 6)
+
+The content extraction module analyzes email content to extract structured data including people, dates, action items, and topics. This enriches the context system with actionable information from unstructured email content.
+
+### Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   EMAIL CONTENT PROCESSOR                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Email Input                                                     │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │  People  │  │  Dates   │  │ Actions  │  │  Topics  │        │
+│  │Extraction│  │Extraction│  │Extraction│  │Extraction│        │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘        │
+│       │             │             │             │                │
+│       ▼             ▼             ▼             ▼                │
+│  ┌──────────────────────────────────────────────────────┐       │
+│  │              EmailProcessingResult                    │       │
+│  │  • ExtractedPerson[] (linked to Person entities)     │       │
+│  │  • ExtractedDate[] (deadlines, meetings, etc.)       │       │
+│  │  • ExtractedActionItem[] (tasks, requests)           │       │
+│  │  • ExtractedTopic[] (categorization)                 │       │
+│  │  • Summary                                            │       │
+│  └──────────────────────────────────────────────────────┘       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Basic Usage
+
+```typescript
+import {
+  processEmailContent,
+  processEmailQuick,
+  processEmailBatch,
+} from "@/integrations/gmail";
+
+// Process a single email
+const result = await processEmailContent(email, {
+  people: { linkToExisting: true },
+  dates: { futureOnly: true },
+  actions: { minConfidence: 0.6 },
+});
+
+console.log(`Found ${result.people.length} people`);
+console.log(`Found ${result.dates.length} dates`);
+console.log(`Found ${result.actionItems.length} action items`);
+console.log(`Topics: ${result.topics.map((t) => t.name).join(", ")}`);
+
+// Quick processing (dates and actions only)
+const quickResult = await processEmailQuick(email);
+
+// Batch processing
+const batchResult = await processEmailBatch(emails, {
+  concurrency: 5,
+  continueOnError: true,
+  onProgress: (done, total) => console.log(`${done}/${total}`),
+});
+```
+
+### People Extraction
+
+Extracts people from email headers and body, linking them to existing Person entities.
+
+```typescript
+import {
+  extractPeople,
+  extractSender,
+  extractRecipients,
+} from "@/integrations/gmail";
+
+// Extract all people
+const people = await extractPeople(email, {
+  linkToExisting: true, // Link to Person entities
+  createMissing: false, // Don't create new Persons
+});
+
+// Each person has:
+// - email: string
+// - name?: string
+// - role: 'sender' | 'recipient' | 'cc' | 'bcc' | 'mentioned' | 'reply_to'
+// - linkedPersonId?: string
+// - linkedPerson?: Person
+// - confidence: number (0-1)
+
+// Just get sender
+const sender = await extractSender(email);
+
+// Just get recipients
+const recipients = await extractRecipients(email);
+```
+
+### Date Extraction
+
+Uses `chrono-node` for natural language date parsing with deadline detection.
+
+```typescript
+import {
+  extractDates,
+  extractDeadlines,
+  formatExtractedDate,
+} from "@/integrations/gmail";
+
+// Extract all dates
+const dates = extractDates(text, {
+  referenceDate: email.internalDate, // For relative dates
+  futureOnly: true, // Only future dates
+  minConfidence: 0.5,
+});
+
+// Each date has:
+// - date: Date
+// - endDate?: Date (for ranges)
+// - originalText: string ("next Tuesday")
+// - type: 'absolute' | 'relative' | 'deadline' | 'meeting' | 'reminder' | ...
+// - isPotentialDeadline: boolean
+// - hasTime: boolean
+// - confidence: number (0-1)
+
+// Just get potential deadlines
+const deadlines = extractDeadlines(text);
+
+// Format for display
+console.log(formatExtractedDate(dates[0])); // "Tue, Dec 24"
+```
+
+**Supported Date Patterns:**
+
+| Pattern   | Example                             | Type        |
+| --------- | ----------------------------------- | ----------- |
+| Absolute  | "January 5th, 2025"                 | `absolute`  |
+| Relative  | "next Tuesday", "in 3 days"         | `relative`  |
+| Deadline  | "due by Friday", "deadline: Dec 31" | `deadline`  |
+| Meeting   | "meeting at 3pm"                    | `meeting`   |
+| Reminder  | "remind me on Monday"               | `reminder`  |
+| Range     | "from Monday to Friday"             | `range`     |
+| Recurring | "every Monday"                      | `recurring` |
+
+### Action Item Extraction
+
+Identifies tasks and requests from email content using pattern matching.
+
+```typescript
+import {
+  extractActionItems,
+  extractActionItemsWithAssignees,
+} from "@/integrations/gmail";
+
+// Extract action items
+const actions = extractActionItems(bodyText, {
+  minConfidence: 0.5,
+});
+
+// Each action has:
+// - title: string
+// - context: string (surrounding text)
+// - priority: 'urgent' | 'high' | 'medium' | 'low'
+// - indicators: ('imperative_verb' | 'question' | 'deadline_mention' | ...)[]
+// - confidence: number (0-1)
+// - dueDate?: ExtractedDate
+// - assignee?: ExtractedPerson
+
+// Include assignee detection
+const actionsWithAssignees = extractActionItemsWithAssignees(
+  bodyText,
+  people // From extractPeople()
+);
+```
+
+**Detected Patterns:**
+
+| Indicator        | Example                       |
+| ---------------- | ----------------------------- |
+| Imperative verb  | "Please send the report"      |
+| Question         | "Can you review this?"        |
+| Assignment       | "I need you to complete this" |
+| Deadline mention | "Finish by Friday"            |
+| Checkbox         | "[ ] Review document"         |
+| Numbered list    | "1. First task"               |
+
+**Priority Detection:**
+
+| Priority | Keywords                                    |
+| -------- | ------------------------------------------- |
+| Urgent   | "urgent", "asap", "immediately", "critical" |
+| High     | "important", "priority", "time-sensitive"   |
+| Medium   | (default)                                   |
+| Low      | "no rush", "whenever", "if you have time"   |
+
+### Topic Categorization
+
+Categorizes emails using keyword analysis and sender domain detection.
+
+```typescript
+import {
+  extractTopics,
+  getEmailPrimaryTopic,
+  matchesTopic,
+} from "@/integrations/gmail";
+
+// Extract topics
+const topics = extractTopics(email, {
+  maxTopics: 3,
+  minConfidence: 0.3,
+});
+
+// Each topic has:
+// - name: string ("Finance", "Travel", ...)
+// - category: TopicCategory
+// - confidence: number (0-1)
+// - keywords: string[] (matched keywords)
+
+// Get primary topic
+const primary = getEmailPrimaryTopic(email);
+
+// Check if email matches a topic
+if (matchesTopic(email, "finance", 0.4)) {
+  // Handle financial email
+}
+```
+
+**Topic Categories:**
+
+| Category     | Example Keywords                      |
+| ------------ | ------------------------------------- |
+| `work`       | project, meeting, deadline, client    |
+| `finance`    | invoice, payment, receipt, bank       |
+| `travel`     | flight, hotel, booking, itinerary     |
+| `scheduling` | meeting, appointment, calendar        |
+| `project`    | launch, release, github, pull request |
+| `support`    | ticket, issue, help, customer service |
+| `newsletter` | unsubscribe, weekly update            |
+| `shopping`   | order, shipping, delivery, tracking   |
+| `legal`      | contract, agreement, attorney         |
+| `health`     | doctor, prescription, medical         |
+| `education`  | course, exam, certificate             |
+| `social`     | invitation, party, networking         |
+| `personal`   | family, birthday, vacation            |
+
+**Sender-Based Categorization:**
+
+Emails from known domains are automatically boosted:
+
+- `amazon.com` → shopping
+- `expedia.com` → travel
+- `paypal.com` → finance
+- `github.com` → project
+- `calendly.com` → scheduling
+
+### Processing Results
+
+```typescript
+import {
+  hasActionableContent,
+  getDeadlines,
+  getHighPriorityActions,
+  getLinkedPeople,
+  hasProcessingErrors,
+  getPrimaryTopic,
+} from "@/integrations/gmail";
+
+// Check if email has actionable content
+if (hasActionableContent(result)) {
+  // Has deadlines or action items
+}
+
+// Get just the deadlines
+const deadlines = getDeadlines(result);
+
+// Get urgent/high priority actions
+const urgent = getHighPriorityActions(result);
+
+// Get IDs of linked Person entities
+const personIds = getLinkedPeople(result);
+
+// Check for processing errors
+if (hasProcessingErrors(result)) {
+  console.error("Errors:", result.metadata.errors);
+}
+
+// Get primary topic
+const topic = getPrimaryTopic(result);
+```
+
+### Processing Options
+
+```typescript
+const options: EmailProcessingOptions = {
+  people: {
+    linkToExisting: true, // Link to Person entities
+    createMissing: false, // Create new Persons
+    minMentionConfidence: 0.6, // For body mentions
+  },
+  dates: {
+    referenceDate: new Date(), // For relative dates
+    futureOnly: true, // Only future dates
+    minConfidence: 0.5,
+  },
+  actions: {
+    minConfidence: 0.5,
+    createTasks: false, // Don't auto-create Tasks
+  },
+  topics: {
+    maxTopics: 3,
+    minConfidence: 0.3,
+  },
+  skip: {
+    people: false,
+    dates: false,
+    actions: false,
+    topics: false,
+    summary: false,
+  },
+};
+```
+
+### Performance
+
+The extraction is optimized for speed:
+
+| Operation         | Target  | Notes                |
+| ----------------- | ------- | -------------------- |
+| Full processing   | < 500ms | Single email         |
+| Quick processing  | < 100ms | Dates + actions only |
+| Batch (10 emails) | < 2s    | With concurrency     |
+
+### File Structure
+
+```
+src/integrations/gmail/extraction/
+├── index.ts          # Public exports
+├── processor.ts      # Main orchestrator
+├── types.ts          # TypeScript definitions
+├── people.ts         # People extraction
+├── dates.ts          # Date extraction (chrono-node)
+├── action-items.ts   # Action item extraction
+└── topics.ts         # Topic categorization
+```
+
+---
+
 ## Next Steps
 
-### Chunk 5: Email Sync Worker
+### Chunk 7: Email Search & Embeddings
 
-- Implement full sync (initial import of all emails)
-- Implement incremental sync using Gmail History API
-- Create BullMQ worker for background processing
-- Handle sync state management and error recovery
+- Generate vector embeddings for emails
+- Integrate with unified search infrastructure
+- Add email-specific search filters
+- Enable semantic search across emails
 
-### Chunk 6: Email Content Processing
+### Chunk 8: Email Actions
 
-- Extract people mentions from emails
-- Parse dates and potential deadlines
-- Identify action items
-- Categorize email topics
+- Implement draft creation
+- Add send with approval workflow
+- Create email preview component
+- Audit log all email actions
 
 ---
 
