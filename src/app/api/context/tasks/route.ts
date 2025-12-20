@@ -5,13 +5,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import {
   parseAndValidateBody,
   validateQuery,
   createTaskSchema,
   listTasksQuerySchema,
 } from "@/lib/validation";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   createTask,
   listTasks,
@@ -30,9 +30,18 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.create);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,11 +62,11 @@ export async function POST(request: NextRequest) {
         : undefined,
     };
 
-    const task = await createTask(session.user.id, input, {
-      userId: session.user.id,
+    const task = await createTask(userId, input, {
+      userId,
     });
 
-    return NextResponse.json(task, { status: 201 });
+    return NextResponse.json(task, { status: 201, headers });
   } catch (error) {
     console.error("Error creating task:", error);
 
@@ -81,9 +90,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.api);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -109,31 +127,40 @@ export async function GET(request: NextRequest) {
     // Special filter: overdue tasks
     const overdue = searchParams.get("overdue") === "true";
     if (overdue) {
-      const results = await getOverdueTasks(session.user.id, limit);
-      return NextResponse.json({
-        items: results,
-        hasMore: results.length === limit,
-      });
+      const results = await getOverdueTasks(userId, limit);
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: results.length === limit,
+        },
+        { headers }
+      );
     }
 
     // Special filter: due soon
     const dueSoon = searchParams.get("dueSoon") === "true";
     if (dueSoon) {
       const days = parseInt(searchParams.get("days") || "7", 10);
-      const results = await getTasksDueSoon(session.user.id, days, limit);
-      return NextResponse.json({
-        items: results,
-        hasMore: results.length === limit,
-      });
+      const results = await getTasksDueSoon(userId, days, limit);
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: results.length === limit,
+        },
+        { headers }
+      );
     }
 
     // If search query provided, use search function
     if (search) {
-      const results = await searchTasks(session.user.id, search, { limit });
-      return NextResponse.json({
-        items: results,
-        hasMore: false,
-      });
+      const results = await searchTasks(userId, search, { limit });
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: false,
+        },
+        { headers }
+      );
     }
 
     // Otherwise use list with filters
@@ -148,9 +175,9 @@ export async function GET(request: NextRequest) {
       includeDeleted,
     };
 
-    const result = await listTasks(session.user.id, options);
+    const result = await listTasks(userId, options);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("Error listing tasks:", error);
     return NextResponse.json(

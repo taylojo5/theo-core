@@ -5,13 +5,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import {
   parseAndValidateBody,
   validateQuery,
   createPersonSchema,
   listPeopleQuerySchema,
 } from "@/lib/validation";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   createPerson,
   listPeople,
@@ -29,9 +29,18 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.create);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -42,12 +51,12 @@ export async function POST(request: NextRequest) {
     }
 
     const person = await createPerson(
-      session.user.id,
+      userId,
       validation.data as CreatePersonInput,
-      { userId: session.user.id }
+      { userId }
     );
 
-    return NextResponse.json(person, { status: 201 });
+    return NextResponse.json(person, { status: 201, headers });
   } catch (error) {
     console.error("Error creating person:", error);
 
@@ -72,9 +81,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.api);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -90,11 +108,14 @@ export async function GET(request: NextRequest) {
 
     // If search query provided, use search function
     if (search) {
-      const results = await searchPeople(session.user.id, search, { limit });
-      return NextResponse.json({
-        items: results,
-        hasMore: false,
-      });
+      const results = await searchPeople(userId, search, { limit });
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: false,
+        },
+        { headers }
+      );
     }
 
     // Otherwise use list with filters
@@ -107,9 +128,9 @@ export async function GET(request: NextRequest) {
       includeDeleted,
     };
 
-    const result = await listPeople(session.user.id, options);
+    const result = await listPeople(userId, options);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("Error listing people:", error);
     return NextResponse.json(

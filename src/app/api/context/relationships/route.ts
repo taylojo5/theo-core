@@ -5,13 +5,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import {
   parseAndValidateBody,
   validateQuery,
   createRelationshipSchema,
   listRelationshipsQuerySchema,
 } from "@/lib/validation";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   createRelationship,
   listRelationships,
@@ -28,9 +28,18 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.create);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -43,13 +52,11 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    const relationship = await createRelationship(
-      session.user.id,
-      validation.data,
-      { userId: session.user.id }
-    );
+    const relationship = await createRelationship(userId, validation.data, {
+      userId,
+    });
 
-    return NextResponse.json(relationship, { status: 201 });
+    return NextResponse.json(relationship, { status: 201, headers });
   } catch (error) {
     console.error("Error creating relationship:", error);
 
@@ -74,9 +81,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.api);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -110,7 +126,7 @@ export async function GET(request: NextRequest) {
 
     if (forEntityType && forEntityId) {
       const relationships = await getRelationshipsFor(
-        session.user.id,
+        userId,
         forEntityType,
         forEntityId,
         {
@@ -120,17 +136,20 @@ export async function GET(request: NextRequest) {
           limit,
         }
       );
-      return NextResponse.json({
-        items: relationships,
-        hasMore: relationships.length === limit,
-      });
+      return NextResponse.json(
+        {
+          items: relationships,
+          hasMore: relationships.length === limit,
+        },
+        { headers }
+      );
     }
 
     // Special query: get related entities with resolved entity data
     const resolveEntities = searchParams.get("resolveEntities") === "true";
     if (resolveEntities && sourceType && sourceId && targetType) {
       const relatedEntities = await getRelatedEntities(
-        session.user.id,
+        userId,
         sourceType,
         sourceId,
         targetType,
@@ -139,10 +158,13 @@ export async function GET(request: NextRequest) {
           limit,
         }
       );
-      return NextResponse.json({
-        items: relatedEntities,
-        hasMore: relatedEntities.length === limit,
-      });
+      return NextResponse.json(
+        {
+          items: relatedEntities,
+          hasMore: relatedEntities.length === limit,
+        },
+        { headers }
+      );
     }
 
     // Standard list with filters
@@ -157,9 +179,9 @@ export async function GET(request: NextRequest) {
       includeDeleted,
     };
 
-    const result = await listRelationships(session.user.id, options);
+    const result = await listRelationships(userId, options);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("Error listing relationships:", error);
     return NextResponse.json(

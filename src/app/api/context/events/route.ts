@@ -5,13 +5,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import {
   parseAndValidateBody,
   validateQuery,
   createEventSchema,
   listEventsQuerySchema,
 } from "@/lib/validation";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   createEvent,
   listEvents,
@@ -30,9 +30,18 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.create);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,11 +62,11 @@ export async function POST(request: NextRequest) {
       virtualUrl: validation.data.virtualUrl || undefined,
     } as CreateEventInput;
 
-    const event = await createEvent(session.user.id, input, {
-      userId: session.user.id,
+    const event = await createEvent(userId, input, {
+      userId,
     });
 
-    return NextResponse.json(event, { status: 201 });
+    return NextResponse.json(event, { status: 201, headers });
   } catch (error) {
     console.error("Error creating event:", error);
 
@@ -81,9 +90,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Apply rate limiting
+    const {
+      response: rateLimitResponse,
+      userId,
+      headers,
+    } = await applyRateLimit(request, RATE_LIMITS.api);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -108,20 +126,26 @@ export async function GET(request: NextRequest) {
     // Special filter: upcoming events
     const upcoming = searchParams.get("upcoming") === "true";
     if (upcoming) {
-      const results = await getUpcomingEvents(session.user.id, limit);
-      return NextResponse.json({
-        items: results,
-        hasMore: results.length === limit,
-      });
+      const results = await getUpcomingEvents(userId, limit);
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: results.length === limit,
+        },
+        { headers }
+      );
     }
 
     // If search query provided, use search function
     if (search) {
-      const results = await searchEvents(session.user.id, search, { limit });
-      return NextResponse.json({
-        items: results,
-        hasMore: false,
-      });
+      const results = await searchEvents(userId, search, { limit });
+      return NextResponse.json(
+        {
+          items: results,
+          hasMore: false,
+        },
+        { headers }
+      );
     }
 
     // Otherwise use list with filters
@@ -135,9 +159,9 @@ export async function GET(request: NextRequest) {
       includeDeleted,
     };
 
-    const result = await listEvents(session.user.id, options);
+    const result = await listEvents(userId, options);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("Error listing events:", error);
     return NextResponse.json(
