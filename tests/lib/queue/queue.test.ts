@@ -3,7 +3,7 @@
 // Tests for BullMQ queue creation and job management
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Queue class
 const mockQueue = {

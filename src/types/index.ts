@@ -17,7 +17,8 @@ export type EntityType =
   | "email"
   | "conversation"
   | "gmail_connection"
-  | "integration";
+  | "integration"
+  | "email_approval";
 
 export type SourceType = "manual" | "gmail" | "slack" | "calendar" | "import";
 

@@ -154,7 +154,7 @@ export class GmailRateLimiter {
   /**
    * Consume a specific number of quota units
    */
-  async consumeUnits(units: number): Promise<void> {
+  async consumeUnits(_units: number): Promise<void> {
     // The checkRateLimitAsync already increments the counter
     // This method is here for explicit quota tracking if needed
     await Promise.all([

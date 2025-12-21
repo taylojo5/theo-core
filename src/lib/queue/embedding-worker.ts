@@ -24,7 +24,6 @@ import {
   deleteEmailEmbedding,
   generateEmailEmbeddings,
 } from "@/integrations/gmail/embeddings";
-import { emailRepository } from "@/integrations/gmail/repository";
 
 /** All embedding job data types */
 type AnyEmbeddingJobData =

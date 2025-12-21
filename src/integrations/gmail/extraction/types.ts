@@ -3,7 +3,7 @@
 // TypeScript definitions for email content extraction
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { Email, Person, Task, Deadline } from "@prisma/client";
+import type { Person, Task } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
 // Extraction Result Types

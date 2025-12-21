@@ -19,7 +19,6 @@ import {
   PlacesServiceError,
   type CreatePlaceInput,
   type ListPlacesOptions,
-  type Source,
   type PlaceType,
 } from "@/services/context";
 

@@ -16,7 +16,6 @@ import type {
   GoogleContact,
   ParsedContact,
   SendMessageParams,
-  SYSTEM_LABELS,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────

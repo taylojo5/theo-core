@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { MessageBubble, type MessageBubbleProps } from "./message-bubble";
+import { MessageBubble } from "./message-bubble";
 import { SkeletonMessage, Spinner } from "@/components/ui";
 
 // ─────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ export function MessageList({
         </div>
         <div>
           <h3 className="text-lg font-semibold">Start a conversation</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-sm">
             Ask me anything about your schedule, contacts, or tasks.
           </p>
         </div>
@@ -144,7 +144,9 @@ export function MessageList({
           content={message.content}
           createdAt={message.createdAt}
           name={message.role === "user" ? user?.name || undefined : "Theo"}
-          avatarUrl={message.role === "user" ? user?.image || undefined : undefined}
+          avatarUrl={
+            message.role === "user" ? user?.image || undefined : undefined
+          }
           isStreaming={message.id === streamingMessageId}
         />
       ))}
@@ -154,4 +156,3 @@ export function MessageList({
     </div>
   );
 }
-

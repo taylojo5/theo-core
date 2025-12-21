@@ -129,18 +129,6 @@ describe("SSE Stream", () => {
 // ─────────────────────────────────────────────────────────────
 
 describe("Connection Manager", () => {
-  // Helper to clear all connections
-  function clearConnections() {
-    const keys = getConnectionKeys();
-    keys.forEach((key) => {
-      // Create dummy send functions to unregister
-      const count = getConnectionCount(key);
-      for (let i = 0; i < count; i++) {
-        // We can't directly clear, but the tests will create fresh connections
-      }
-    });
-  }
-
   beforeEach(() => {
     // Note: There's no built-in clear function, so we work around it
     // by using unique keys per test

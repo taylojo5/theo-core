@@ -1,6 +1,6 @@
 # Gmail Integration Service
 
-> **Status**: Phase 3 - Chunk 6 Complete  
+> **Status**: Phase 3 - Chunk 8 Complete  
 > **Last Updated**: December 2024  
 > **Related**: [AUTH_SECURITY.md](../AUTH_SECURITY.md), [INTEGRATIONS_GUIDE.md](../INTEGRATIONS_GUIDE.md)
 
@@ -27,8 +27,8 @@ The Gmail integration enables Theo to:
 | 4     | Contact Sync Pipeline     | ✅ Complete |
 | 5     | Email Sync Worker         | ✅ Complete |
 | 6     | Email Content Processing  | ✅ Complete |
-| 7     | Email Search & Embeddings | 🔲 Pending  |
-| 8     | Email Actions             | 🔲 Pending  |
+| 7     | Email Search & Embeddings | ✅ Complete |
+| 8     | Email Actions             | ✅ Complete |
 | 9     | Gmail Settings UI         | 🔲 Pending  |
 | 10    | Integration Testing       | 🔲 Pending  |
 
@@ -1200,21 +1200,622 @@ src/integrations/gmail/extraction/
 
 ---
 
+## Email Actions (Chunk 8)
+
+The email actions module enables drafting and sending emails with a mandatory approval workflow for agent-initiated sends. This ensures users maintain full control over outbound email communications.
+
+### Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   EMAIL ACTIONS FLOW                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Agent/User Request                                              │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   COMPOSE                                  │   │
+│  │  • Validate recipients                                    │   │
+│  │  • Build message content                                  │   │
+│  │  • Support replies/forwards                               │   │
+│  └────────────────────┬─────────────────────────────────────┘   │
+│                       │                                          │
+│                       ▼                                          │
+│  ┌────────────────────────────────────┐                         │
+│  │     User-Initiated?                 │                         │
+│  └────────────────────┬───────────────┘                         │
+│            No ────────┼──────── Yes                              │
+│                       │                                          │
+│       ┌───────────────┴───────────────┐                         │
+│       ▼                               ▼                          │
+│  ┌──────────────┐             ┌──────────────┐                  │
+│  │   CREATE     │             │   DIRECT     │                  │
+│  │   APPROVAL   │             │   SEND       │                  │
+│  └───────┬──────┘             └──────┬───────┘                  │
+│          │                           │                           │
+│          ▼                           │                           │
+│  ┌──────────────┐                   │                           │
+│  │  User Reviews │                   │                           │
+│  │  & Decides    │                   │                           │
+│  └───────┬──────┘                   │                           │
+│          │                           │                           │
+│  ┌───────┴───────┐                  │                           │
+│  │               │                   │                           │
+│  ▼               ▼                   │                           │
+│ Approve       Reject                 │                           │
+│  │               │                   │                           │
+│  ▼               ▼                   │                           │
+│ Send Draft   Delete Draft            │                           │
+│  │                                   │                           │
+│  └───────────────┬───────────────────┘                          │
+│                  ▼                                               │
+│           ┌──────────────┐                                       │
+│           │  AUDIT LOG   │                                       │
+│           └──────────────┘                                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Draft Management
+
+```typescript
+import {
+  createDraft,
+  updateDraft,
+  deleteDraft,
+  getDraft,
+  listDrafts,
+} from "@/integrations/gmail";
+
+// Create a draft
+const result = await createDraft(client, {
+  to: ["recipient@example.com"],
+  cc: ["cc@example.com"],
+  subject: "Project Update",
+  body: "Here's the latest update on the project...",
+  bodyHtml: "<p>Here's the latest update on the project...</p>",
+});
+
+console.log(`Draft created: ${result.draftId}`);
+
+// Update a draft
+await updateDraft(client, result.draftId, {
+  to: ["recipient@example.com"],
+  subject: "Updated: Project Update",
+  body: "Updated content...",
+});
+
+// List drafts
+const { drafts, nextPageToken } = await listDrafts(client, {
+  maxResults: 20,
+});
+
+// Delete a draft
+await deleteDraft(client, draftId);
+```
+
+### Composition Utilities
+
+```typescript
+import {
+  validateComposeParams,
+  validateEmailAddresses,
+  buildReplyParams,
+  buildForwardParams,
+  formatEmailForDisplay,
+  parseDisplayEmail,
+} from "@/integrations/gmail";
+
+// Validate compose parameters
+const validation = validateComposeParams({
+  to: ["valid@email.com", "invalid-email"],
+  subject: "Test",
+  body: "Content",
+});
+
+if (!validation.valid) {
+  console.error(validation.errors);
+  // ["Invalid recipient addresses: invalid-email"]
+}
+
+// Validate email addresses
+const { valid, invalid } = validateEmailAddresses(["a@b.com", "bad"]);
+
+// Build reply parameters
+const replyParams = buildReplyParams(
+  originalMessage,
+  "Thanks for your message!",
+  "<p>Thanks for your message!</p>"
+);
+// Automatically handles: Re: subject, threading, references
+
+// Build forward parameters
+const forwardParams = buildForwardParams(
+  originalMessage,
+  ["forward-to@example.com"],
+  "FYI - see below"
+);
+// Automatically handles: Fwd: subject, forward header
+
+// Format for display
+formatEmailForDisplay("john@example.com", "John Doe");
+// "John Doe <john@example.com>"
+
+// Parse display format
+parseDisplayEmail("John Doe <john@example.com>");
+// { name: "John Doe", email: "john@example.com" }
+```
+
+### Approval Workflow
+
+The approval workflow is required for all agent-initiated email sends. This ensures users maintain control and can review emails before they're sent.
+
+```typescript
+import {
+  requestApproval,
+  approveAndSend,
+  rejectApproval,
+  getPendingApprovals,
+  getApprovalStats,
+} from "@/integrations/gmail";
+
+// Request approval for sending an email
+const result = await requestApproval(client, userId, {
+  to: ["recipient@example.com"],
+  subject: "Meeting Follow-up",
+  body: "Thank you for meeting with me today...",
+  requestedBy: "theo-agent", // Agent identifier
+  expiresInMinutes: 60 * 24, // 24 hours
+  metadata: {
+    conversationId: "conv_123",
+    context: "Post-meeting follow-up",
+  },
+});
+
+console.log(`Approval ID: ${result.approval.id}`);
+console.log(`Draft ID: ${result.draftId}`);
+console.log(`Expires at: ${result.approval.expiresAt}`);
+
+// Get pending approvals
+const pending = await getPendingApprovals(userId);
+console.log(`${pending.length} emails awaiting approval`);
+
+// Approve and send
+const sendResult = await approveAndSend(client, userId, approvalId);
+if (sendResult.success) {
+  console.log(`Sent! Message ID: ${sendResult.sentMessageId}`);
+} else {
+  console.error(`Failed: ${sendResult.errorMessage}`);
+}
+
+// Reject an approval
+const rejectResult = await rejectApproval(
+  client,
+  userId,
+  approvalId,
+  "I want to revise the wording" // Optional notes
+);
+
+// Get approval statistics
+const stats = await getApprovalStats(userId);
+console.log(`Pending: ${stats.pending}`);
+console.log(`Sent: ${stats.sent}`);
+console.log(`Rejected: ${stats.rejected}`);
+```
+
+### Approval States
+
+| Status     | Description                      |
+| ---------- | -------------------------------- |
+| `pending`  | Awaiting user decision           |
+| `approved` | User approved (may fail to send) |
+| `rejected` | User rejected, draft deleted     |
+| `expired`  | Expired before user decision     |
+| `sent`     | Successfully sent                |
+
+### Expiration Management
+
+Approvals automatically expire after a configurable period (default: 24 hours):
+
+```typescript
+import {
+  expireOverdueApprovals,
+  isApprovalExpired,
+  getTimeUntilExpiration,
+} from "@/integrations/gmail";
+
+// Run periodically to expire old approvals
+const expiredCount = await expireOverdueApprovals();
+console.log(`Expired ${expiredCount} approvals`);
+
+// Check if an approval is expired
+if (isApprovalExpired(approval)) {
+  console.log("This approval has expired");
+}
+
+// Get time remaining
+const msRemaining = getTimeUntilExpiration(approval);
+if (msRemaining !== null && msRemaining < 3600000) {
+  console.log("Less than 1 hour remaining!");
+}
+```
+
+### Direct Send (User-Initiated)
+
+For user-initiated sends from the UI, the approval workflow can be bypassed:
+
+```typescript
+import {
+  sendEmailDirect,
+  sendDraft,
+  sendReply,
+  sendReplyAll,
+} from "@/integrations/gmail";
+
+// ⚠️ WARNING: Only use for user-initiated sends, not agent actions
+
+// Send directly
+const result = await sendEmailDirect(client, userId, {
+  to: ["recipient@example.com"],
+  subject: "Quick note",
+  body: "Just wanted to say...",
+});
+
+// Send an existing draft
+await sendDraft(client, userId, draftId);
+
+// Reply to a message
+await sendReply(client, userId, originalMessage, "Thanks!");
+
+// Reply-all
+await sendReplyAll(
+  client,
+  userId,
+  originalMessage,
+  "Thanks everyone!",
+  undefined,
+  userEmail
+);
+```
+
+### API Endpoints
+
+#### Drafts
+
+```
+GET /api/integrations/gmail/drafts
+```
+
+List all drafts.
+
+Query parameters:
+
+- `maxResults` (number, default: 50)
+- `pageToken` (string)
+
+```
+POST /api/integrations/gmail/drafts
+```
+
+Create a new draft.
+
+Request:
+
+```json
+{
+  "to": ["recipient@example.com"],
+  "cc": ["cc@example.com"],
+  "subject": "Subject Line",
+  "body": "Email body text",
+  "bodyHtml": "<p>Email body HTML</p>",
+  "threadId": "thread_123",
+  "inReplyTo": "message-id@example.com"
+}
+```
+
+```
+GET /api/integrations/gmail/drafts/[id]
+```
+
+Get a specific draft.
+
+```
+PUT /api/integrations/gmail/drafts/[id]
+```
+
+Update a draft.
+
+```
+DELETE /api/integrations/gmail/drafts/[id]
+```
+
+Delete a draft.
+
+#### Send
+
+```
+POST /api/integrations/gmail/send
+```
+
+Send an email or draft.
+
+Request (send new email):
+
+```json
+{
+  "to": ["recipient@example.com"],
+  "subject": "Subject",
+  "body": "Content",
+  "requireApproval": true,
+  "requestedBy": "theo-agent",
+  "expiresInMinutes": 1440
+}
+```
+
+Request (send existing draft):
+
+```json
+{
+  "draftId": "draft_123"
+}
+```
+
+Response (with approval):
+
+```json
+{
+  "success": true,
+  "requiresApproval": true,
+  "approvalId": "approval_123",
+  "draftId": "draft_456",
+  "expiresAt": "2024-12-21T16:00:00.000Z"
+}
+```
+
+Response (direct send):
+
+```json
+{
+  "success": true,
+  "messageId": "msg_123",
+  "threadId": "thread_456"
+}
+```
+
+#### Approvals
+
+```
+GET /api/integrations/gmail/approvals
+```
+
+List approvals.
+
+Query parameters:
+
+- `status` (string): Filter by status
+- `pending` (boolean): Only pending approvals
+- `includeExpired` (boolean): Include expired
+- `stats` (boolean): Return stats only
+- `limit` (number)
+- `offset` (number)
+
+```
+POST /api/integrations/gmail/approvals
+```
+
+Create an approval request.
+
+```
+GET /api/integrations/gmail/approvals/[id]
+```
+
+Get a specific approval.
+
+```
+POST /api/integrations/gmail/approvals/[id]
+```
+
+Approve or reject.
+
+Request:
+
+```json
+{
+  "action": "approve"
+}
+```
+
+Or:
+
+```json
+{
+  "action": "reject",
+  "notes": "I want to revise this"
+}
+```
+
+```
+DELETE /api/integrations/gmail/approvals/[id]
+```
+
+Cancel/reject an approval.
+
+### UI Components
+
+#### Email Preview
+
+```tsx
+import { EmailPreview, EmailPreviewCompact } from "@/components/email";
+
+// Full preview
+<EmailPreview
+  to={["recipient@example.com"]}
+  cc={["cc@example.com"]}
+  subject="Meeting Follow-up"
+  body="Thank you for meeting with me today..."
+  bodyHtml="<p>Thank you for meeting with me today...</p>"
+  threadId="thread_123"
+  showHtml={true}
+/>
+
+// Compact preview (for lists)
+<EmailPreviewCompact
+  to={["recipient@example.com"]}
+  subject="Meeting Follow-up"
+  snippet="Thank you for meeting..."
+  status="pending"
+  requestedAt={new Date()}
+  expiresAt={new Date(Date.now() + 86400000)}
+  onClick={() => openApprovalDialog(approval)}
+/>
+```
+
+#### Approval Dialog
+
+```tsx
+import { ApprovalDialog } from "@/components/email";
+
+<ApprovalDialog
+  approval={{
+    id: "approval_123",
+    to: ["recipient@example.com"],
+    cc: [],
+    bcc: [],
+    subject: "Meeting Follow-up",
+    body: "Thank you for meeting...",
+    bodyHtml: null,
+    threadId: null,
+    inReplyTo: null,
+    status: "pending",
+    requestedAt: new Date(),
+    expiresAt: new Date(Date.now() + 86400000),
+    requestedBy: "theo-agent",
+  }}
+  isOpen={isDialogOpen}
+  onClose={() => setIsDialogOpen(false)}
+  onApprove={async (id) => {
+    await fetch(`/api/integrations/gmail/approvals/${id}`, {
+      method: "POST",
+      body: JSON.stringify({ action: "approve" }),
+    });
+  }}
+  onReject={async (id, notes) => {
+    await fetch(`/api/integrations/gmail/approvals/${id}`, {
+      method: "POST",
+      body: JSON.stringify({ action: "reject", notes }),
+    });
+  }}
+  isLoading={isLoading}
+/>;
+```
+
+### Database Schema
+
+The `EmailApproval` model stores approval requests:
+
+```prisma
+model EmailApproval {
+  id            String    @id @default(cuid())
+  userId        String
+
+  // Draft reference
+  draftId       String    @unique
+  gmailDraftId  String?
+
+  // Email content snapshot
+  to            String[]
+  cc            String[]
+  bcc           String[]
+  subject       String
+  body          String    @db.Text
+  bodyHtml      String?   @db.Text
+
+  // Threading
+  threadId      String?
+  inReplyTo     String?
+
+  // Approval status
+  status        String    @default("pending")
+
+  // Metadata
+  requestedAt   DateTime  @default(now())
+  requestedBy   String?
+  expiresAt     DateTime?
+  decidedAt     DateTime?
+  decidedBy     String?
+
+  // Result tracking
+  sentMessageId String?
+  sentAt        DateTime?
+  errorMessage  String?
+
+  // Context
+  notes         String?   @db.Text
+  metadata      Json      @default("{}")
+
+  // Relations
+  user          User      @relation(...)
+
+  @@index([userId, status])
+  @@index([userId, requestedAt(sort: Desc)])
+  @@index([expiresAt])
+}
+```
+
+### Security Considerations
+
+1. **Mandatory Approval**: Agent-initiated sends MUST go through the approval workflow
+2. **Audit Logging**: All email actions (create, send, approve, reject) are logged
+3. **Expiration**: Approvals expire after a configurable period (default: 24 hours)
+4. **User Ownership**: Users can only access their own approvals
+5. **Draft Cleanup**: Rejected approvals delete the associated Gmail draft
+
+### File Structure
+
+```
+src/integrations/gmail/actions/
+├── index.ts          # Public exports
+├── types.ts          # TypeScript definitions
+├── compose.ts        # Draft creation and utilities
+├── approval.ts       # Approval workflow
+└── send.ts           # Send operations
+
+src/app/api/integrations/gmail/
+├── drafts/
+│   ├── route.ts           # List/create drafts
+│   └── [id]/route.ts      # Get/update/delete draft
+├── send/
+│   └── route.ts           # Send email or draft
+└── approvals/
+    ├── route.ts           # List/create approvals
+    └── [id]/route.ts      # Get/approve/reject
+
+src/components/email/
+├── index.ts               # Public exports
+├── email-preview.tsx      # Email preview component
+└── approval-dialog.tsx    # Approval modal
+```
+
+---
+
 ## Next Steps
 
-### Chunk 7: Email Search & Embeddings
+### Chunk 9: Gmail Settings UI
 
-- Generate vector embeddings for emails
-- Integrate with unified search infrastructure
-- Add email-specific search filters
-- Enable semantic search across emails
+- Create Gmail settings page
+- Add connection status component
+- Add sync configuration options
+- Show sync history and status
+- List pending approvals
 
-### Chunk 8: Email Actions
+### Chunk 10: Integration Testing & Polish
 
-- Implement draft creation
-- Add send with approval workflow
-- Create email preview component
-- Audit log all email actions
+- Create integration test suite
+- Test OAuth flow end-to-end
+- Test sync pipeline
+- Performance optimization
+- Security review
 
 ---
 

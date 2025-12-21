@@ -385,3 +385,67 @@ export type {
   BulkEmailEmbeddingResult,
   EmailEmbeddingMetadata,
 } from "./embeddings";
+
+// ─────────────────────────────────────────────────────────────
+// Email Actions (Draft, Send, Approval)
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Draft management
+  createDraft,
+  updateDraft,
+  deleteDraft,
+  getDraft,
+  listDrafts,
+
+  // Composition utilities
+  validateEmailAddresses,
+  validateComposeParams,
+  buildReplyParams,
+  buildForwardParams,
+  formatEmailForDisplay,
+  parseDisplayEmail,
+
+  // Approval workflow
+  requestApproval,
+  approveAndSend,
+  rejectApproval,
+  getApproval,
+  getPendingApprovals,
+  getApprovals,
+  getApprovalStats,
+  expireOverdueApprovals,
+  isApprovalExpired,
+  getTimeUntilExpiration,
+
+  // Send
+  sendEmailDirect,
+  sendDraft,
+  sendReply,
+  sendReplyAll,
+} from "./actions";
+
+export type {
+  // Status types
+  ApprovalStatus,
+
+  // Compose types
+  ComposeEmailParams,
+  CreateDraftResult,
+  UpdateDraftResult,
+
+  // Approval types
+  RequestApprovalParams,
+  EmailApproval,
+  RequestApprovalResult,
+  ApproveAndSendResult,
+  RejectApprovalResult,
+
+  // Send types
+  SendEmailResult,
+  SendDraftOptions,
+
+  // Query types
+  ApprovalQueryOptions,
+  ApprovalStats,
+} from "./actions";

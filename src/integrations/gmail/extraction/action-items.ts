@@ -8,7 +8,6 @@ import type {
   ActionPriority,
   ActionIndicator,
   ActionExtractionOptions,
-  ExtractedDate,
   ExtractedPerson,
 } from "./types";
 import { extractDates } from "./dates";
@@ -299,7 +298,6 @@ function analyzeSegment(segment: TextSegment): SegmentAnalysis {
   }
 
   // Check for action verbs at the start
-  const firstWord = lowerText.split(/\s+/)[0];
   if (ACTION_VERBS.some((verb) => lowerText.startsWith(verb))) {
     if (!indicators.includes("imperative_verb")) {
       indicators.push("imperative_verb");

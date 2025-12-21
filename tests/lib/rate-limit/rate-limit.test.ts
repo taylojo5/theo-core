@@ -3,7 +3,7 @@
 // Tests for rate limit checking and middleware
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Redis module
 vi.mock("@/lib/redis", () => ({
@@ -23,7 +23,6 @@ vi.mock("@/lib/redis", () => ({
 // Import after mocking
 import {
   checkRateLimit,
-  checkRateLimitAsync,
   resetRateLimit,
   clearAllRateLimits,
   RATE_LIMITS,

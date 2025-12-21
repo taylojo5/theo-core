@@ -7,7 +7,6 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { QUEUE_NAMES, getQueueStats } from "@/lib/queue";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   try {
     const session = await auth();

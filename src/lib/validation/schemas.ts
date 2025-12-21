@@ -16,12 +16,6 @@ const optionalString = z
   .nullable()
   .transform(nullToUndefined);
 
-const optionalNumber = z
-  .number()
-  .optional()
-  .nullable()
-  .transform(nullToUndefined);
-
 // ─────────────────────────────────────────────────────────────
 // Common Schemas
 // ─────────────────────────────────────────────────────────────

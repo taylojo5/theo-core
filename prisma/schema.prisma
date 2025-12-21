@@ -47,6 +47,7 @@ model User {
   emails         Email[]
   emailLabels    EmailLabel[]
   gmailSyncState GmailSyncState?
+  emailApprovals EmailApproval[]
 }
 
 model Account {
@@ -637,6 +638,62 @@ model EmailLabel {
 
   @@unique([userId, gmailId])
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Email Approvals
+// ─────────────────────────────────────────────────────────────
+
+model EmailApproval {
+  id     String @id @default(cuid())
+  userId String
+
+  // Draft reference
+  draftId      String // Gmail draft ID
+  gmailDraftId String? // Gmail's internal draft ID (may differ from draftId)
+
+  // Email content snapshot
+  to      String[]
+  cc      String[]
+  bcc     String[]
+  subject String
+  body    String  @db.Text
+  bodyHtml String? @db.Text
+
+  // Threading
+  threadId  String? // For replies
+  inReplyTo String? // Message-Id being replied to
+
+  // Approval status
+  status String @default("pending") // pending, approved, rejected, expired, sent
+
+  // Approval metadata
+  requestedAt  DateTime  @default(now())
+  requestedBy  String? // Agent action ID or system
+  expiresAt    DateTime? // Auto-expire approvals
+  decidedAt    DateTime?
+  decidedBy    String? // user, auto_expired
+
+  // Result tracking
+  sentMessageId String? // Gmail message ID after sending
+  sentAt        DateTime?
+  errorMessage  String?
+
+  // Context
+  notes    String? @db.Text // User notes on rejection
+  metadata Json    @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, draftId])
+  @@index([userId, status])
+  @@index([userId, requestedAt(sort: Desc)])
+  @@index([expiresAt])
 }
 
 // ─────────────────────────────────────────────────────────────

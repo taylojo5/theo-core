@@ -6,7 +6,6 @@
 import { Job } from "bullmq";
 import { registerWorker } from "@/lib/queue/workers";
 import { QUEUE_NAMES } from "@/lib/queue";
-import { db } from "@/lib/db";
 import { fullSync, type FullSyncProgress } from "./full-sync";
 import {
   incrementalSync,

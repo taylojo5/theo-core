@@ -26,7 +26,7 @@ import {
 const CHARS_PER_TOKEN = 4;
 
 /** Maximum content length for a single embedding (conservative estimate) */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 const _MAX_CONTENT_LENGTH = 8000 * CHARS_PER_TOKEN; // ~32,000 characters (reserved for future use)
 
 /** Sentence-ending punctuation for chunking (captures the punctuation) */
@@ -101,18 +101,20 @@ export class EmbeddingService implements IEmbeddingService {
     const embedding = await this.generateEmbedding(input.content);
 
     // Store in database using raw SQL for vector type
-    const result = await db.$queryRaw<Array<{
-      id: string;
-      userId: string;
-      entityType: string;
-      entityId: string;
-      chunkIndex: number;
-      content: string;
-      contentHash: string;
-      metadata: unknown;
-      createdAt: Date;
-      updatedAt: Date;
-    }>>`
+    const result = await db.$queryRaw<
+      Array<{
+        id: string;
+        userId: string;
+        entityType: string;
+        entityId: string;
+        chunkIndex: number;
+        content: string;
+        contentHash: string;
+        metadata: unknown;
+        createdAt: Date;
+        updatedAt: Date;
+      }>
+    >`
       INSERT INTO "Embedding" (
         id,
         "userId",
@@ -539,4 +541,3 @@ export async function needsReembedding(
     content
   );
 }
-
