@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import {
   DropdownMenu,
@@ -20,9 +21,7 @@ export function UserDropdown() {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return (
-      <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
-    );
+    return <div className="bg-muted h-9 w-9 animate-pulse rounded-full" />;
   }
 
   if (!session?.user) {
@@ -48,7 +47,7 @@ export function UserDropdown() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="relative h-9 w-9 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2"
+          className="ring-offset-background hover:ring-ring relative h-9 w-9 rounded-full transition-all hover:ring-2 hover:ring-offset-2"
         >
           <Avatar className="h-9 w-9">
             <AvatarImage
@@ -64,15 +63,22 @@ export function UserDropdown() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
+            <p className="text-sm leading-none font-medium">{user.name}</p>
+            <p className="text-muted-foreground text-xs leading-none">
               {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/settings/integrations">
+            <IntegrationsIcon className="mr-2 h-4 w-4" />
+            Integrations
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+          className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
           onClick={handleSignOut}
         >
           <LogOutIcon className="mr-2 h-4 w-4" />
@@ -102,3 +108,21 @@ function LogOutIcon({ className }: { className?: string }) {
   );
 }
 
+function IntegrationsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+      <path d="m14.7 6.3-5.4 10.4" />
+      <path d="m6.3 9.3 10.4 5.4" />
+    </svg>
+  );
+}
