@@ -2,7 +2,7 @@
 
 > **Purpose**: Lessons learned from Phase 3 implementation to improve future planning and execution  
 > **Last Updated**: December 21, 2024  
-> **Based On**: Phase 3-1 and Phase 3-2 Completion Analysis
+> **Based On**: Phase 3-1, Phase 3-2, and Phase 3-3 Completion Analysis
 
 ---
 
@@ -546,6 +546,88 @@ src/
 ❌ **Don't**: Write tests that only verify types and constants exist
 ✅ **Do**: Write tests that verify behavior and catch regressions
 
+### 11.6 "Inconsistent Method Naming" _(New from Phase 3-3)_
+
+❌ **Don't**: Use different method names across files for the same operation
+✅ **Do**: Verify method calls match actual interface definitions
+
+**Example** (what went wrong):
+
+```typescript
+// Repository defines:
+get: async (userId: string): Promise<GmailSyncState> => { ... }
+
+// But consumer calls:
+const syncState = await syncStateRepository.getOrCreate(userId); // ← Runtime error!
+```
+
+**Lesson**: Always grep for method usage after renaming or creating methods.
+
+### 11.7 "Catch Block Variable Scope Errors" _(New from Phase 3-3)_
+
+❌ **Don't**: Reference variables in catch blocks that may not be defined
+✅ **Do**: Declare variables before try block or use optional chaining
+
+**Anti-pattern**:
+
+```typescript
+try {
+  const session = await auth();
+  const userId = session.user.id;
+  // ...
+} catch (error) {
+  logger.error("Failed", { userId }); // userId may be undefined!
+}
+```
+
+**Better approach**:
+
+```typescript
+let userId: string | undefined;
+try {
+  const session = await auth();
+  userId = session?.user?.id;
+  if (!userId) throw new Error("Unauthorized");
+  // ...
+} catch (error) {
+  logger.error("Failed", { userId }); // Safe - userId is in scope
+}
+```
+
+### 11.8 "Async Hook State Initialization" _(New from Phase 3-3)_
+
+❌ **Don't**: Initialize loading state as `false` when async fetch happens on mount
+✅ **Do**: Initialize loading state as `true` and set to `false` after fetch completes
+
+**Anti-pattern**:
+
+```typescript
+function useCsrf() {
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // Wrong!
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchToken().finally(() => setIsLoading(false));
+  }, []);
+}
+// User can click button before token loads → request fails
+```
+
+**Better approach**:
+
+```typescript
+function useCsrf() {
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
+
+  useEffect(() => {
+    fetchToken().finally(() => setIsLoading(false));
+  }, []);
+}
+// Button is disabled while isLoading is true
+```
+
 ---
 
 ## 12. Quick Reference Checklist
@@ -561,6 +643,8 @@ Before marking any chunk as complete:
 - [ ] No magic numbers (use constants)
 - [ ] No unsafe type assertions (use type guards/Zod)
 - [ ] No duplicate code (extract to shared utilities)
+- [ ] Method calls match actual interface definitions
+- [ ] Error handler variable scope is correct
 
 **Security**
 
@@ -574,18 +658,182 @@ Before marking any chunk as complete:
 - [ ] Behavior tests (not just type tests)
 - [ ] Error scenarios covered
 - [ ] Edge cases handled
+- [ ] Runtime error scenarios tested
 
 **Integration**
 
 - [ ] Backend + frontend coordinated
 - [ ] Lifecycle hooks connected
 - [ ] Startup initialization verified
+- [ ] Loading states handle async operations
 
 **Documentation**
 
 - [ ] API endpoints documented
 - [ ] Configuration documented
 - [ ] Errors documented
+```
+
+---
+
+## 13. API Consistency Patterns _(New from Phase 3-3)_
+
+### 13.1 Standardize Error Response Format
+
+**Learning**: Error responses were inconsistent - some returned `{ error: string }`, others returned `{ error: { code, message } }`.
+
+**Best Practice**: Define a standard error response format at project start:
+
+```typescript
+// src/types/api.ts
+export interface APIErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+// Use helper function
+export function createErrorResponse(
+  code: string,
+  message: string,
+  status: number,
+  headers?: HeadersInit
+): NextResponse {
+  return NextResponse.json({ error: { code, message } }, { status, headers });
+}
+```
+
+### 13.2 Consistent Error Handling in Route Handlers
+
+**Best Practice**: Always capture variables before try blocks for error logging:
+
+```typescript
+export async function POST(request: NextRequest) {
+  // Capture identifiers before try block
+  let userId: string | undefined;
+  let resourceId: string | undefined;
+
+  try {
+    const session = await auth();
+    userId = session?.user?.id;
+    if (!userId) return createErrorResponse("UNAUTHORIZED", "...", 401);
+
+    resourceId = (await request.json()).resourceId;
+    // ... business logic
+  } catch (error) {
+    // Safe to use - variables are in scope
+    logger.error("Operation failed", { userId, resourceId }, error);
+    return createErrorResponse("INTERNAL_ERROR", "...", 500);
+  }
+}
+```
+
+---
+
+## 14. React Hook Patterns _(New from Phase 3-3)_
+
+### 14.1 Async Data Hooks
+
+**Best Practice**: Hooks that fetch data on mount should initialize loading as `true`:
+
+```typescript
+export function useData() {
+  const [data, setData] = useState<Data | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start true
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData()
+      .then(setData)
+      .catch((e) => setError(e.message))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  return { data, isLoading, error };
+}
+```
+
+### 14.2 Protected Fetch Patterns
+
+**Best Practice**: When creating hooks for authenticated/protected requests:
+
+```typescript
+export function useProtectedFetch() {
+  const { token, isLoading: tokenLoading } = useCsrf();
+
+  const protectedFetch = useCallback(
+    async (url: string, options?: RequestInit) => {
+      if (!token) throw new Error("CSRF token not loaded");
+      return fetch(url, {
+        ...options,
+        headers: { ...options?.headers, "x-csrf-token": token },
+      });
+    },
+    [token]
+  );
+
+  // Return loading state so consumers can disable buttons
+  return { protectedFetch, isReady: !tokenLoading && !!token };
+}
+```
+
+### 14.3 Button Loading States
+
+**Best Practice**: Disable buttons during async operations:
+
+```typescript
+function ActionButton({ onAction }: { onAction: () => Promise<void> }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const { isReady } = useProtectedFetch();
+
+  return (
+    <Button
+      disabled={!isReady || isLoading}
+      onClick={async () => {
+        setIsLoading(true);
+        try {
+          await onAction();
+        } finally {
+          setIsLoading(false);
+        }
+      }}
+    >
+      {isLoading ? <Spinner /> : "Submit"}
+    </Button>
+  );
+}
+```
+
+---
+
+## 15. Interface Verification Checklist _(New from Phase 3-3)_
+
+### 15.1 Before Finalizing Any Chunk
+
+Add this verification step to every chunk completion:
+
+```markdown
+### Interface Verification
+
+- [ ] All imported functions/methods exist in source files
+- [ ] All method signatures match between call sites and definitions
+- [ ] All variable references in catch blocks are in scope
+- [ ] All async hook states properly initialize loading
+- [ ] Error response formats are consistent with project standard
+```
+
+### 15.2 Quick Grep Verification
+
+After renaming or creating new methods, verify usage:
+
+```bash
+# Find all usages of a repository method
+grep -r "syncStateRepository\." src/
+
+# Verify method exists
+grep "export const syncStateRepository" src/integrations/gmail/repository.ts
 ```
 
 ---
@@ -599,10 +847,13 @@ Following these practices will:
 3. **Increase test coverage** by testing behavior, not just types
 4. **Prevent drift** by documenting as you go
 5. **Enable faster remediation** by tracking technical debt explicitly
+6. **Eliminate runtime errors** by verifying interface consistency _(New)_
+7. **Improve UX** by properly handling async loading states _(New)_
 
 Apply these lessons to all future phase implementations.
 
 ---
 
 _Based on analysis of Phase 3 (Gmail Integration) implementation_  
-_Document Version: 1.0_
+_Document Version: 1.1_  
+_Updated: December 21, 2024 (Added lessons from Phase 3-3 analysis)_

@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -278,34 +279,47 @@ function ApprovalCard({ approval, onClick }: ApprovalCardProps) {
   }, [approval.expiresAt]);
 
   return (
-    <button
+    <div
       className={cn(
-        "group w-full rounded-lg border p-4 text-left transition-colors",
+        "group rounded-lg border p-4 transition-colors",
         "hover:border-primary/50 hover:bg-muted/50"
       )}
-      onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="group-hover:text-primary truncate font-medium">
-            {approval.subject || "(No subject)"}
-          </p>
-          <p className="text-muted-foreground truncate text-sm">
-            To: {approval.to.join(", ")}
-          </p>
+      <button className="w-full text-left" onClick={onClick}>
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="group-hover:text-primary truncate font-medium">
+              {approval.subject || "(No subject)"}
+            </p>
+            <p className="text-muted-foreground truncate text-sm">
+              To: {approval.to.join(", ")}
+            </p>
+          </div>
+          <div className="ml-3 flex shrink-0 flex-col items-end gap-1">
+            {isExpiringSoon && (
+              <Badge variant="destructive" className="animate-pulse text-xs">
+                Expiring Soon
+              </Badge>
+            )}
+            <span className="text-muted-foreground text-xs">
+              {formatTimeAgo(requestedAt)}
+            </span>
+          </div>
         </div>
-        <div className="ml-3 flex shrink-0 flex-col items-end gap-1">
-          {isExpiringSoon && (
-            <Badge variant="destructive" className="animate-pulse text-xs">
-              Expiring Soon
-            </Badge>
-          )}
-          <span className="text-muted-foreground text-xs">
-            {formatTimeAgo(requestedAt)}
-          </span>
+      </button>
+      {approval.threadId && (
+        <div className="mt-2 border-t pt-2">
+          <Link
+            href={`/email/thread/${approval.threadId}`}
+            className="text-muted-foreground hover:text-primary flex items-center gap-1 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ThreadIcon className="size-3" />
+            View Thread
+          </Link>
         </div>
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
@@ -379,6 +393,24 @@ function CheckIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function ThreadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
       />
     </svg>
   );

@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture userId before try block for error logging
+  let userId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -54,13 +57,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    userId = session.user.id;
+
     // Get pagination params
     const searchParams = request.nextUrl.searchParams;
     const maxResults = parseInt(searchParams.get("maxResults") || "50", 10);
     const pageToken = searchParams.get("pageToken") || undefined;
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -69,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create client and list drafts
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     const result = await listDrafts(client, { maxResults, pageToken });
 
     return NextResponse.json(
@@ -80,11 +85,7 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    apiLogger.error(
-      "Failed to list drafts",
-      { userId: session.user.id },
-      error
-    );
+    apiLogger.error("Failed to list drafts", { userId }, error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to list drafts",
@@ -106,6 +107,9 @@ export async function POST(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture userId before try block for error logging
+  let userId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -114,6 +118,8 @@ export async function POST(request: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    userId = session.user.id;
 
     // Parse and validate body
     const body = await request.json();
@@ -149,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -158,16 +164,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create client and draft
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     const result = await createDraft(client, params);
 
     return NextResponse.json(result, { status: 201, headers });
   } catch (error) {
-    apiLogger.error(
-      "Failed to create draft",
-      { userId: session.user.id },
-      error
-    );
+    apiLogger.error("Failed to create draft", { userId }, error);
     return NextResponse.json(
       {
         error:

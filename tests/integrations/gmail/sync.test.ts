@@ -50,15 +50,16 @@ describe("Gmail Sync Job Constants", () => {
       expect(incSyncOptions.backoff).toBeDefined();
     });
 
-    it("should have different priorities for different jobs", () => {
-      // Full sync should have lower priority (less urgent)
-      // Incremental sync should be quicker
-      const fullPriority = GMAIL_JOB_OPTIONS.FULL_SYNC.priority ?? 10;
-      const incPriority = GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC.priority ?? 10;
+    it("should have remove on complete/fail options", () => {
+      // Jobs should be cleaned up after completion
+      const fullSyncOptions = GMAIL_JOB_OPTIONS.FULL_SYNC;
+      const incSyncOptions = GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC;
 
-      // Both should be reasonable priorities
-      expect(fullPriority).toBeGreaterThanOrEqual(1);
-      expect(incPriority).toBeGreaterThanOrEqual(1);
+      // Both should have cleanup options
+      expect(fullSyncOptions.removeOnComplete).toBeDefined();
+      expect(fullSyncOptions.removeOnFail).toBeDefined();
+      expect(incSyncOptions.removeOnComplete).toBeDefined();
+      expect(incSyncOptions.removeOnFail).toBeDefined();
     });
   });
 
@@ -81,23 +82,23 @@ describe("Sync Option Types", () => {
   describe("FullSyncOptions", () => {
     it("should accept valid full sync options", () => {
       const options: FullSyncOptions = {
-        maxMessages: 1000,
-        batchSize: 50,
+        maxEmails: 1000,
+        pageSize: 50,
         labelIds: ["INBOX"],
-        skipEmbeddings: false,
+        resumeFromCheckpoint: false,
       };
 
-      expect(options.maxMessages).toBe(1000);
-      expect(options.batchSize).toBe(50);
+      expect(options.maxEmails).toBe(1000);
+      expect(options.pageSize).toBe(50);
       expect(options.labelIds).toEqual(["INBOX"]);
-      expect(options.skipEmbeddings).toBe(false);
+      expect(options.resumeFromCheckpoint).toBe(false);
     });
 
     it("should allow partial options", () => {
       const options: FullSyncOptions = {};
 
-      expect(options.maxMessages).toBeUndefined();
-      expect(options.batchSize).toBeUndefined();
+      expect(options.maxEmails).toBeUndefined();
+      expect(options.pageSize).toBeUndefined();
     });
   });
 
@@ -105,11 +106,13 @@ describe("Sync Option Types", () => {
     it("should accept valid incremental sync options", () => {
       const options: IncrementalSyncOptions = {
         startHistoryId: "12345",
-        historyTypes: ["messageAdded", "messageDeleted"],
+        labelIds: ["INBOX"],
+        maxHistoryEntries: 500,
       };
 
       expect(options.startHistoryId).toBe("12345");
-      expect(options.historyTypes).toContain("messageAdded");
+      expect(options.labelIds).toContain("INBOX");
+      expect(options.maxHistoryEntries).toBe(500);
     });
   });
 

@@ -71,10 +71,12 @@ describe("Contact to Person Mapping", () => {
 
       expect(result.metadata).toBeDefined();
       expect(result.metadata.googleContact).toBeDefined();
-      expect(result.metadata.googleContact.resourceName).toBe(
-        "people/c123456789"
-      );
-      expect(result.metadata.googleContact.etag).toBe("%EgMBBgkQLDg=");
+      const googleContact = result.metadata.googleContact as {
+        resourceName: string;
+        etag: string;
+      };
+      expect(googleContact.resourceName).toBe("people/c123456789");
+      expect(googleContact.etag).toBe("%EgMBBgkQLDg=");
     });
   });
 
@@ -109,7 +111,7 @@ describe("Label Mapping", () => {
       const gmailLabel = {
         id: "INBOX",
         name: "INBOX",
-        type: "system",
+        type: "system" as const,
         messagesTotal: 100,
         messagesUnread: 5,
       };
@@ -128,7 +130,7 @@ describe("Label Mapping", () => {
       const gmailLabel = {
         id: "Label_1",
         name: "Work Projects",
-        type: "user",
+        type: "user" as const,
         messagesTotal: 50,
       };
 
@@ -381,7 +383,7 @@ describe("Mapper Edge Cases", () => {
     const label = {
       id: "Label_X",
       name: "Empty Label",
-      type: "user",
+      type: "user" as const,
     };
 
     const result = mapGmailLabelToEmailLabel(label, "user_123");

@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture userId before try block for error logging
+  let userId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    userId = session.user.id;
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status") as ApprovalStatus | null;
     const pendingOnly = searchParams.get("pending") === "true";
@@ -68,20 +72,20 @@ export async function GET(request: NextRequest) {
 
     // Return stats only if requested
     if (statsOnly) {
-      const stats = await getApprovalStats(session.user.id);
+      const stats = await getApprovalStats(userId);
       return NextResponse.json(stats, { headers });
     }
 
     // Get pending approvals or all with filter
     let approvals;
     if (pendingOnly) {
-      approvals = await getPendingApprovals(session.user.id, {
+      approvals = await getPendingApprovals(userId, {
         limit,
         offset,
         includeExpired,
       });
     } else {
-      approvals = await getApprovals(session.user.id, {
+      approvals = await getApprovals(userId, {
         status: status || undefined,
         limit,
         offset,
@@ -98,11 +102,7 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    apiLogger.error(
-      "Failed to list approvals",
-      { userId: session.user.id },
-      error
-    );
+    apiLogger.error("Failed to list approvals", { userId }, error);
     return NextResponse.json(
       {
         error:
@@ -125,6 +125,9 @@ export async function POST(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture userId before try block for error logging
+  let userId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -133,6 +136,8 @@ export async function POST(request: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    userId = session.user.id;
 
     // Parse and validate body
     const body = await request.json();
@@ -163,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -172,8 +177,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create client and request approval
-    const client = createGmailClient(accessToken, session.user.id);
-    const result = await requestApproval(client, session.user.id, params);
+    const client = createGmailClient(accessToken, userId);
+    const result = await requestApproval(client, userId, params);
 
     return NextResponse.json(
       {
@@ -184,11 +189,7 @@ export async function POST(request: NextRequest) {
       { status: 201, headers }
     );
   } catch (error) {
-    apiLogger.error(
-      "Failed to create approval request",
-      { userId: session.user.id },
-      error
-    );
+    apiLogger.error("Failed to create approval request", { userId }, error);
     return NextResponse.json(
       {
         error:

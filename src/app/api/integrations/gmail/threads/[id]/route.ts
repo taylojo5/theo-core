@@ -16,10 +16,10 @@ interface ThreadEmail {
   id: string;
   gmailId: string;
   subject: string | null;
-  fromAddress: string;
+  fromEmail: string;
   fromName: string | null;
-  toAddresses: string[];
-  ccAddresses: string[];
+  toEmails: string[];
+  ccEmails: string[];
   bodyText: string | null;
   bodyHtml: string | null;
   internalDate: string;
@@ -82,10 +82,10 @@ export async function GET(
       id: email.id,
       gmailId: email.gmailId,
       subject: email.subject,
-      fromAddress: email.fromAddress,
+      fromEmail: email.fromEmail,
       fromName: email.fromName,
-      toAddresses: email.toAddresses,
-      ccAddresses: email.ccAddresses,
+      toEmails: email.toEmails,
+      ccEmails: email.ccEmails,
       bodyText: email.bodyText,
       bodyHtml: email.bodyHtml,
       internalDate: email.internalDate.toISOString(),

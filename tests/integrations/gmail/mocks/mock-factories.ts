@@ -12,6 +12,7 @@ import type {
   GmailHistory,
   GoogleContact,
   EmailAddress,
+  GmailMessagePart,
 } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
@@ -29,6 +30,8 @@ export interface CreateMessageOptions {
   body?: string;
   bodyHtml?: string;
   date?: Date;
+  /** Gmail internal date as Unix timestamp in milliseconds (string) */
+  internalDate?: string;
   historyId?: string;
   hasAttachments?: boolean;
   attachments?: Array<{
@@ -103,7 +106,7 @@ export function createMockMessage(
   }
 
   // Build parts
-  const parts: GmailMessage["payload"]["parts"] = [
+  const parts: GmailMessagePart[] = [
     {
       mimeType: "text/plain",
       body: {
@@ -213,9 +216,9 @@ export function createMockThread(
 export interface CreateHistoryEntryOptions {
   id?: string;
   messagesAdded?: Array<{ id: string; threadId: string }>;
-  messagesDeleted?: Array<{ id: string }>;
-  labelsAdded?: Array<{ id: string; labelIds: string[] }>;
-  labelsRemoved?: Array<{ id: string; labelIds: string[] }>;
+  messagesDeleted?: Array<{ id: string; threadId?: string }>;
+  labelsAdded?: Array<{ id: string; threadId?: string; labelIds: string[] }>;
+  labelsRemoved?: Array<{ id: string; threadId?: string; labelIds: string[] }>;
 }
 
 let historyCounter = 12345;
@@ -239,20 +242,20 @@ export function createMockHistoryEntry(
 
   if (options.messagesDeleted?.length) {
     entry.messagesDeleted = options.messagesDeleted.map((m) => ({
-      message: { id: m.id },
+      message: { id: m.id, threadId: m.threadId || m.id },
     }));
   }
 
   if (options.labelsAdded?.length) {
     entry.labelsAdded = options.labelsAdded.map((m) => ({
-      message: { id: m.id },
+      message: { id: m.id, threadId: m.threadId || m.id },
       labelIds: m.labelIds,
     }));
   }
 
   if (options.labelsRemoved?.length) {
     entry.labelsRemoved = options.labelsRemoved.map((m) => ({
-      message: { id: m.id },
+      message: { id: m.id, threadId: m.threadId || m.id },
       labelIds: m.labelIds,
     }));
   }

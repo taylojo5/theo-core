@@ -256,7 +256,12 @@ export function createMockGmailApi(client: MockGmailClient) {
                 pageToken: params.pageToken,
                 maxResults: params.maxResults,
                 labelId: params.labelId,
-                historyTypes: params.historyTypes as unknown as string[],
+                historyTypes: params.historyTypes as (
+                  | "messageAdded"
+                  | "messageDeleted"
+                  | "labelAdded"
+                  | "labelRemoved"
+                )[],
               });
               return wrapResponse({
                 history: result.history,

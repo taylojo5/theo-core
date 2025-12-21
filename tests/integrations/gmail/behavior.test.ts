@@ -178,7 +178,7 @@ describe("Gmail Mock Client Behavior", () => {
         startHistoryId: initialHistoryId,
       });
 
-      expect(history.history.length).toBeGreaterThan(0);
+      expect(history.history?.length).toBeGreaterThan(0);
       expect(history.historyId).toBe(newHistoryId);
     });
   });

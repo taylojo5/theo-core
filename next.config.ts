@@ -35,8 +35,6 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
-    // Enable instrumentation hook for server startup
-    instrumentationHook: true,
   },
 };
 

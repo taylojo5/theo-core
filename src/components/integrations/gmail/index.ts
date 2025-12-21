@@ -34,3 +34,10 @@ export {
   type GmailStatisticsData,
   type StatisticsProps,
 } from "./statistics";
+
+export {
+  SyncConfigPanel,
+  type SyncConfigData,
+  type SyncConfigProps,
+  type LabelOption,
+} from "./sync-config";

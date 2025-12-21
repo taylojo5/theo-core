@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture userId before try block for error logging
+  let userId: string | undefined;
+
   try {
     // Authenticate
     const session = await auth();
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = session.user.id;
+    userId = session.user.id;
 
     // Get sync state
     const syncState = await syncStateRepository.get(userId);

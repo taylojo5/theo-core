@@ -81,8 +81,9 @@ export async function resumeWorker(queueName: QueueName): Promise<void> {
   }
 }
 
-// Register shutdown handler
-if (typeof process !== "undefined") {
+// Register shutdown handler (only in Node.js runtime, not Edge)
+// Note: This code only executes in Node.js; Edge runtime will skip it
+if (process.env.NEXT_RUNTIME === "nodejs") {
   const shutdown = async () => {
     console.log("[Workers] Shutting down...");
     await closeWorkers();

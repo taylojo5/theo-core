@@ -14,6 +14,13 @@ import {
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { withCsrfProtection } from "@/lib/csrf";
+import {
+  unauthorized,
+  notFound,
+  validationError,
+  gmailNotConnected,
+  handleApiError,
+} from "@/lib/api";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -40,40 +47,30 @@ export async function GET(
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let approvalId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers }
-      );
+      return unauthorized("Authentication required", headers);
     }
 
-    const { id: approvalId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    approvalId = resolvedParams.id;
 
-    const approval = await getApproval(session.user.id, approvalId);
+    const approval = await getApproval(userId, approvalId);
 
     if (!approval) {
-      return NextResponse.json(
-        { error: "Approval not found" },
-        { status: 404, headers }
-      );
+      return notFound("Approval", headers);
     }
 
     return NextResponse.json(approval, { headers });
   } catch (error) {
-    apiLogger.error(
-      "Failed to get approval",
-      { userId: session.user.id, approvalId },
-      error
-    );
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to get approval",
-      },
-      { status: 500, headers }
-    );
+    apiLogger.error("Failed to get approval", { userId, approvalId }, error);
+    return handleApiError(error, headers);
   }
 }
 
@@ -92,14 +89,18 @@ export async function POST(
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let approvalId: string | undefined;
+  let action: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers }
-      );
+      return unauthorized("Authentication required", headers);
     }
+
+    userId = session.user.id;
 
     // Parse body first so we can check CSRF from body
     const body = await request.json();
@@ -108,41 +109,41 @@ export async function POST(
     const csrfError = await withCsrfProtection(request, body, headers);
     if (csrfError) return csrfError;
 
-    const { id: approvalId } = await params;
+    const resolvedParams = await params;
+    approvalId = resolvedParams.id;
     const parseResult = ActionSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: parseResult.error.errors,
-        },
-        { status: 400, headers }
+      return validationError(
+        "Invalid request body",
+        parseResult.error.errors,
+        headers
       );
     }
 
-    const { action, notes } = parseResult.data;
+    action = parseResult.data.action;
+    const notes = parseResult.data.notes;
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
-      return NextResponse.json(
-        { error: "Gmail not connected or token expired" },
-        { status: 401, headers }
-      );
+      return gmailNotConnected(headers);
     }
 
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
 
     // Handle action
     if (action === "approve") {
-      const result = await approveAndSend(client, session.user.id, approvalId);
+      const result = await approveAndSend(client, userId, approvalId);
 
       if (!result.success) {
         return NextResponse.json(
           {
             success: false,
-            error: result.errorMessage || "Failed to send email",
+            error: {
+              code: "GMAIL_SEND_FAILED",
+              message: result.errorMessage || "Failed to send email",
+            },
             approval: result.approval,
           },
           { status: 500, headers }
@@ -160,12 +161,7 @@ export async function POST(
     }
 
     // Reject
-    const result = await rejectApproval(
-      client,
-      session.user.id,
-      approvalId,
-      notes
-    );
+    const result = await rejectApproval(client, userId, approvalId, notes);
 
     return NextResponse.json(
       {
@@ -177,22 +173,10 @@ export async function POST(
   } catch (error) {
     apiLogger.error(
       "Approval action failed",
-      { userId: session.user.id, approvalId, action: body?.action },
+      { userId, approvalId, action },
       error
     );
-
-    // Handle specific errors
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to process action";
-    const status = errorMessage.includes("not found")
-      ? 404
-      : errorMessage.includes("expired")
-        ? 410
-        : errorMessage.includes("Cannot")
-          ? 400
-          : 500;
-
-    return NextResponse.json({ error: errorMessage }, { status, headers });
+    return handleApiError(error, headers);
   }
 }
 
@@ -215,30 +199,30 @@ export async function DELETE(
   const csrfError = await withCsrfProtection(request, undefined, headers);
   if (csrfError) return csrfError;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let approvalId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers }
-      );
+      return unauthorized("Authentication required", headers);
     }
 
-    const { id: approvalId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    approvalId = resolvedParams.id;
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
-      return NextResponse.json(
-        { error: "Gmail not connected or token expired" },
-        { status: 401, headers }
-      );
+      return gmailNotConnected(headers);
     }
 
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     const result = await rejectApproval(
       client,
-      session.user.id,
+      userId,
       approvalId,
       "Cancelled by user"
     );
@@ -251,17 +235,7 @@ export async function DELETE(
       { headers }
     );
   } catch (error) {
-    apiLogger.error(
-      "Failed to cancel approval",
-      { userId: session.user.id, approvalId },
-      error
-    );
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to cancel approval",
-      },
-      { status: 500, headers }
-    );
+    apiLogger.error("Failed to cancel approval", { userId, approvalId }, error);
+    return handleApiError(error, headers);
   }
 }

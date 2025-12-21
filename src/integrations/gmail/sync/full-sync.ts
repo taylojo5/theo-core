@@ -130,7 +130,7 @@ export async function fullSync(
     }
 
     // Step 3: Load sync configuration and build query for message fetching
-    const syncState = await syncStateRepository.getOrCreate(userId);
+    const syncState = await syncStateRepository.get(userId);
     const syncConfig: SyncConfig = {
       syncLabels: syncState.syncLabels,
       excludeLabels: syncState.excludeLabels,

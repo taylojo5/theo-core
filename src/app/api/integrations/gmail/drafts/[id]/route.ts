@@ -49,6 +49,10 @@ export async function GET(
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let draftId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -58,10 +62,12 @@ export async function GET(
       );
     }
 
-    const { id: draftId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    draftId = resolvedParams.id;
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -70,16 +76,12 @@ export async function GET(
     }
 
     // Create client and get draft
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     const draft = await getDraft(client, draftId);
 
     return NextResponse.json(draft, { headers });
   } catch (error) {
-    apiLogger.error(
-      "Failed to get draft",
-      { userId: session.user.id, draftId },
-      error
-    );
+    apiLogger.error("Failed to get draft", { userId, draftId }, error);
 
     // Check if it's a not found error
     const errorMessage =
@@ -108,6 +110,10 @@ export async function PUT(
   );
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let draftId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -117,7 +123,9 @@ export async function PUT(
       );
     }
 
-    const { id: draftId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    draftId = resolvedParams.id;
 
     // Parse and validate body
     const body = await request.json();
@@ -152,7 +160,7 @@ export async function PUT(
     }
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -161,16 +169,12 @@ export async function PUT(
     }
 
     // Create client and update draft
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     const result = await updateDraft(client, draftId, updateParams);
 
     return NextResponse.json(result, { headers });
   } catch (error) {
-    apiLogger.error(
-      "Failed to update draft",
-      { userId: session.user.id, draftId },
-      error
-    );
+    apiLogger.error("Failed to update draft", { userId, draftId }, error);
     return NextResponse.json(
       {
         error:
@@ -200,6 +204,10 @@ export async function DELETE(
   const csrfError = await withCsrfProtection(request, undefined, headers);
   if (csrfError) return csrfError;
 
+  // Capture variables before try block for error logging
+  let userId: string | undefined;
+  let draftId: string | undefined;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -209,10 +217,12 @@ export async function DELETE(
       );
     }
 
-    const { id: draftId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    draftId = resolvedParams.id;
 
     // Get valid access token
-    const accessToken = await getValidAccessToken(session.user.id);
+    const accessToken = await getValidAccessToken(userId);
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
@@ -221,16 +231,12 @@ export async function DELETE(
     }
 
     // Create client and delete draft
-    const client = createGmailClient(accessToken, session.user.id);
+    const client = createGmailClient(accessToken, userId);
     await deleteDraft(client, draftId);
 
     return NextResponse.json({ success: true }, { headers });
   } catch (error) {
-    apiLogger.error(
-      "Failed to delete draft",
-      { userId: session.user.id, draftId },
-      error
-    );
+    apiLogger.error("Failed to delete draft", { userId, draftId }, error);
     return NextResponse.json(
       {
         error:

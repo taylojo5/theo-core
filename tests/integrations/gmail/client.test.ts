@@ -301,10 +301,9 @@ describe("MockGmailClient", () => {
         startHistoryId,
       });
 
-      expect(history.history.length).toBeGreaterThan(0);
-      const addedMessages = history.history.flatMap(
-        (h) => h.messagesAdded || []
-      );
+      expect(history.history?.length).toBeGreaterThan(0);
+      const addedMessages =
+        history.history?.flatMap((h) => h.messagesAdded || []) ?? [];
       expect(addedMessages.some((m) => m.message?.id === "new_msg")).toBe(true);
     });
 
@@ -318,9 +317,8 @@ describe("MockGmailClient", () => {
         startHistoryId,
       });
 
-      const deletedMessages = history.history.flatMap(
-        (h) => h.messagesDeleted || []
-      );
+      const deletedMessages =
+        history.history?.flatMap((h) => h.messagesDeleted || []) ?? [];
       expect(deletedMessages.some((m) => m.message?.id === "to_delete")).toBe(
         true
       );
@@ -336,7 +334,8 @@ describe("MockGmailClient", () => {
         startHistoryId,
       });
 
-      const labelAdded = history.history.flatMap((h) => h.labelsAdded || []);
+      const labelAdded =
+        history.history?.flatMap((h) => h.labelsAdded || []) ?? [];
       expect(labelAdded.length).toBeGreaterThan(0);
     });
 
@@ -451,9 +450,8 @@ describe("MockGmailClient", () => {
         await client.sendDraft(draft.id);
 
         const history = await client.listHistory({ startHistoryId });
-        const addedMessages = history.history.flatMap(
-          (h) => h.messagesAdded || []
-        );
+        const addedMessages =
+          history.history?.flatMap((h) => h.messagesAdded || []) ?? [];
         expect(addedMessages.length).toBeGreaterThan(0);
       });
     });
@@ -588,9 +586,8 @@ describe("MockGmailClient", () => {
       });
 
       const history = await client.listHistory({ startHistoryId });
-      const addedMessages = history.history.flatMap(
-        (h) => h.messagesAdded || []
-      );
+      const addedMessages =
+        history.history?.flatMap((h) => h.messagesAdded || []) ?? [];
       expect(addedMessages.length).toBeGreaterThan(0);
     });
 
@@ -628,7 +625,7 @@ describe("Mock Factory Functions", () => {
       expect(message.threadId).toBeDefined();
       expect(message.labelIds).toContain("INBOX");
       expect(message.payload).toBeDefined();
-      expect(message.payload.headers).toBeDefined();
+      expect(message.payload?.headers).toBeDefined();
     });
 
     it("should respect provided options", () => {
@@ -640,7 +637,7 @@ describe("Mock Factory Functions", () => {
       });
 
       expect(message.id).toBe("custom_id");
-      const subjectHeader = message.payload.headers?.find(
+      const subjectHeader = message.payload?.headers?.find(
         (h) => h.name === "Subject"
       );
       expect(subjectHeader?.value).toBe("Custom Subject");
@@ -652,7 +649,7 @@ describe("Mock Factory Functions", () => {
         hasAttachments: true,
       });
 
-      const parts = message.payload.parts || [];
+      const parts = message.payload?.parts || [];
       const attachmentPart = parts.find(
         (p) => p.filename && p.body?.attachmentId
       );

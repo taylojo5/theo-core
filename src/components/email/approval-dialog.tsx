@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -188,6 +189,19 @@ export function ApprovalDialog({
                 <span>By: {approval.requestedBy}</span>
               </>
             )}
+            {approval.threadId && (
+              <>
+                <span>•</span>
+                <Link
+                  href={`/email/thread/${approval.threadId}`}
+                  className="text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ThreadIcon className="mr-1 inline-block size-3" />
+                  View Thread
+                </Link>
+              </>
+            )}
           </div>
         </CardHeader>
 
@@ -344,6 +358,23 @@ function SendIcon({ className }: { className?: string }) {
     >
       <path d="m22 2-7 20-4-9-9-4Z" />
       <path d="M22 2 11 13" />
+    </svg>
+  );
+}
+
+function ThreadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

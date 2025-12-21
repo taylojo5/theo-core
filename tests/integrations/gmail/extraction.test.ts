@@ -23,7 +23,38 @@ import type {
   ExtractedActionItem,
   EmailProcessingResult,
   ActionPriority,
+  EmailInput,
 } from "@/integrations/gmail";
+
+// ─────────────────────────────────────────────────────────────
+// Test Helpers
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Create a minimal EmailInput for testing
+ */
+function createTestEmailInput(partial: {
+  subject?: string;
+  bodyText?: string;
+  fromEmail: string;
+}): EmailInput {
+  return {
+    id: `test_${Date.now()}`,
+    userId: "test_user",
+    subject: partial.subject ?? null,
+    fromEmail: partial.fromEmail,
+    fromName: null,
+    toEmails: ["test@example.com"],
+    ccEmails: [],
+    bccEmails: [],
+    replyTo: null,
+    bodyText: partial.bodyText ?? null,
+    bodyHtml: null,
+    snippet: null,
+    internalDate: new Date(),
+    labelIds: ["INBOX"],
+  };
+}
 
 // ─────────────────────────────────────────────────────────────
 // Date Extraction
@@ -266,11 +297,11 @@ describe("Action Item Extraction", () => {
 describe("Topic Categorization", () => {
   describe("extractTopics", () => {
     it("should categorize finance emails", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Invoice #12345 Payment Confirmation",
         bodyText: "Your payment of $500 has been received. Receipt attached.",
         fromEmail: "billing@company.com",
-      };
+      });
 
       const topics = extractTopics(email);
 
@@ -279,11 +310,11 @@ describe("Topic Categorization", () => {
     });
 
     it("should categorize travel emails", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Flight Confirmation - LAX to JFK",
         bodyText: "Your booking is confirmed. Flight departs at 8:00 AM.",
         fromEmail: "bookings@airline.com",
-      };
+      });
 
       const topics = extractTopics(email);
 
@@ -291,11 +322,11 @@ describe("Topic Categorization", () => {
     });
 
     it("should categorize scheduling emails", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Meeting Invitation: Project Review",
         bodyText: "You are invited to a meeting on Thursday at 2pm.",
         fromEmail: "calendar@company.com",
-      };
+      });
 
       const topics = extractTopics(email);
 
@@ -303,11 +334,11 @@ describe("Topic Categorization", () => {
     });
 
     it("should limit number of topics", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Multiple topics meeting invoice flight",
         bodyText: "Meeting about invoice for flight booking project",
         fromEmail: "test@example.com",
-      };
+      });
 
       const topics = extractTopics(email, { maxTopics: 2 });
 
@@ -315,11 +346,11 @@ describe("Topic Categorization", () => {
     });
 
     it("should respect minimum confidence", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Generic message",
         bodyText: "Hello, how are you?",
         fromEmail: "friend@example.com",
-      };
+      });
 
       const highConfTopics = extractTopics(email, { minConfidence: 0.8 });
       const lowConfTopics = extractTopics(email, { minConfidence: 0.1 });
@@ -332,21 +363,21 @@ describe("Topic Categorization", () => {
 
   describe("matchesTopic", () => {
     it("should match specific topics", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Your Amazon Order Has Shipped",
         bodyText: "Track your delivery",
         fromEmail: "shipping@amazon.com",
-      };
+      });
 
       expect(matchesTopic(email, "shopping")).toBe(true);
     });
 
     it("should not match unrelated topics", () => {
-      const email = {
+      const email = createTestEmailInput({
         subject: "Meeting Tomorrow",
         bodyText: "Let's discuss the project",
         fromEmail: "coworker@company.com",
-      };
+      });
 
       expect(matchesTopic(email, "shopping")).toBe(false);
     });

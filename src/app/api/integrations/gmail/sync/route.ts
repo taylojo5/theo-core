@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { withCsrfProtection } from "@/lib/csrf";
+import { unauthorized, validationError, handleApiError } from "@/lib/api";
 import {
   triggerSync,
   triggerFullSync,
@@ -18,6 +19,7 @@ import {
 } from "@/integrations/gmail/sync/scheduler";
 import { syncStateRepository } from "@/integrations/gmail/repository";
 import { apiLogger } from "@/integrations/gmail";
+import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/integrations/gmail/sync
@@ -102,6 +104,81 @@ export async function POST(req: NextRequest) {
       },
       { status: 500, headers }
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/integrations/gmail/sync
+// Update sync configuration
+// ─────────────────────────────────────────────────────────────
+
+const SyncConfigSchema = z.object({
+  syncLabels: z.array(z.string()).optional(),
+  excludeLabels: z.array(z.string()).optional(),
+  maxEmailAgeDays: z.number().min(1).max(365).optional(),
+  syncAttachments: z.boolean().optional(),
+});
+
+export async function PATCH(req: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    req,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
+  try {
+    // Authenticate
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorized("Authentication required", headers);
+    }
+
+    const userId = session.user.id;
+
+    // Parse request body
+    const body = await req.json().catch(() => ({}));
+
+    // CSRF protection
+    const csrfError = await withCsrfProtection(req, body, headers);
+    if (csrfError) return csrfError;
+
+    // Validate config
+    const parseResult = SyncConfigSchema.safeParse(body);
+    if (!parseResult.success) {
+      return validationError(
+        "Invalid sync configuration",
+        parseResult.error.errors,
+        headers
+      );
+    }
+
+    const config = parseResult.data;
+
+    // Update sync state with new config
+    const updatedState = await syncStateRepository.update(userId, config);
+
+    apiLogger.info("Sync configuration updated", {
+      userId,
+      config,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Sync configuration updated",
+        config: {
+          syncLabels: updatedState.syncLabels,
+          excludeLabels: updatedState.excludeLabels,
+          maxEmailAgeDays: updatedState.maxEmailAgeDays,
+          syncAttachments: updatedState.syncAttachments,
+        },
+      },
+      { headers }
+    );
+  } catch (error) {
+    apiLogger.error("Failed to update sync config", {}, error);
+    return handleApiError(error, headers);
   }
 }
 

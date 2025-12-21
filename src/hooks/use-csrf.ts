@@ -54,7 +54,8 @@ interface UseCsrfReturn {
 export function useCsrf(): UseCsrfReturn {
   const [token, setToken] = React.useState<string | null>(null);
   const [headerName, setHeaderName] = React.useState<string>("x-csrf-token");
-  const [isLoading, setIsLoading] = React.useState(false);
+  // Start as true since we fetch token on mount - prevents actions before token is ready
+  const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   // Fetch CSRF token on mount

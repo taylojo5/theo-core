@@ -20,10 +20,10 @@ interface ThreadEmail {
   id: string;
   gmailId: string;
   subject: string | null;
-  fromAddress: string;
+  fromEmail: string;
   fromName: string | null;
-  toAddresses: string[];
-  ccAddresses: string[];
+  toEmails: string[];
+  ccEmails: string[];
   bodyText: string | null;
   bodyHtml: string | null;
   internalDate: string;
@@ -246,7 +246,7 @@ export function ThreadView({
                 {/* Avatar */}
                 <Avatar className="size-10 shrink-0">
                   <div className="bg-primary/10 text-primary flex h-full w-full items-center justify-center text-sm font-medium">
-                    {getInitials(email.fromName, email.fromAddress)}
+                    {getInitials(email.fromName, email.fromEmail)}
                   </div>
                 </Avatar>
 
@@ -256,7 +256,7 @@ export function ThreadView({
                     <span
                       className={`truncate font-medium ${!email.isRead ? "text-foreground" : "text-muted-foreground"}`}
                     >
-                      {email.fromName || email.fromAddress}
+                      {email.fromName || email.fromEmail}
                     </span>
                     {email.isStarred && (
                       <StarIcon className="size-4 shrink-0 text-yellow-500" />
@@ -292,14 +292,14 @@ export function ThreadView({
                     <div className="flex gap-2">
                       <span className="w-8 text-right">To:</span>
                       <span className="truncate">
-                        {email.toAddresses.join(", ")}
+                        {email.toEmails.join(", ")}
                       </span>
                     </div>
-                    {email.ccAddresses.length > 0 && (
+                    {email.ccEmails.length > 0 && (
                       <div className="flex gap-2">
                         <span className="w-8 text-right">Cc:</span>
                         <span className="truncate">
-                          {email.ccAddresses.join(", ")}
+                          {email.ccEmails.join(", ")}
                         </span>
                       </div>
                     )}

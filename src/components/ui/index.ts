@@ -37,4 +37,4 @@ export {
   SkeletonText,
 } from "./skeleton";
 export { LoadingOverlay, Spinner, spinnerVariants } from "./spinner";
-
+export { Toaster, toast } from "./toaster";

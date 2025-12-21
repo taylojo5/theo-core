@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 import {
   formatScopes,
@@ -8,12 +9,14 @@ import {
   hasAllScopes,
   parseScopes,
 } from "./scopes";
-import { EncryptedPrismaAdapter } from "./encrypted-adapter";
 
-// Re-export scope utilities for convenience
+// Re-export scope utilities (Edge-compatible, no crypto)
 export * from "./scopes";
-export * from "./scope-upgrade";
-export * from "./token-refresh";
+
+// NOTE: The following are NOT re-exported to keep this module Edge-compatible:
+// - "./scope-upgrade" - Uses crypto for token encryption
+// - "./token-refresh" - Uses crypto for token decryption
+// Import these directly from their respective modules when needed in server-only code.
 
 /**
  * Get the OAuth scopes to request based on configuration
@@ -37,11 +40,38 @@ function getConfiguredScopes(): string {
 }
 
 /**
+ * Encrypt a token if running in Node.js environment
+ * Returns the original token if crypto is not available (Edge runtime)
+ */
+async function encryptToken(
+  token: string | undefined
+): Promise<string | undefined> {
+  if (!token) return undefined;
+
+  // Only encrypt in Node.js runtime (not Edge)
+  // Use NEXT_RUNTIME check which is Edge-compatible
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    try {
+      const { encrypt } = await import("@/lib/crypto");
+      return encrypt(token);
+    } catch {
+      // Crypto not available, return as-is
+      return token;
+    }
+  }
+  return token;
+}
+
+/**
  * NextAuth.js v5 configuration
  * @see https://authjs.dev/getting-started/installation
+ *
+ * Note: Token encryption is handled via the linkAccount event to maintain
+ * Edge Runtime compatibility for the auth middleware.
  */
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: EncryptedPrismaAdapter(db),
+  // Use standard PrismaAdapter - encryption is handled in linkAccount event
+  adapter: PrismaAdapter(db),
 
   providers: [
     Google({
@@ -100,6 +130,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     /**
      * Authorized callback - runs on every request to check if user is allowed
+     * This runs in Edge runtime for middleware
      */
     authorized({ auth: session, request }) {
       const isLoggedIn = !!session?.user;
@@ -119,9 +150,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   events: {
     /**
      * Called when an account is linked or updated
-     * This is triggered after OAuth callback when scopes may have been granted/upgraded
+     * This runs in Node.js runtime, so we can safely use crypto
      */
     async linkAccount({ user, account }) {
+      // Encrypt tokens before they're stored
+      // This runs server-side only, not in Edge
+      if (account.access_token || account.refresh_token || account.id_token) {
+        try {
+          const encryptedAccessToken = await encryptToken(account.access_token);
+          const encryptedRefreshToken = await encryptToken(
+            account.refresh_token
+          );
+          const encryptedIdToken = await encryptToken(account.id_token);
+
+          // Update the account with encrypted tokens
+          await db.account.updateMany({
+            where: {
+              userId: user.id,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+            data: {
+              access_token: encryptedAccessToken,
+              refresh_token: encryptedRefreshToken,
+              id_token: encryptedIdToken,
+            },
+          });
+        } catch (error) {
+          console.error("[Auth] Failed to encrypt tokens:", error);
+        }
+      }
+
       // Check if Gmail scopes were granted
       if (account.provider === "google" && account.scope && user.id) {
         const grantedScopes = parseScopes(account.scope);

@@ -8,7 +8,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
+import { Button, toast } from "@/components/ui";
 import { useCsrf } from "@/hooks";
 import {
   ConnectionStatus,
@@ -16,11 +16,13 @@ import {
   SyncHistory,
   PendingApprovals,
   Statistics,
+  SyncConfigPanel,
   type ConnectionStatusData,
   type SyncSettingsData,
   type SyncHistoryData,
   type PendingApprovalsData,
   type GmailStatisticsData,
+  type SyncConfigData,
 } from "@/components/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
@@ -85,6 +87,7 @@ export default function GmailSettingsPage() {
         });
       }
     } catch (error) {
+      toast.error("Failed to fetch connection status");
       console.error("Failed to fetch connection status:", error);
     } finally {
       setLoadingStates((s) => ({ ...s, connection: false }));
@@ -134,6 +137,7 @@ export default function GmailSettingsPage() {
         });
       }
     } catch (error) {
+      toast.error("Failed to fetch sync status");
       console.error("Failed to fetch sync status:", error);
     } finally {
       setLoadingStates((s) => ({ ...s, sync: false }));
@@ -164,6 +168,7 @@ export default function GmailSettingsPage() {
         });
       }
     } catch (error) {
+      toast.error("Failed to fetch approvals");
       console.error("Failed to fetch approvals:", error);
     } finally {
       setLoadingStates((s) => ({ ...s, approvals: false }));
@@ -221,14 +226,16 @@ export default function GmailSettingsPage() {
         await fetchConnectionStatus();
       }
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Connection failed";
+      toast.error(message);
       console.error("Failed to connect Gmail:", error);
       // Update connection data to show error state
       setConnectionData((prev) =>
         prev
           ? {
               ...prev,
-              error:
-                error instanceof Error ? error.message : "Connection failed",
+              error: message,
             }
           : undefined
       );
@@ -242,14 +249,21 @@ export default function GmailSettingsPage() {
       });
 
       if (res.ok) {
+        toast.success("Gmail disconnected successfully");
         await fetchConnectionStatus();
         // Clear other data
         setSyncData(undefined);
         setHistoryData(undefined);
         setApprovalsData(undefined);
         setStatsData(undefined);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to disconnect");
       }
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to disconnect Gmail";
+      toast.error(message);
       console.error("Failed to disconnect Gmail:", error);
     }
   };
@@ -266,8 +280,11 @@ export default function GmailSettingsPage() {
         throw new Error(error.error || `Sync failed (${res.status})`);
       }
 
+      toast.success("Sync started");
       await fetchSyncStatus();
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Sync failed";
+      toast.error(message);
       console.error("Failed to trigger sync:", error);
       // Update sync data to show error state
       setSyncData((prev) =>
@@ -275,7 +292,7 @@ export default function GmailSettingsPage() {
           ? {
               ...prev,
               status: "error",
-              error: error instanceof Error ? error.message : "Sync failed",
+              error: message,
             }
           : undefined
       );
@@ -296,18 +313,23 @@ export default function GmailSettingsPage() {
         );
       }
 
+      toast.success(
+        enabled ? "Recurring sync enabled" : "Recurring sync disabled"
+      );
       await fetchSyncStatus();
     } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to toggle recurring sync";
+      toast.error(message);
       console.error("Failed to toggle recurring sync:", error);
       // Update sync data to show error state
       setSyncData((prev) =>
         prev
           ? {
               ...prev,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to toggle recurring sync",
+              error: message,
             }
           : undefined
       );
@@ -328,18 +350,19 @@ export default function GmailSettingsPage() {
         throw new Error(error.error || `Failed to cancel sync (${res.status})`);
       }
 
+      toast.success("Sync cancelled");
       await fetchSyncStatus();
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel sync";
+      toast.error(message);
       console.error("Failed to cancel sync:", error);
       // Update sync data to show error state
       setSyncData((prev) =>
         prev
           ? {
               ...prev,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to cancel sync",
+              error: message,
             }
           : undefined
       );
@@ -360,7 +383,11 @@ export default function GmailSettingsPage() {
         const error = await res.json();
         throw new Error(error.error || "Failed to approve");
       }
+      toast.success("Email approved and sent");
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to approve email";
+      toast.error(message);
       console.error("Failed to approve email:", error);
       throw error;
     }
@@ -380,7 +407,11 @@ export default function GmailSettingsPage() {
         const error = await res.json();
         throw new Error(error.error || "Failed to reject");
       }
+      toast.success("Email rejected");
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reject email";
+      toast.error(message);
       console.error("Failed to reject email:", error);
       throw error;
     }
@@ -400,10 +431,40 @@ export default function GmailSettingsPage() {
         throw new Error(error.error || `Contact sync failed (${res.status})`);
       }
 
+      toast.success("Contacts synced successfully");
       // Refresh the sync status to get updated contact count
       await fetchSyncStatus();
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to sync contacts";
+      toast.error(message);
       console.error("Failed to sync contacts:", error);
+      throw error;
+    }
+  };
+
+  const handleSaveSyncConfig = async (config: Partial<SyncConfigData>) => {
+    try {
+      const res = await protectedFetch("/api/integrations/gmail/sync", {
+        method: "PATCH",
+        body: JSON.stringify(config),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(
+          error.error?.message || `Failed to save config (${res.status})`
+        );
+      }
+
+      toast.success("Sync configuration saved");
+      // Refresh the sync status to get updated config
+      await fetchSyncStatus();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save sync config";
+      toast.error(message);
+      console.error("Failed to save sync config:", error);
       throw error;
     }
   };
@@ -462,6 +523,15 @@ export default function GmailSettingsPage() {
                 isConnected={isConnected}
               />
             </div>
+
+            {/* Sync Configuration */}
+            <SyncConfigPanel
+              config={syncData?.config}
+              labels={syncData?.labels}
+              isLoading={loadingStates.sync}
+              isConnected={isConnected}
+              onSave={handleSaveSyncConfig}
+            />
 
             {/* Statistics */}
             <Statistics
