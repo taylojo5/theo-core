@@ -12,8 +12,10 @@ import {
   deleteDraft,
   validateComposeParams,
 } from "@/integrations/gmail/actions";
+import { apiLogger } from "@/integrations/gmail";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -73,7 +75,11 @@ export async function GET(
 
     return NextResponse.json(draft, { headers });
   } catch (error) {
-    console.error("[Drafts API] Get error:", error);
+    apiLogger.error(
+      "Failed to get draft",
+      { userId: session.user.id, draftId },
+      error
+    );
 
     // Check if it's a not found error
     const errorMessage =
@@ -115,6 +121,10 @@ export async function PUT(
 
     // Parse and validate body
     const body = await request.json();
+
+    // CSRF protection - critical for updating drafts
+    const csrfError = await withCsrfProtection(request, body, headers);
+    if (csrfError) return csrfError;
     const parseResult = UpdateDraftSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -156,7 +166,11 @@ export async function PUT(
 
     return NextResponse.json(result, { headers });
   } catch (error) {
-    console.error("[Drafts API] Update error:", error);
+    apiLogger.error(
+      "Failed to update draft",
+      { userId: session.user.id, draftId },
+      error
+    );
     return NextResponse.json(
       {
         error:
@@ -181,6 +195,10 @@ export async function DELETE(
     RATE_LIMITS.gmailDrafts
   );
   if (rateLimitResponse) return rateLimitResponse;
+
+  // CSRF protection - critical for deleting drafts
+  const csrfError = await withCsrfProtection(request, undefined, headers);
+  if (csrfError) return csrfError;
 
   try {
     const session = await auth();
@@ -208,7 +226,11 @@ export async function DELETE(
 
     return NextResponse.json({ success: true }, { headers });
   } catch (error) {
-    console.error("[Drafts API] Delete error:", error);
+    apiLogger.error(
+      "Failed to delete draft",
+      { userId: session.user.id, draftId },
+      error
+    );
     return NextResponse.json(
       {
         error:

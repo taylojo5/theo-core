@@ -78,21 +78,25 @@ export async function incrementalSync(
     // Create Gmail client
     const client = createGmailClient(accessToken, userId);
 
-    // Get starting history ID
-    let startHistoryId = opts.startHistoryId;
-    if (!startHistoryId) {
-      const syncState = await syncStateRepository.get(userId);
-      startHistoryId = syncState.historyId || "";
+    // Get sync state (contains history ID and sync configuration)
+    const syncState = await syncStateRepository.get(userId);
+    const startHistoryId = opts.startHistoryId || syncState.historyId || "";
 
-      if (!startHistoryId) {
-        // No history ID means we need a full sync first
-        throw new GmailError(
-          GmailErrorCode.INVALID_REQUEST,
-          "No history ID found. A full sync is required first.",
-          false
-        );
-      }
+    if (!startHistoryId) {
+      // No history ID means we need a full sync first
+      throw new GmailError(
+        GmailErrorCode.INVALID_REQUEST,
+        "No history ID found. A full sync is required first.",
+        false
+      );
     }
+
+    // Build sync config from sync state
+    const syncConfig: SyncConfig = {
+      syncLabels: syncState.syncLabels,
+      excludeLabels: syncState.excludeLabels,
+      maxEmailAgeDays: syncState.maxEmailAgeDays,
+    };
 
     onProgress?.({
       phase: "fetching-history",
@@ -138,12 +142,13 @@ export async function incrementalSync(
       labelsChanged: 0,
     });
 
-    // Process history changes
+    // Process history changes (with sync config for filtering)
     const processResult = await processHistoryChanges(
       client,
       userId,
       history,
-      result.errors
+      result.errors,
+      syncConfig
     );
 
     result.added = processResult.added;
@@ -349,7 +354,8 @@ async function processHistoryChanges(
   client: GmailClient,
   userId: string,
   history: GmailHistory[],
-  errors: EmailSyncError[]
+  errors: EmailSyncError[],
+  syncConfig?: SyncConfig
 ): Promise<{
   added: number;
   updated: number;
@@ -365,12 +371,13 @@ async function processHistoryChanges(
     errors
   );
 
-  // Step 3: Process additions
+  // Step 3: Process additions (with sync config filtering)
   const addResult = await processAdditions(
     client,
     userId,
     changes.messagesToAdd,
-    errors
+    errors,
+    syncConfig
   );
 
   // Step 4: Process updates (label changes)
@@ -522,11 +529,60 @@ async function processDeletions(
  * 2. Creates new email records in database
  * 3. Falls back to upsert on unique constraint errors
  */
+interface SyncConfig {
+  syncLabels?: string[];
+  excludeLabels?: string[];
+  maxEmailAgeDays?: number | null;
+}
+
+/**
+ * Check if a message should be included based on sync configuration
+ */
+function shouldIncludeMessage(
+  message: ParsedGmailMessage,
+  config?: SyncConfig
+): boolean {
+  if (!config) return true;
+
+  const labelIds = message.labelIds || [];
+
+  // Filter by syncLabels - if specified, message must have at least one
+  if (config.syncLabels && config.syncLabels.length > 0) {
+    const hasRequiredLabel = config.syncLabels.some((l) =>
+      labelIds.includes(l)
+    );
+    if (!hasRequiredLabel) return false;
+  }
+
+  // Filter by excludeLabels - message must not have any
+  if (config.excludeLabels && config.excludeLabels.length > 0) {
+    const hasExcludedLabel = config.excludeLabels.some((l) =>
+      labelIds.includes(l)
+    );
+    if (hasExcludedLabel) return false;
+  }
+
+  // Filter by maxEmailAgeDays
+  if (
+    config.maxEmailAgeDays &&
+    config.maxEmailAgeDays > 0 &&
+    message.internalDate
+  ) {
+    const messageDate = new Date(message.internalDate);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - config.maxEmailAgeDays);
+    if (messageDate < cutoffDate) return false;
+  }
+
+  return true;
+}
+
 async function processAdditions(
   client: GmailClient,
   userId: string,
   messagesToAdd: Set<string>,
-  errors: EmailSyncError[]
+  errors: EmailSyncError[],
+  syncConfig?: SyncConfig
 ): Promise<ProcessingResult> {
   if (messagesToAdd.size === 0) {
     return { count: 0, emailIds: [] };
@@ -542,8 +598,13 @@ async function processAdditions(
     errors
   );
 
-  // Store each message
+  // Store each message (after filtering by sync config)
   for (const message of messages) {
+    // Skip messages that don't match sync configuration
+    if (!shouldIncludeMessage(message, syncConfig)) {
+      continue;
+    }
+
     try {
       const input = mapGmailMessageToEmail(message, userId);
       const email = await emailRepository.create(input);

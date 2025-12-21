@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import {
   triggerSync,
   triggerFullSync,
@@ -16,6 +17,7 @@ import {
   cancelPendingSyncs,
 } from "@/integrations/gmail/sync/scheduler";
 import { syncStateRepository } from "@/integrations/gmail/repository";
+import { apiLogger } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/integrations/gmail/sync
@@ -44,6 +46,10 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json().catch(() => ({}));
+
+    // CSRF protection - critical for triggering syncs
+    const csrfError = await withCsrfProtection(req, body, headers);
+    if (csrfError) return csrfError;
     const syncType = body.type as "auto" | "full" | "incremental" | undefined;
     const enableRecurring = body.enableRecurring as boolean | undefined;
 
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Gmail Sync API] Error:", error);
+    apiLogger.error("Failed to schedule sync", {}, error);
     return NextResponse.json(
       {
         error: "Failed to schedule sync",
@@ -111,6 +117,10 @@ export async function DELETE(req: NextRequest) {
     RATE_LIMITS.gmailSync
   );
   if (rateLimitResponse) return rateLimitResponse;
+
+  // CSRF protection - critical for cancelling syncs
+  const csrfError = await withCsrfProtection(req, undefined, headers);
+  if (csrfError) return csrfError;
 
   try {
     // Authenticate
@@ -146,7 +156,7 @@ export async function DELETE(req: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Gmail Sync API] Error:", error);
+    apiLogger.error("Failed to cancel syncs", {}, error);
     return NextResponse.json(
       {
         error: "Failed to cancel syncs",

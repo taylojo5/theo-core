@@ -13,6 +13,7 @@ import {
 import { syncStateRepository } from "@/integrations/gmail/repository";
 import { getEmbeddingStats } from "@/integrations/gmail/sync/embedding-retry";
 import { getCheckpoint } from "@/integrations/gmail/sync/full-sync";
+import { apiLogger } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -82,7 +83,7 @@ export async function GET() {
     const initialState = await buildSyncProgressEvent(userId);
     send({ event: "status", data: initialState });
   } catch (error) {
-    console.error("[Sync Stream] Error sending initial state:", error);
+    apiLogger.error("Error sending initial state", { userId }, error);
   }
 
   // Start polling for updates (every 2 seconds while connected)
@@ -99,7 +100,7 @@ export async function GET() {
         });
       }
     } catch (error) {
-      console.error("[Sync Stream] Polling error:", error);
+      apiLogger.error("Polling error", { userId }, error);
     }
   }, 2000);
 

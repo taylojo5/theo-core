@@ -15,6 +15,7 @@ import {
   getPendingSyncJobs,
   hasRecurringSync,
 } from "@/integrations/gmail/sync/scheduler";
+import { apiLogger } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/integrations/gmail/sync/status
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Gmail Sync Status API] Error:", error);
+    apiLogger.error("Failed to get sync status", { userId }, error);
     return NextResponse.json(
       {
         error: "Failed to get sync status",

@@ -31,10 +31,12 @@ import type {
 // Default Options
 // ─────────────────────────────────────────────────────────────
 
-const DEFAULT_OPTIONS: Required<FullSyncOptions> = {
+const DEFAULT_OPTIONS: Omit<Required<FullSyncOptions>, "afterDate"> & {
+  afterDate?: Date;
+} = {
   maxEmails: 1000,
   labelIds: [],
-  afterDate: undefined as unknown as Date,
+  afterDate: undefined,
   pageSize: 100,
   resumeFromCheckpoint: false,
 };
@@ -127,8 +129,14 @@ export async function fullSync(
       });
     }
 
-    // Step 3: Build query for message fetching
-    const query = buildSyncQuery(opts);
+    // Step 3: Load sync configuration and build query for message fetching
+    const syncState = await syncStateRepository.getOrCreate(userId);
+    const syncConfig: SyncConfig = {
+      syncLabels: syncState.syncLabels,
+      excludeLabels: syncState.excludeLabels,
+      maxEmailAgeDays: syncState.maxEmailAgeDays,
+    };
+    const query = buildSyncQuery(opts, syncConfig);
 
     // Step 4: Fetch and store messages in batches
     let pageToken: string | undefined = startPageToken;
@@ -310,15 +318,42 @@ async function syncLabels(client: GmailClient, userId: string): Promise<void> {
 /**
  * Build Gmail search query from options
  */
+interface SyncConfig {
+  syncLabels?: string[];
+  excludeLabels?: string[];
+  maxEmailAgeDays?: number | null;
+}
+
 function buildSyncQuery(
-  options: Required<FullSyncOptions>
+  options: Omit<Required<FullSyncOptions>, "afterDate"> & { afterDate?: Date },
+  config?: SyncConfig
 ): string | undefined {
   const parts: string[] = [];
 
-  // Filter by date if specified
+  // Filter by date if specified in options
   if (options.afterDate) {
     const dateStr = formatGmailDate(options.afterDate);
     parts.push(`after:${dateStr}`);
+  }
+  // Or use maxEmailAgeDays from sync config
+  else if (config?.maxEmailAgeDays && config.maxEmailAgeDays > 0) {
+    const afterDate = new Date();
+    afterDate.setDate(afterDate.getDate() - config.maxEmailAgeDays);
+    const dateStr = formatGmailDate(afterDate);
+    parts.push(`after:${dateStr}`);
+  }
+
+  // Include only specific labels if configured
+  if (config?.syncLabels && config.syncLabels.length > 0) {
+    const labelParts = config.syncLabels.map((l) => `label:${l}`);
+    parts.push(`(${labelParts.join(" OR ")})`);
+  }
+
+  // Exclude specific labels if configured
+  if (config?.excludeLabels && config.excludeLabels.length > 0) {
+    config.excludeLabels.forEach((l) => {
+      parts.push(`-label:${l}`);
+    });
   }
 
   // Exclude drafts by default (they're handled separately)

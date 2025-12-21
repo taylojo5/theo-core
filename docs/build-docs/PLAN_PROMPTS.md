@@ -16,6 +16,8 @@ Alright. Let's start the plan for phase X. Create a planning .MD document with t
 
 Once all chunks are complete, there should be a final chunk for implementation review and creation of more in-depth integration tests for the phase.
 
+Use the @CHUNKING_BEST_PRACTICES.md learnings file to inform your planning, architecture, and guidelines.
+
 Also, give an analysis for what chunks are foundational vs what chunks can be implemented in parallel
 ```
 
@@ -32,4 +34,6 @@ Please do a deep analysis on the phase X implementation, and create a doc calls 
 - functionality issues
 
 Then have a chunked plan for remediation for any issues found.
+
+Also ,please use your analysis and findings to update the @CHUNKING_BEST_PRACTICES.md  file. The idea is to use our analysis findings here to improve planning and execution for future chunk plans
 ```

@@ -11,8 +11,10 @@ import {
   listDrafts,
   validateComposeParams,
 } from "@/integrations/gmail/actions";
+import { apiLogger } from "@/integrations/gmail";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -78,7 +80,11 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Drafts API] List error:", error);
+    apiLogger.error(
+      "Failed to list drafts",
+      { userId: session.user.id },
+      error
+    );
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to list drafts",
@@ -111,6 +117,11 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate body
     const body = await request.json();
+
+    // CSRF protection - critical for creating drafts
+    const csrfError = await withCsrfProtection(request, body, headers);
+    if (csrfError) return csrfError;
+
     const parseResult = CreateDraftSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -152,7 +163,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result, { status: 201, headers });
   } catch (error) {
-    console.error("[Drafts API] Create error:", error);
+    apiLogger.error(
+      "Failed to create draft",
+      { userId: session.user.id },
+      error
+    );
     return NextResponse.json(
       {
         error:

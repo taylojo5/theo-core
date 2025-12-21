@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createGmailClient } from "@/integrations/gmail";
+import { createGmailClient, apiLogger } from "@/integrations/gmail";
 import {
   requestApproval,
   sendEmailDirect,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Send API] Error:", error);
+    apiLogger.error("Send request failed", {}, error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to send email",

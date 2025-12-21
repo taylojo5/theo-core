@@ -11,3 +11,6 @@ export type {
 
 export { ApprovalDialog } from "./approval-dialog";
 export type { ApprovalDialogProps, EmailApprovalData } from "./approval-dialog";
+
+export { ThreadView } from "./thread-view";
+export type { default as ThreadViewProps } from "./thread-view";

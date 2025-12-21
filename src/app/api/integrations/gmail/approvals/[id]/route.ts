@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createGmailClient } from "@/integrations/gmail";
+import { createGmailClient, apiLogger } from "@/integrations/gmail";
 import {
   getApproval,
   approveAndSend,
@@ -62,7 +62,11 @@ export async function GET(
 
     return NextResponse.json(approval, { headers });
   } catch (error) {
-    console.error("[Approval API] Get error:", error);
+    apiLogger.error(
+      "Failed to get approval",
+      { userId: session.user.id, approvalId },
+      error
+    );
     return NextResponse.json(
       {
         error:
@@ -171,7 +175,11 @@ export async function POST(
       { headers }
     );
   } catch (error) {
-    console.error("[Approval API] Action error:", error);
+    apiLogger.error(
+      "Approval action failed",
+      { userId: session.user.id, approvalId, action: body?.action },
+      error
+    );
 
     // Handle specific errors
     const errorMessage =
@@ -202,6 +210,10 @@ export async function DELETE(
     RATE_LIMITS.gmailApprovals
   );
   if (rateLimitResponse) return rateLimitResponse;
+
+  // CSRF protection - critical for cancelling approvals
+  const csrfError = await withCsrfProtection(request, undefined, headers);
+  if (csrfError) return csrfError;
 
   try {
     const session = await auth();
@@ -239,7 +251,11 @@ export async function DELETE(
       { headers }
     );
   } catch (error) {
-    console.error("[Approval API] Delete error:", error);
+    apiLogger.error(
+      "Failed to cancel approval",
+      { userId: session.user.id, approvalId },
+      error
+    );
     return NextResponse.json(
       {
         error:

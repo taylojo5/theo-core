@@ -1799,6 +1799,105 @@ src/components/email/
 
 ---
 
+## Thread View (Chunk 9)
+
+The Thread View component displays email conversations as threaded discussions, allowing users to see all related messages in context.
+
+### API Endpoint
+
+```
+GET /api/integrations/gmail/threads/[id]
+```
+
+Returns all emails in a thread sorted by date.
+
+Response:
+
+```json
+{
+  "threadId": "thread_123abc",
+  "emails": [
+    {
+      "id": "email_1",
+      "gmailId": "abc123",
+      "subject": "Re: Project Update",
+      "fromAddress": "sender@example.com",
+      "fromName": "John Doe",
+      "toAddresses": ["recipient@example.com"],
+      "ccAddresses": [],
+      "bodyText": "Thanks for the update...",
+      "bodyHtml": "<p>Thanks for the update...</p>",
+      "internalDate": "2024-12-21T10:00:00.000Z",
+      "isRead": true,
+      "isStarred": false,
+      "hasAttachments": false,
+      "labelIds": ["INBOX", "IMPORTANT"]
+    }
+  ],
+  "emailCount": 5
+}
+```
+
+### UI Component
+
+```tsx
+import { ThreadView } from "@/components/email";
+
+// Basic usage
+<ThreadView
+  threadId="thread_123abc"
+  onClose={() => setSelectedThread(null)}
+  className="mx-auto max-w-2xl"
+/>;
+```
+
+Features:
+
+- **Expandable emails** - Click to expand/collapse individual messages
+- **Last email expanded** - Most recent message shown expanded by default
+- **Visual indicators** - Unread, starred, and attachment badges
+- **Responsive design** - Works on mobile and desktop
+
+---
+
+## Sync Configuration
+
+Email sync respects user-configured filters stored in `GmailSyncState`:
+
+| Field             | Type       | Description                                      |
+| ----------------- | ---------- | ------------------------------------------------ |
+| `syncLabels`      | `String[]` | Only sync emails with these labels (empty = all) |
+| `excludeLabels`   | `String[]` | Exclude emails with these labels                 |
+| `maxEmailAgeDays` | `Int?`     | Only sync emails from the last N days            |
+| `syncAttachments` | `Boolean`  | Whether to sync attachment metadata              |
+
+### How It Works
+
+1. **Full Sync**: Configuration is loaded and used to build Gmail search query
+2. **Incremental Sync**: New messages are filtered after fetching
+
+```typescript
+// Example: Filter to only sync INBOX and exclude PROMOTIONS
+await syncStateRepository.update(userId, {
+  syncLabels: ["INBOX", "IMPORTANT"],
+  excludeLabels: ["CATEGORY_PROMOTIONS", "SPAM"],
+  maxEmailAgeDays: 90, // Only last 90 days
+});
+```
+
+### Query Building
+
+The sync configuration is converted to a Gmail search query:
+
+```typescript
+// With syncLabels: ["INBOX", "IMPORTANT"]
+// With excludeLabels: ["SPAM"]
+// With maxEmailAgeDays: 30
+// Generates: "(label:INBOX OR label:IMPORTANT) -label:SPAM after:2024/11/21 -in:drafts"
+```
+
+---
+
 ## Testing
 
 ### Test Suite

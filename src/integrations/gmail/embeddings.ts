@@ -160,12 +160,28 @@ export async function generateEmailEmbedding(
     const metadata = buildEmailMetadata(email);
     const embeddingService = getEmbeddingService();
 
+    // Convert metadata to record type for embedding storage
+    const metadataRecord: Record<string, unknown> = {
+      gmailId: metadata.gmailId,
+      subject: metadata.subject,
+      fromEmail: metadata.fromEmail,
+      fromName: metadata.fromName,
+      toEmails: metadata.toEmails,
+      threadId: metadata.threadId,
+      internalDate: metadata.internalDate,
+      labelIds: metadata.labelIds,
+      isRead: metadata.isRead,
+      isStarred: metadata.isStarred,
+      isImportant: metadata.isImportant,
+      hasAttachments: metadata.hasAttachments,
+    };
+
     await embeddingService.storeEntityEmbedding(
       email.userId,
       EMAIL_ENTITY_TYPE,
       email.id,
       content,
-      metadata as unknown as Record<string, unknown>
+      metadataRecord
     );
 
     return {

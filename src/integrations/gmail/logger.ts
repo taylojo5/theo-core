@@ -290,6 +290,9 @@ export const clientLogger = new GmailLogger("GmailClient");
 /** Logger for embeddings operations */
 export const embeddingsLogger = new GmailLogger("GmailEmbeddings");
 
+/** Pre-configured logger for Gmail API routes */
+export const apiLogger = new GmailLogger("GmailAPI");
+
 // ─────────────────────────────────────────────────────────────
 // Factory Function
 // ─────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createGmailClient } from "@/integrations/gmail";
+import { createGmailClient, apiLogger } from "@/integrations/gmail";
 import {
   requestApproval,
   getPendingApprovals,
@@ -98,7 +98,11 @@ export async function GET(request: NextRequest) {
       { headers }
     );
   } catch (error) {
-    console.error("[Approvals API] List error:", error);
+    apiLogger.error(
+      "Failed to list approvals",
+      { userId: session.user.id },
+      error
+    );
     return NextResponse.json(
       {
         error:
@@ -180,7 +184,11 @@ export async function POST(request: NextRequest) {
       { status: 201, headers }
     );
   } catch (error) {
-    console.error("[Approvals API] Create error:", error);
+    apiLogger.error(
+      "Failed to create approval request",
+      { userId: session.user.id },
+      error
+    );
     return NextResponse.json(
       {
         error:

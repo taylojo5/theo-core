@@ -277,6 +277,42 @@ const { data, error, isConnected } = useEventSource(
 
 See [SSE_STREAMING.md](./SSE_STREAMING.md) for details.
 
+### useCsrf
+
+For CSRF-protected API calls:
+
+```typescript
+import { useCsrf } from "@/hooks";
+
+function MyComponent() {
+  const { protectedFetch, csrfToken, isLoading, error } = useCsrf();
+
+  const handleDelete = async () => {
+    // protectedFetch automatically includes CSRF token
+    const response = await protectedFetch("/api/integrations/gmail/disconnect", {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      // Success
+    }
+  };
+
+  return (
+    <button onClick={handleDelete} disabled={isLoading}>
+      Disconnect
+    </button>
+  );
+}
+```
+
+The hook:
+
+- Fetches CSRF token on mount from `/api/auth/csrf`
+- Provides `protectedFetch` that automatically includes the token
+- Handles loading and error states
+- Required for all state-changing API calls (POST, PUT, DELETE)
+
 ---
 
 ## UI Components (shadcn/ui)
@@ -707,7 +743,30 @@ export default async function GmailSettingsPage() {
 
 ---
 
-## Email Approval Dialog
+## Email Components
+
+### ThreadView
+
+Displays email threads as expandable conversations:
+
+```typescript
+import { ThreadView } from "@/components/email";
+
+<ThreadView
+  threadId="thread_123abc"
+  onClose={() => setSelectedThread(null)}
+  className="max-w-2xl"
+/>
+```
+
+Features:
+
+- Expands/collapses individual messages
+- Shows latest message expanded by default
+- Visual indicators for unread, starred, attachments
+- Responsive layout
+
+### Email Approval Dialog
 
 The approval dialog allows users to review and approve agent-drafted emails:
 

@@ -96,6 +96,7 @@ export {
   actionsLogger,
   clientLogger,
   embeddingsLogger,
+  apiLogger,
   createGmailLogger,
   GmailLogger,
 } from "./logger";
@@ -302,6 +303,9 @@ export {
 
   // Worker registration
   registerGmailSyncWorker,
+
+  // Initialization
+  initializeGmailSync,
 
   // Job constants
   GMAIL_JOB_NAMES,

@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { revokeGmailAccess, isGmailConnected } from "@/lib/auth/scope-upgrade";
 import { logAuditEntry } from "@/services/audit";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { apiLogger } from "@/integrations/gmail";
 import { withCsrfProtection } from "@/lib/csrf";
 
 // ─────────────────────────────────────────────────────────────
@@ -93,7 +94,11 @@ export async function DELETE(
     },
   }).catch((error) => {
     // Log audit failure but don't block the response
-    console.error("Failed to log Gmail disconnect audit entry:", error);
+    apiLogger.warn(
+      "Failed to log Gmail disconnect audit entry",
+      { userId },
+      error
+    );
   });
 
   return NextResponse.json(

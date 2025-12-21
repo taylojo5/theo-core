@@ -83,6 +83,35 @@ export {
 export { registerGmailSyncWorker } from "./worker";
 
 // ─────────────────────────────────────────────────────────────
+// Initialization
+// ─────────────────────────────────────────────────────────────
+
+import { registerGmailSyncWorker } from "./worker";
+import { startApprovalExpirationScheduler } from "./scheduler";
+
+/**
+ * Initialize the Gmail sync system
+ *
+ * This should be called once on application startup.
+ * It registers the BullMQ worker and starts the approval expiration scheduler.
+ *
+ * @example
+ * ```ts
+ * // In your server initialization file
+ * import { initializeGmailSync } from '@/integrations/gmail';
+ *
+ * await initializeGmailSync();
+ * ```
+ */
+export async function initializeGmailSync(): Promise<void> {
+  // Register the worker to process sync jobs
+  registerGmailSyncWorker();
+
+  // Start the approval expiration scheduler (runs hourly)
+  await startApprovalExpirationScheduler();
+}
+
+// ─────────────────────────────────────────────────────────────
 // Utilities
 // ─────────────────────────────────────────────────────────────
 

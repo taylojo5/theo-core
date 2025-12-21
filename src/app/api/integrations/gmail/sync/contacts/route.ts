@@ -10,11 +10,13 @@ import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { hasContactsAccess } from "@/lib/auth/scopes";
 import { checkGmailScopes } from "@/lib/auth/scope-upgrade";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import {
   syncContacts,
   getContactSyncStatus,
   type ContactSyncOptions,
 } from "@/integrations/gmail/sync";
+import { apiLogger } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -92,6 +94,10 @@ export async function POST(
     // Empty body is fine
   }
 
+  // CSRF protection - critical for triggering contact sync
+  const csrfError = await withCsrfProtection(request, body, headers);
+  if (csrfError) return csrfError as NextResponse<SyncContactsResponse>;
+
   // Check if user has contacts access
   const scopeCheck = await checkGmailScopes(userId);
   const hasAccess = hasContactsAccess(scopeCheck.grantedScopes);
@@ -157,7 +163,7 @@ export async function POST(
       { headers }
     );
   } catch (error) {
-    console.error("[ContactSync] Sync failed:", error);
+    apiLogger.error("Contact sync failed", { userId }, error);
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";

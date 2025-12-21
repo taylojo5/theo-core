@@ -8,10 +8,12 @@ import { auth } from "@/lib/auth";
 import { checkGmailScopes, generateUpgradeUrl } from "@/lib/auth/scope-upgrade";
 import { ALL_GMAIL_SCOPES } from "@/lib/auth/scopes";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import {
   startRecurringSync,
   hasRecurringSync,
   triggerSync,
+  apiLogger,
 } from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
@@ -73,6 +75,10 @@ export async function POST(
     // Empty body is fine
   }
 
+  // CSRF protection - critical for initiating OAuth connections
+  const csrfError = await withCsrfProtection(request, body, headers);
+  if (csrfError) return csrfError as NextResponse<ConnectResponse>;
+
   // Check current Gmail scope status
   const scopeCheck = await checkGmailScopes(userId);
 
@@ -86,11 +92,11 @@ export async function POST(
         await startRecurringSync(userId);
         // Also trigger an immediate sync to get the latest emails
         await triggerSync(userId);
-        console.log(`[GmailConnect] Started auto-sync for user ${userId}`);
+        apiLogger.info("Started auto-sync for user", { userId });
       }
     } catch (error) {
       // Log but don't fail the request if sync scheduling fails
-      console.error(`[GmailConnect] Failed to start auto-sync:`, error);
+      apiLogger.error("Failed to start auto-sync", { userId }, error);
     }
 
     return NextResponse.json(
