@@ -19,6 +19,7 @@ This document outlines remediation work required before proceeding to Phase 3. T
 ### Why This Matters
 
 Phase 3 (Gmail Integration) will introduce:
+
 - OAuth token management with refresh flows
 - Background sync workers
 - High-volume API calls (rate limiting critical)
@@ -32,16 +33,16 @@ Without this remediation, Phase 3 will accumulate technical debt and potentially
 
 The work is divided into 8 chunks, organized by priority and dependency. Each chunk is designed to be completed in a single session.
 
-| Chunk | Description | Priority | Est. Time | Dependencies |
-|-------|-------------|----------|-----------|--------------|
-| 1 | Developer Experience: Git Hooks | Medium | 30min | None |
-| 2 | Error Boundaries & Error Handling | High | 2hr | None |
-| 3 | API Rate Limiting | Medium | 2hr | None |
-| 4 | Input Validation Audit | Medium | 2hr | None |
-| 5 | Redis Integration | Medium | 1.5hr | None |
-| 6 | BullMQ Job Queue Setup | Medium | 2hr | Chunk 5 |
-| 7 | Real-time Updates (SSE) | High | 3hr | None |
-| 8 | OAuth Token Refresh & Testing | High | 2hr | None |
+| Chunk | Description                       | Priority | Est. Time | Dependencies |
+| ----- | --------------------------------- | -------- | --------- | ------------ |
+| 1     | Developer Experience: Git Hooks   | Medium   | 30min     | None         |
+| 2     | Error Boundaries & Error Handling | High     | 2hr       | None         |
+| 3     | API Rate Limiting                 | Medium   | 2hr       | None         |
+| 4     | Input Validation Audit            | Medium   | 2hr       | None         |
+| 5     | Redis Integration                 | Medium   | 1.5hr     | None         |
+| 6     | BullMQ Job Queue Setup            | Medium   | 2hr       | Chunk 5      |
+| 7     | Real-time Updates (SSE)           | High     | 3hr       | None         |
+| 8     | OAuth Token Refresh & Testing     | High     | 2hr       | None         |
 
 **Total Estimated Time**: 15-17 hours (3-4 days at focused pace)
 
@@ -89,13 +90,8 @@ Add to `package.json`:
 ```json
 {
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,css}": [
-      "prettier --write"
-    ]
+    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{json,md,css}": ["prettier --write"]
   }
 }
 ```
@@ -404,9 +400,9 @@ Create `src/lib/rate-limit/index.ts`:
 
 ```typescript
 export interface RateLimitConfig {
-  windowMs: number;      // Time window in milliseconds
-  maxRequests: number;   // Max requests per window
-  keyPrefix?: string;    // Prefix for rate limit keys
+  windowMs: number; // Time window in milliseconds
+  maxRequests: number; // Max requests per window
+  keyPrefix?: string; // Prefix for rate limit keys
 }
 
 export interface RateLimitResult {
@@ -435,9 +431,9 @@ export function checkRateLimit(
 ): RateLimitResult {
   const now = Date.now();
   const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
-  
+
   let entry = store.get(fullKey);
-  
+
   // Reset if window expired
   if (!entry || entry.resetAt < now) {
     entry = {
@@ -445,13 +441,13 @@ export function checkRateLimit(
       resetAt: now + config.windowMs,
     };
   }
-  
+
   entry.count++;
   store.set(fullKey, entry);
-  
+
   const remaining = Math.max(0, config.maxRequests - entry.count);
   const allowed = entry.count <= config.maxRequests;
-  
+
   return {
     allowed,
     remaining,
@@ -468,21 +464,21 @@ export const RATE_LIMITS = {
     maxRequests: 100,
     keyPrefix: "api",
   } as RateLimitConfig,
-  
+
   // Search/embedding routes: 30 requests per minute (OpenAI cost)
   search: {
     windowMs: 60 * 1000,
     maxRequests: 30,
     keyPrefix: "search",
   } as RateLimitConfig,
-  
+
   // Auth routes: 10 requests per minute (prevent brute force)
   auth: {
     windowMs: 60 * 1000,
     maxRequests: 10,
     keyPrefix: "auth",
   } as RateLimitConfig,
-  
+
   // Create operations: 50 per minute
   create: {
     windowMs: 60 * 1000,
@@ -498,7 +494,11 @@ Create `src/lib/rate-limit/middleware.ts`:
 
 ```typescript
 import { NextRequest } from "next/server";
-import { checkRateLimit, type RateLimitConfig, type RateLimitResult } from "./index";
+import {
+  checkRateLimit,
+  type RateLimitConfig,
+  type RateLimitResult,
+} from "./index";
 import { auth } from "@/lib/auth";
 
 export async function withRateLimit(
@@ -508,12 +508,16 @@ export async function withRateLimit(
   // Get user ID for rate limiting (or IP for unauthenticated)
   const session = await auth();
   const userId = session?.user?.id;
-  
+
   // Use user ID if authenticated, otherwise use IP
-  const key = userId || request.ip || request.headers.get("x-forwarded-for") || "anonymous";
-  
+  const key =
+    userId ||
+    request.ip ||
+    request.headers.get("x-forwarded-for") ||
+    "anonymous";
+
   const result = checkRateLimit(key, config);
-  
+
   return { result, userId };
 }
 
@@ -551,23 +555,31 @@ Update `src/app/api/context/search/route.ts`:
 ```typescript
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { withRateLimit, rateLimitExceededResponse, rateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  withRateLimit,
+  rateLimitExceededResponse,
+  rateLimitHeaders,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 import { searchContext } from "@/services/context";
 
 export async function GET(request: NextRequest) {
   // Rate limit check
-  const { result: rateLimit, userId } = await withRateLimit(request, RATE_LIMITS.search);
-  
+  const { result: rateLimit, userId } = await withRateLimit(
+    request,
+    RATE_LIMITS.search
+  );
+
   if (!rateLimit.allowed) {
     return rateLimitExceededResponse(rateLimit);
   }
-  
+
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // ... existing search logic ...
-  
+
   return Response.json(results, {
     headers: rateLimitHeaders(rateLimit),
   });
@@ -725,7 +737,9 @@ export const createTaskSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled", "deferred"]).default("pending"),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled", "deferred"])
+    .default("pending"),
   priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
   dueDate: z.string().datetime().optional().nullable(),
   startDate: z.string().datetime().optional().nullable(),
@@ -746,7 +760,9 @@ export const createDeadlineSchema = z.object({
   type: z.enum(["deadline", "milestone", "reminder"]).default("deadline"),
   dueAt: z.string().datetime(),
   reminderAt: z.string().datetime().optional().nullable(),
-  status: z.enum(["pending", "completed", "missed", "extended"]).default("pending"),
+  status: z
+    .enum(["pending", "completed", "missed", "extended"])
+    .default("pending"),
   importance: z.number().int().min(1).max(10).default(5),
   taskId: z.string().optional().nullable(),
   eventId: z.string().optional().nullable(),
@@ -772,12 +788,14 @@ export const createRelationshipSchema = z.object({
   metadata: z.record(z.unknown()).default({}),
 });
 
-export const updateRelationshipSchema = createRelationshipSchema.partial().omit({
-  sourceType: true,
-  sourceId: true,
-  targetType: true,
-  targetId: true,
-});
+export const updateRelationshipSchema = createRelationshipSchema
+  .partial()
+  .omit({
+    sourceType: true,
+    sourceId: true,
+    targetType: true,
+    targetId: true,
+  });
 
 // ─────────────────────────────────────────────────────────────
 // Chat Schemas
@@ -823,14 +841,14 @@ export function validateBody<T extends z.ZodSchema>(
   schema: T
 ): ValidationResult<z.infer<T>> {
   const result = schema.safeParse(body);
-  
+
   if (!result.success) {
     return {
       success: false,
       error: validationErrorResponse(result.error),
     };
   }
-  
+
   return { success: true, data: result.data };
 }
 
@@ -840,14 +858,14 @@ export function validateQuery<T extends z.ZodSchema>(
 ): ValidationResult<z.infer<T>> {
   const params = Object.fromEntries(searchParams.entries());
   const result = schema.safeParse(params);
-  
+
   if (!result.success) {
     return {
       success: false,
       error: validationErrorResponse(result.error),
     };
   }
-  
+
   return { success: true, data: result.data };
 }
 
@@ -856,7 +874,7 @@ export function validationErrorResponse(error: ZodError): Response {
     path: issue.path.join("."),
     message: issue.message,
   }));
-  
+
   return Response.json(
     {
       error: {
@@ -939,10 +957,12 @@ declare global {
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
-export const redis = globalThis.redis ?? new Redis(redisUrl, {
-  maxRetriesPerRequest: 3,
-  lazyConnect: true,
-});
+export const redis =
+  globalThis.redis ??
+  new Redis(redisUrl, {
+    maxRetriesPerRequest: 3,
+    lazyConnect: true,
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.redis = redis;
@@ -953,16 +973,19 @@ let connectionPromise: Promise<void> | null = null;
 
 export async function ensureRedisConnection(): Promise<void> {
   if (redis.status === "ready") return;
-  
+
   if (!connectionPromise) {
-    connectionPromise = redis.connect().then(() => {
-      console.log("[Redis] Connected");
-    }).catch((err) => {
-      console.error("[Redis] Connection failed:", err);
-      throw err;
-    });
+    connectionPromise = redis
+      .connect()
+      .then(() => {
+        console.log("[Redis] Connected");
+      })
+      .catch((err) => {
+        console.error("[Redis] Connection failed:", err);
+        throw err;
+      });
   }
-  
+
   return connectionPromise;
 }
 
@@ -1006,32 +1029,32 @@ export async function checkRateLimit(
   const now = Date.now();
   const fullKey = `ratelimit:${config.keyPrefix || "default"}:${key}`;
   const windowEnd = now + config.windowMs;
-  
+
   try {
     await ensureRedisConnection();
-    
+
     // Use Redis sliding window
     const multi = redis.multi();
     multi.incr(fullKey);
     multi.pttl(fullKey);
-    
+
     const results = await multi.exec();
-    
+
     if (!results) throw new Error("Redis transaction failed");
-    
+
     const count = results[0][1] as number;
     let ttl = results[1][1] as number;
-    
+
     // Set expiry on first request in window
     if (ttl === -1) {
       await redis.pexpire(fullKey, config.windowMs);
       ttl = config.windowMs;
     }
-    
+
     const remaining = Math.max(0, config.maxRequests - count);
     const allowed = count <= config.maxRequests;
     const resetAt = new Date(now + ttl);
-    
+
     return {
       allowed,
       remaining,
@@ -1039,7 +1062,10 @@ export async function checkRateLimit(
       retryAfterMs: allowed ? undefined : ttl,
     };
   } catch (error) {
-    console.warn("[RateLimit] Redis unavailable, using memory fallback:", error);
+    console.warn(
+      "[RateLimit] Redis unavailable, using memory fallback:",
+      error
+    );
     return checkRateLimitMemory(key, config);
   }
 }
@@ -1051,19 +1077,19 @@ function checkRateLimitMemory(
 ): RateLimitResult {
   const now = Date.now();
   const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
-  
+
   let entry = memoryStore.get(fullKey);
-  
+
   if (!entry || entry.resetAt < now) {
     entry = { count: 0, resetAt: now + config.windowMs };
   }
-  
+
   entry.count++;
   memoryStore.set(fullKey, entry);
-  
+
   const remaining = Math.max(0, config.maxRequests - entry.count);
   const allowed = entry.count <= config.maxRequests;
-  
+
   return {
     allowed,
     remaining,
@@ -1110,13 +1136,13 @@ export async function cacheSet<T>(
   try {
     await ensureRedisConnection();
     const serialized = JSON.stringify(value);
-    
+
     if (options.ttlSeconds) {
       await redis.setex(`cache:${key}`, options.ttlSeconds, serialized);
     } else {
       await redis.set(`cache:${key}`, serialized);
     }
-    
+
     return true;
   } catch {
     return false;
@@ -1160,7 +1186,7 @@ export async function GET() {
     database: false,
     redis: false,
   };
-  
+
   // Check database
   try {
     await db.$queryRaw`SELECT 1`;
@@ -1168,12 +1194,12 @@ export async function GET() {
   } catch {
     checks.database = false;
   }
-  
+
   // Check Redis
   checks.redis = await isRedisHealthy();
-  
+
   const healthy = checks.database && checks.redis;
-  
+
   return Response.json(
     {
       status: healthy ? "healthy" : "degraded",
@@ -1296,7 +1322,7 @@ export async function getQueueStats(queueName: QueueName) {
     queue.getCompletedCount(),
     queue.getFailedCount(),
   ]);
-  
+
   return { waiting, active, completed, failed };
 }
 
@@ -1339,24 +1365,24 @@ export function registerWorker<T>(
     console.warn(`[Worker] Worker for ${queueName} already registered`);
     return workers.get(queueName)!;
   }
-  
+
   const worker = new Worker(queueName, processor, {
     connection: redis,
     concurrency: options.concurrency ?? 5,
   });
-  
+
   worker.on("completed", (job) => {
     console.log(`[Worker:${queueName}] Job ${job.id} completed`);
   });
-  
+
   worker.on("failed", (job, error) => {
     console.error(`[Worker:${queueName}] Job ${job?.id} failed:`, error);
   });
-  
+
   worker.on("error", (error) => {
     console.error(`[Worker:${queueName}] Worker error:`, error);
   });
-  
+
   workers.set(queueName, worker);
   return worker;
 }
@@ -1423,16 +1449,21 @@ import { Job } from "bullmq";
 import { registerWorker } from "./workers";
 import { QUEUE_NAMES } from "./index";
 import { JOB_NAMES, type EmbeddingJobData } from "./jobs";
-import { storeEntityEmbedding, deleteEntityEmbedding } from "@/services/context/embedding-integration";
+import {
+  storeEntityEmbedding,
+  deleteEntityEmbedding,
+} from "@/services/context/embedding-integration";
 
 export function initializeEmbeddingWorker() {
   return registerWorker<EmbeddingJobData>(
     QUEUE_NAMES.EMBEDDINGS,
     async (job: Job<EmbeddingJobData>) => {
       const { userId, entityType, entityId, operation } = job.data;
-      
-      console.log(`[EmbeddingWorker] Processing ${operation} for ${entityType}:${entityId}`);
-      
+
+      console.log(
+        `[EmbeddingWorker] Processing ${operation} for ${entityType}:${entityId}`
+      );
+
       if (operation === "delete") {
         await deleteEntityEmbedding(userId, entityType, entityId);
       } else {
@@ -1457,20 +1488,20 @@ import { QUEUE_NAMES, getQueueStats } from "@/lib/queue";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
-  
+
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   // TODO: Add admin role check
-  
+
   const stats = await Promise.all(
     Object.values(QUEUE_NAMES).map(async (name) => ({
       name,
       ...(await getQueueStats(name)),
     }))
   );
-  
+
   return Response.json({ queues: stats });
 }
 ```
@@ -1539,7 +1570,7 @@ export function createSSEStream(): {
   close: () => void;
 } {
   let controller: ReadableStreamDefaultController<Uint8Array>;
-  
+
   const stream = new ReadableStream({
     start(c) {
       controller = c;
@@ -1548,12 +1579,12 @@ export function createSSEStream(): {
       // Client disconnected
     },
   });
-  
+
   const encoder = new TextEncoder();
-  
+
   function send(message: SSEMessage) {
     let text = "";
-    
+
     if (message.event) {
       text += `event: ${message.event}\n`;
     }
@@ -1563,16 +1594,16 @@ export function createSSEStream(): {
     if (message.retry !== undefined) {
       text += `retry: ${message.retry}\n`;
     }
-    
+
     text += `data: ${JSON.stringify(message.data)}\n\n`;
-    
+
     try {
       controller.enqueue(encoder.encode(text));
     } catch {
       // Stream closed
     }
   }
-  
+
   function close() {
     try {
       controller.close();
@@ -1580,7 +1611,7 @@ export function createSSEStream(): {
       // Already closed
     }
   }
-  
+
   return { stream, send, close };
 }
 
@@ -1589,7 +1620,7 @@ export function sseResponse(stream: ReadableStream): Response {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   });
 }
@@ -1614,31 +1645,31 @@ export async function GET(
 ) {
   const { id: conversationId } = await params;
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   const userId = session.user.id;
-  
+
   // Verify conversation ownership
   const conversation = await getConversation(userId, conversationId);
   if (!conversation) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
-  
+
   const { stream, send, close } = createSSEStream();
-  
+
   // Send initial connection message
   send({ event: "connected", data: { conversationId } });
-  
+
   // Register this connection
   const connectionKey = `${userId}:${conversationId}`;
   if (!connections.has(connectionKey)) {
     connections.set(connectionKey, new Set());
   }
   connections.get(connectionKey)!.add(send);
-  
+
   // Handle disconnect
   request.signal.addEventListener("abort", () => {
     connections.get(connectionKey)?.delete(send);
@@ -1647,7 +1678,7 @@ export async function GET(
     }
     close();
   });
-  
+
   // Keep-alive ping every 30 seconds
   const keepAlive = setInterval(() => {
     try {
@@ -1656,9 +1687,9 @@ export async function GET(
       clearInterval(keepAlive);
     }
   }, 30000);
-  
+
   request.signal.addEventListener("abort", () => clearInterval(keepAlive));
-  
+
   return sseResponse(stream);
 }
 
@@ -1671,7 +1702,7 @@ export function broadcastToConversation(
 ) {
   const connectionKey = `${userId}:${conversationId}`;
   const senders = connections.get(connectionKey);
-  
+
   if (senders) {
     for (const send of senders) {
       try {
@@ -1707,25 +1738,25 @@ export function useEventSource(
   const [isConnected, setIsConnected] = React.useState(false);
   const [lastEvent, setLastEvent] = React.useState<MessageEvent | null>(null);
   const eventSourceRef = React.useRef<EventSource | null>(null);
-  
+
   React.useEffect(() => {
     if (!url) {
       setIsConnected(false);
       return;
     }
-    
+
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
-    
+
     eventSource.onopen = () => {
       setIsConnected(true);
       options.onOpen?.();
     };
-    
+
     eventSource.onerror = (error) => {
       setIsConnected(false);
       options.onError?.(error);
-      
+
       // Auto-reconnect after 5 seconds
       setTimeout(() => {
         if (eventSourceRef.current === eventSource) {
@@ -1733,15 +1764,17 @@ export function useEventSource(
         }
       }, 5000);
     };
-    
+
     eventSource.onmessage = (event) => {
       setLastEvent(event);
       options.onMessage?.(event);
     };
-    
+
     // Register custom event handlers
     if (options.eventHandlers) {
-      for (const [eventName, handler] of Object.entries(options.eventHandlers)) {
+      for (const [eventName, handler] of Object.entries(
+        options.eventHandlers
+      )) {
         eventSource.addEventListener(eventName, (event) => {
           try {
             const data = JSON.parse((event as MessageEvent).data);
@@ -1752,19 +1785,19 @@ export function useEventSource(
         });
       }
     }
-    
+
     return () => {
       eventSource.close();
       eventSourceRef.current = null;
     };
   }, [url]);
-  
+
   const close = React.useCallback(() => {
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
     setIsConnected(false);
   }, []);
-  
+
   return { isConnected, lastEvent, close };
 }
 ```
@@ -1880,7 +1913,7 @@ export async function refreshGoogleToken(
         grant_type: "refresh_token",
       }),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -1888,9 +1921,9 @@ export async function refreshGoogleToken(
         error: error.error_description || "Token refresh failed",
       };
     }
-    
+
     const data = await response.json();
-    
+
     return {
       success: true,
       accessToken: data.access_token,
@@ -1904,7 +1937,9 @@ export async function refreshGoogleToken(
   }
 }
 
-export async function getValidAccessToken(userId: string): Promise<string | null> {
+export async function getValidAccessToken(
+  userId: string
+): Promise<string | null> {
   // Get the user's Google account
   const account = await db.account.findFirst({
     where: {
@@ -1912,34 +1947,34 @@ export async function getValidAccessToken(userId: string): Promise<string | null
       provider: "google",
     },
   });
-  
+
   if (!account) {
     console.log("[TokenRefresh] No Google account found for user");
     return null;
   }
-  
+
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = account.expires_at || 0;
-  
+
   // If token is still valid (with 5 min buffer), return it
   if (expiresAt > now + 300 && account.access_token) {
     return account.access_token;
   }
-  
+
   // Token expired or expiring soon - refresh it
   if (!account.refresh_token) {
     console.log("[TokenRefresh] No refresh token available");
     return null;
   }
-  
+
   console.log("[TokenRefresh] Refreshing expired token");
   const result = await refreshGoogleToken(account.refresh_token);
-  
+
   if (!result.success) {
     console.error("[TokenRefresh] Refresh failed:", result.error);
     return null;
   }
-  
+
   // Update the account with new tokens
   await db.account.update({
     where: { id: account.id },
@@ -1948,7 +1983,7 @@ export async function getValidAccessToken(userId: string): Promise<string | null
       expires_at: result.expiresAt,
     },
   });
-  
+
   return result.accessToken || null;
 }
 
@@ -1965,16 +2000,16 @@ export async function checkTokenHealth(userId: string): Promise<{
       expires_at: true,
     },
   });
-  
+
   if (!account) {
     return { hasAccount: false, hasRefreshToken: false, isExpired: true };
   }
-  
+
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = account.expires_at || 0;
   const isExpired = expiresAt < now;
   const expiresIn = isExpired ? 0 : expiresAt - now;
-  
+
   return {
     hasAccount: true,
     hasRefreshToken: !!account.refresh_token,
@@ -1990,17 +2025,20 @@ Create `src/app/api/auth/token-status/route.ts`:
 
 ```typescript
 import { auth } from "@/lib/auth";
-import { checkTokenHealth, getValidAccessToken } from "@/lib/auth/token-refresh";
+import {
+  checkTokenHealth,
+  getValidAccessToken,
+} from "@/lib/auth/token-refresh";
 
 export async function GET() {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   const health = await checkTokenHealth(session.user.id);
-  
+
   return Response.json({
     ...health,
     expiresInHuman: health.expiresIn
@@ -2011,20 +2049,17 @@ export async function GET() {
 
 export async function POST() {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   const accessToken = await getValidAccessToken(session.user.id);
-  
+
   if (!accessToken) {
-    return Response.json(
-      { error: "Failed to refresh token" },
-      { status: 500 }
-    );
+    return Response.json({ error: "Failed to refresh token" }, { status: 500 });
   }
-  
+
   return Response.json({ success: true });
 }
 ```
@@ -2038,25 +2073,28 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { db } from "@/lib/db";
-import { checkTokenHealth, getValidAccessToken } from "@/lib/auth/token-refresh";
+import {
+  checkTokenHealth,
+  getValidAccessToken,
+} from "@/lib/auth/token-refresh";
 
 async function testTokenRefresh() {
   console.log("=== OAuth Token Refresh Test ===\n");
-  
+
   // Get first user with a Google account
   const account = await db.account.findFirst({
     where: { provider: "google" },
     include: { user: true },
   });
-  
+
   if (!account) {
     console.log("❌ No Google accounts found in database");
     console.log("   Please sign in with Google first.\n");
     return;
   }
-  
+
   console.log(`Testing with user: ${account.user.email}\n`);
-  
+
   // Check token health
   console.log("1. Checking token health...");
   const health = await checkTokenHealth(account.userId);
@@ -2064,26 +2102,30 @@ async function testTokenRefresh() {
   console.log(`   - Has refresh token: ${health.hasRefreshToken}`);
   console.log(`   - Is expired: ${health.isExpired}`);
   if (health.expiresIn) {
-    console.log(`   - Expires in: ${Math.floor(health.expiresIn / 60)} minutes`);
+    console.log(
+      `   - Expires in: ${Math.floor(health.expiresIn / 60)} minutes`
+    );
   }
   console.log();
-  
+
   if (!health.hasRefreshToken) {
     console.log("❌ No refresh token available");
     console.log("   Make sure access_type=offline is set in OAuth config.\n");
     return;
   }
-  
+
   // Try to get valid token (will refresh if needed)
   console.log("2. Getting valid access token...");
   const accessToken = await getValidAccessToken(account.userId);
-  
+
   if (accessToken) {
-    console.log(`   ✅ Got valid access token (first 20 chars): ${accessToken.substring(0, 20)}...`);
+    console.log(
+      `   ✅ Got valid access token (first 20 chars): ${accessToken.substring(0, 20)}...`
+    );
   } else {
     console.log("   ❌ Failed to get access token");
   }
-  
+
   console.log("\n=== Test Complete ===\n");
 }
 
@@ -2096,7 +2138,7 @@ testTokenRefresh()
 
 Update `docs/PHASE_3_PREREQS.md` (new file):
 
-```markdown
+````markdown
 # Phase 3 Prerequisites
 
 Before starting Phase 3 (Gmail Integration), ensure the following:
@@ -2124,6 +2166,7 @@ Ensure these are set in `.env.local`:
 GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-client-secret"
 ```
+````
 
 ## 3. Test Token Refresh
 
@@ -2134,37 +2177,42 @@ npm run db:token-test
 ```
 
 Expected output:
+
 - ✅ Has refresh token: true
 - ✅ Got valid access token
 
 ## 4. Gmail Scopes
 
 Phase 3 will add these scopes to the OAuth config:
+
 - `https://www.googleapis.com/auth/gmail.readonly`
 - `https://www.googleapis.com/auth/gmail.send`
 - `https://www.googleapis.com/auth/gmail.labels`
 
 Users will need to re-authenticate after scope changes.
+
 ```
 
 ### Files to Create/Modify
 
 ```
+
 src/lib/auth/
-├── index.ts                  # EXISTING: Main auth config
-└── token-refresh.ts          # NEW: Token refresh utilities
+├── index.ts # EXISTING: Main auth config
+└── token-refresh.ts # NEW: Token refresh utilities
 
 src/app/api/auth/
 └── token-status/
-    └── route.ts              # NEW: Token health API
+└── route.ts # NEW: Token health API
 
 scripts/
-└── test-token-refresh.ts     # NEW: Test script
+└── test-token-refresh.ts # NEW: Test script
 
 docs/
-└── PHASE_3_PREREQS.md        # NEW: Phase 3 prerequisites
+└── PHASE_3_PREREQS.md # NEW: Phase 3 prerequisites
 
-package.json                  # UPDATE: Add db:token-test script
+package.json # UPDATE: Add db:token-test script
+
 ```
 
 ### Acceptance Criteria
@@ -2182,6 +2230,7 @@ package.json                  # UPDATE: Add db:token-test script
 The recommended order for maximum efficiency:
 
 ```
+
 Day 1 (4-5 hours):
 ├── Chunk 1: Git Hooks (30min)
 ├── Chunk 2: Error Boundaries (2hr)
@@ -2195,7 +2244,8 @@ Day 2 (4-5 hours):
 Day 3 (5 hours):
 ├── Chunk 6: BullMQ Setup (2hr)
 └── Chunk 7: Real-time Updates (3hr)
-```
+
+````
 
 ---
 
@@ -2221,7 +2271,7 @@ curl http://localhost:3000/api/health
 
 # Token refresh works
 npm run db:token-test
-```
+````
 
 ---
 
@@ -2252,5 +2302,3 @@ Phase 0-2 Correction is complete when:
 - Chunk 6 requires Chunk 5 (Redis)
 - All other chunks are independent
 - If time is limited, prioritize: Chunk 2 → Chunk 8 → Chunk 5 → Chunk 6 (core Phase 3 blockers)
-
-

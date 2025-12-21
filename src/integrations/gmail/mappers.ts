@@ -13,6 +13,21 @@ import type { Prisma } from "@prisma/client";
 
 /**
  * Convert a parsed Gmail message to a database email input
+ *
+ * Transforms a Gmail API response into the format expected by the
+ * email repository for database storage. Handles all message fields
+ * including headers, content, metadata, and attachments.
+ *
+ * @param message - Parsed Gmail message from the API
+ * @param userId - The user ID who owns this email
+ * @returns Email input ready for database insertion
+ *
+ * @example
+ * ```typescript
+ * const parsed = parseGmailMessage(gmailApiResponse);
+ * const input = mapGmailMessageToEmail(parsed, userId);
+ * await emailRepository.create(input);
+ * ```
  */
 export function mapGmailMessageToEmail(
   message: ParsedGmailMessage,
@@ -62,6 +77,21 @@ export function mapGmailMessageToEmail(
 
 /**
  * Batch convert Gmail messages to email inputs
+ *
+ * Efficiently transforms multiple Gmail messages in a single pass.
+ * Useful for bulk sync operations where you need to process many
+ * messages at once.
+ *
+ * @param messages - Array of parsed Gmail messages
+ * @param userId - The user ID who owns these emails
+ * @returns Array of email inputs ready for database insertion
+ *
+ * @example
+ * ```typescript
+ * const parsedMessages = gmailResponses.map(parseGmailMessage);
+ * const inputs = mapGmailMessagesToEmails(parsedMessages, userId);
+ * await emailRepository.upsertMany(inputs);
+ * ```
  */
 export function mapGmailMessagesToEmails(
   messages: ParsedGmailMessage[],
@@ -76,6 +106,20 @@ export function mapGmailMessagesToEmails(
 
 /**
  * Convert a Gmail label to a database label input
+ *
+ * Maps Gmail label properties to the database schema format,
+ * including system labels (INBOX, SENT, etc.) and custom user labels.
+ *
+ * @param label - Gmail label from the API
+ * @param userId - The user ID who owns this label
+ * @returns Label input ready for database insertion
+ *
+ * @example
+ * ```typescript
+ * const labels = await client.listLabels();
+ * const inputs = labels.map(l => mapGmailLabelToEmailLabel(l, userId));
+ * await labelRepository.upsertMany(inputs);
+ * ```
  */
 export function mapGmailLabelToEmailLabel(
   label: GmailLabel,
@@ -96,6 +140,13 @@ export function mapGmailLabelToEmailLabel(
 
 /**
  * Batch convert Gmail labels to label inputs
+ *
+ * Efficiently transforms multiple Gmail labels in a single pass.
+ * Typically used during full sync to update all labels at once.
+ *
+ * @param labels - Array of Gmail labels from the API
+ * @param userId - The user ID who owns these labels
+ * @returns Array of label inputs ready for database insertion
  */
 export function mapGmailLabelsToEmailLabels(
   labels: GmailLabel[],
@@ -128,6 +179,20 @@ export interface CreatePersonFromContactInput {
 
 /**
  * Convert a parsed Google Contact to a Person entity input
+ *
+ * Maps Google People API contact data to the Person model format.
+ * Preserves the original Google contact data in metadata for reference.
+ *
+ * @param contact - Parsed contact from Google People API
+ * @param userId - The user ID who owns this contact
+ * @returns Person input ready for database insertion
+ *
+ * @example
+ * ```typescript
+ * const contacts = await client.listContactsParsed();
+ * const persons = contacts.map(c => mapContactToPerson(c, userId));
+ * await db.person.createMany({ data: persons.map(personInputToPrisma) });
+ * ```
  */
 export function mapContactToPerson(
   contact: ParsedContact,
@@ -162,6 +227,13 @@ export function mapContactToPerson(
 
 /**
  * Batch convert contacts to person inputs
+ *
+ * Efficiently transforms multiple Google contacts in a single pass.
+ * Used during contact sync to process all contacts at once.
+ *
+ * @param contacts - Array of parsed Google contacts
+ * @param userId - The user ID who owns these contacts
+ * @returns Array of person inputs ready for database insertion
  */
 export function mapContactsToPersons(
   contacts: ParsedContact[],
@@ -172,6 +244,19 @@ export function mapContactsToPersons(
 
 /**
  * Convert Person input to Prisma create data
+ *
+ * Final transformation step that converts the intermediate person
+ * input format into the exact structure Prisma expects for creation.
+ *
+ * @param input - Person input from contact mapping
+ * @returns Prisma-compatible create input
+ *
+ * @example
+ * ```typescript
+ * const personInputs = mapContactsToPersons(contacts, userId);
+ * const prismaData = personInputs.map(personInputToPrisma);
+ * await db.person.createMany({ data: prismaData });
+ * ```
  */
 export function personInputToPrisma(
   input: CreatePersonFromContactInput
@@ -198,7 +283,21 @@ export function personInputToPrisma(
 
 /**
  * Extract all unique email addresses from a set of emails
- * Returns a Map of email -> name for deduplication
+ *
+ * Collects email addresses from From, To, CC, and BCC fields
+ * across all provided messages. Deduplicates by email address
+ * (case-insensitive) and preserves the first name found.
+ *
+ * @param messages - Array of parsed Gmail messages to extract from
+ * @returns Map of lowercase email addresses to display names (or null)
+ *
+ * @example
+ * ```typescript
+ * const participants = extractEmailParticipants(messages);
+ * for (const [email, name] of participants) {
+ *   console.log(`${name || 'Unknown'} <${email}>`);
+ * }
+ * ```
  */
 export function extractEmailParticipants(
   messages: ParsedGmailMessage[]
@@ -262,7 +361,24 @@ export function extractEmailParticipants(
 
 /**
  * Prepare email content for embedding generation
- * Combines relevant fields into searchable text
+ *
+ * Combines subject, sender, and body into a single searchable text
+ * string optimized for semantic search. Truncates long body text
+ * to manage embedding token costs.
+ *
+ * @param email - Email data with subject, sender, and body fields
+ * @returns Formatted text string for embedding generation
+ *
+ * @example
+ * ```typescript
+ * const content = prepareEmailForEmbedding({
+ *   subject: "Meeting tomorrow",
+ *   fromName: "John Doe",
+ *   fromEmail: "john@example.com",
+ *   snippet: "Let's discuss the project...",
+ * });
+ * const embedding = await generateEmbedding(content);
+ * ```
  */
 export function prepareEmailForEmbedding(email: {
   subject?: string | null;
@@ -297,6 +413,22 @@ export function prepareEmailForEmbedding(email: {
 
 /**
  * Prepare email metadata for embedding storage
+ *
+ * Structures email metadata for storage alongside embeddings.
+ * This metadata enables filtering and context retrieval during
+ * semantic search without needing to join with the email table.
+ *
+ * @param email - Email data with identifiers and metadata fields
+ * @returns Structured metadata object for embedding storage
+ *
+ * @example
+ * ```typescript
+ * const metadata = prepareEmailEmbeddingMetadata(email);
+ * await embeddingService.store(embedding, metadata);
+ * // Later, during search:
+ * const results = await embeddingService.search(query);
+ * // results[0].metadata.emailId, .subject, etc.
+ * ```
  */
 export function prepareEmailEmbeddingMetadata(email: {
   id: string;

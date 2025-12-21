@@ -128,6 +128,20 @@ export interface FullSyncOptions {
   afterDate?: Date;
   /** Page size for API requests (default: 100) */
   pageSize?: number;
+  /** Whether to resume from a saved checkpoint (default: false) */
+  resumeFromCheckpoint?: boolean;
+}
+
+/**
+ * Checkpoint for resumable full sync
+ */
+export interface FullSyncCheckpoint {
+  /** Page token to resume from */
+  pageToken?: string;
+  /** Number of emails processed so far */
+  progress: number;
+  /** When the sync was started */
+  startedAt: Date;
 }
 
 /**

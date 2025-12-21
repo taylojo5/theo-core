@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { db } from "@/lib/db";
+import { encrypt, decrypt, encryptIfPlain } from "@/lib/crypto";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
@@ -91,6 +92,7 @@ export async function refreshGoogleToken(
 /**
  * Get a valid access token for a user
  * Refreshes automatically if expired or expiring soon
+ * Handles both encrypted and plain tokens (backward compatibility)
  */
 export async function getValidAccessToken(
   userId: string
@@ -111,9 +113,10 @@ export async function getValidAccessToken(
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = account.expires_at || 0;
 
-  // If token is still valid (with buffer), return it
+  // If token is still valid (with buffer), return it (decrypted)
   if (expiresAt > now + EXPIRY_BUFFER_SECONDS && account.access_token) {
-    return account.access_token;
+    // Decrypt if encrypted, otherwise return as-is (backward compatibility)
+    return decrypt(account.access_token);
   }
 
   // Token expired or expiring soon - refresh it
@@ -122,20 +125,35 @@ export async function getValidAccessToken(
     return null;
   }
 
+  // Decrypt refresh token if encrypted
+  const refreshToken = decrypt(account.refresh_token);
+
   console.log("[TokenRefresh] Refreshing expired token");
-  const result = await refreshGoogleToken(account.refresh_token);
+  const result = await refreshGoogleToken(refreshToken);
 
   if (!result.success) {
     console.error("[TokenRefresh] Refresh failed:", result.error);
     return null;
   }
 
-  // Update the account with new tokens
+  // Encrypt the new access token before storing
+  const encryptedAccessToken = result.accessToken
+    ? encrypt(result.accessToken)
+    : null;
+
+  // Also encrypt the existing refresh token if it's not already encrypted
+  const encryptedRefreshToken = encryptIfPlain(account.refresh_token);
+  const refreshTokenNeedsUpdate =
+    encryptedRefreshToken !== account.refresh_token;
+
+  // Update the account with new (encrypted) tokens
   await db.account.update({
     where: { id: account.id },
     data: {
-      access_token: result.accessToken,
+      access_token: encryptedAccessToken,
       expires_at: result.expiresAt,
+      // Encrypt refresh token if it wasn't already
+      ...(refreshTokenNeedsUpdate && { refresh_token: encryptedRefreshToken }),
     },
   });
 
@@ -213,14 +231,28 @@ export async function forceTokenRefresh(
     };
   }
 
-  const result = await refreshGoogleToken(account.refresh_token);
+  // Decrypt refresh token if encrypted
+  const refreshToken = decrypt(account.refresh_token);
+  const result = await refreshGoogleToken(refreshToken);
 
   if (result.success) {
+    // Encrypt the new access token before storing
+    const encryptedAccessToken = result.accessToken
+      ? encrypt(result.accessToken)
+      : null;
+
+    // Also encrypt the existing refresh token if it's not already encrypted
+    const encryptedRefreshToken = encryptIfPlain(account.refresh_token);
+
     await db.account.update({
       where: { id: account.id },
       data: {
-        access_token: result.accessToken,
+        access_token: encryptedAccessToken,
         expires_at: result.expiresAt,
+        // Encrypt refresh token if it wasn't already
+        ...(encryptedRefreshToken !== account.refresh_token && {
+          refresh_token: encryptedRefreshToken,
+        }),
       },
     });
   }

@@ -525,9 +525,218 @@ chat/
 
 ---
 
+## Gmail Integration Components
+
+### Settings Page Structure
+
+The Gmail settings are located at `/settings/integrations/gmail` and use the following components:
+
+```
+src/components/integrations/gmail/
+├── connection-status.tsx   # OAuth connection state
+├── sync-settings.tsx       # Sync configuration
+├── sync-history.tsx        # Recent sync jobs
+├── pending-approvals.tsx   # Email approval queue
+├── statistics.tsx          # Email statistics
+└── index.ts               # Barrel export
+```
+
+### ConnectionStatus Component
+
+Shows Gmail connection state and provides connect/disconnect actions:
+
+```typescript
+import { ConnectionStatus } from "@/components/integrations/gmail";
+
+// Data shape
+interface ConnectionStatusData {
+  connected: boolean;
+  email?: string;
+  lastSyncAt?: string;
+  scopes: string[];
+}
+
+// Usage
+<ConnectionStatus
+  data={connectionData}
+  onConnect={() => handleConnect()}
+  onDisconnect={() => handleDisconnect()}
+/>
+```
+
+### SyncSettings Component
+
+Configures sync behavior and triggers manual syncs:
+
+```typescript
+import { SyncSettings } from "@/components/integrations/gmail";
+
+// Data shape
+interface SyncConfig {
+  autoSync: boolean;
+  syncInterval: number; // minutes
+  labelIds: string[];
+  excludeLabels: string[];
+  maxEmailAgeDays: number;
+}
+
+// Usage
+<SyncSettings
+  config={syncConfig}
+  onSave={(config) => saveConfig(config)}
+  onTriggerSync={() => triggerManualSync()}
+/>
+```
+
+### SyncHistory Component
+
+Displays recent sync job status:
+
+```typescript
+import { SyncHistory } from "@/components/integrations/gmail";
+
+interface SyncJob {
+  id: string;
+  type: "full" | "incremental";
+  status: "pending" | "running" | "completed" | "failed";
+  startedAt: string;
+  completedAt?: string;
+  emailsProcessed: number;
+  error?: string;
+}
+
+<SyncHistory jobs={recentJobs} />
+```
+
+### PendingApprovals Component
+
+Shows emails awaiting user approval:
+
+```typescript
+import { PendingApprovals } from "@/components/integrations/gmail";
+
+interface ApprovalStats {
+  pending: number;
+  expiringIn24h: number;
+}
+
+<PendingApprovals
+  stats={approvalStats}
+  onViewApprovals={() => navigate("/approvals")}
+/>
+```
+
+### Statistics Component
+
+Displays email sync statistics:
+
+```typescript
+import { Statistics } from "@/components/integrations/gmail";
+
+interface GmailStatisticsData {
+  totalEmails: number;
+  embeddedEmails: number;
+  lastFullSync?: string;
+  lastIncrementalSync?: string;
+}
+
+<Statistics data={stats} />
+```
+
+### Integration with Dashboard
+
+To add Gmail settings to the dashboard settings page:
+
+```typescript
+// src/app/(dashboard)/settings/integrations/gmail/page.tsx
+import {
+  ConnectionStatus,
+  SyncSettings,
+  SyncHistory,
+  PendingApprovals,
+  Statistics,
+} from "@/components/integrations/gmail";
+
+export default async function GmailSettingsPage() {
+  const session = await getServerSession(authOptions);
+  const data = await fetchGmailData(session.user.id);
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Gmail Settings</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Connection</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ConnectionStatus data={data.connection} />
+        </CardContent>
+      </Card>
+
+      {data.connection.connected && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Sync Configuration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SyncSettings config={data.syncConfig} />
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Statistics data={data.statistics} />
+            <PendingApprovals stats={data.approvals} />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Syncs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SyncHistory jobs={data.recentJobs} />
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Email Approval Dialog
+
+The approval dialog allows users to review and approve agent-drafted emails:
+
+```typescript
+import { ApprovalDialog } from "@/components/email/approval-dialog";
+import { EmailPreview } from "@/components/email/email-preview";
+
+<ApprovalDialog
+  approval={pendingApproval}
+  onApprove={(notes) => handleApprove(approval.id, notes)}
+  onReject={(reason) => handleReject(approval.id, reason)}
+  onEdit={() => handleEdit(approval.id)}
+>
+  <EmailPreview
+    to={approval.to}
+    cc={approval.cc}
+    subject={approval.subject}
+    body={approval.body}
+  />
+</ApprovalDialog>
+```
+
+---
+
 ## Related Documentation
 
 - [API_REFERENCE.md](./API_REFERENCE.md) - API endpoints
 - [AUTH_SECURITY.md](./AUTH_SECURITY.md) - Authentication
 - [SSE_STREAMING.md](./SSE_STREAMING.md) - Real-time streaming
+- [INTEGRATIONS_GUIDE.md](./INTEGRATIONS_GUIDE.md) - Integration setup
+- [services/GMAIL_SERVICE.md](./services/GMAIL_SERVICE.md) - Gmail service details
 - [shadcn/ui Docs](https://ui.shadcn.com/) - Component library

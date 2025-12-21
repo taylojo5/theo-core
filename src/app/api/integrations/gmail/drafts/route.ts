@@ -12,6 +12,7 @@ import {
   validateComposeParams,
 } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -35,10 +36,20 @@ const CreateDraftSchema = z.object({
 // ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailDrafts
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     // Get pagination params
@@ -51,7 +62,7 @@ export async function GET(request: NextRequest) {
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -59,17 +70,20 @@ export async function GET(request: NextRequest) {
     const client = createGmailClient(accessToken, session.user.id);
     const result = await listDrafts(client, { maxResults, pageToken });
 
-    return NextResponse.json({
-      drafts: result.drafts,
-      nextPageToken: result.nextPageToken,
-    });
+    return NextResponse.json(
+      {
+        drafts: result.drafts,
+        nextPageToken: result.nextPageToken,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Drafts API] List error:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to list drafts",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -79,10 +93,20 @@ export async function GET(request: NextRequest) {
 // ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailDrafts
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     // Parse and validate body
@@ -95,7 +119,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: parseResult.error.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -109,7 +133,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: validation.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -118,7 +142,7 @@ export async function POST(request: NextRequest) {
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -126,7 +150,7 @@ export async function POST(request: NextRequest) {
     const client = createGmailClient(accessToken, session.user.id);
     const result = await createDraft(client, params);
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(result, { status: 201, headers });
   } catch (error) {
     console.error("[Drafts API] Create error:", error);
     return NextResponse.json(
@@ -134,7 +158,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create draft",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

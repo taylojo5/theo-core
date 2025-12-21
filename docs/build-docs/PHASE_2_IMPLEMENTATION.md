@@ -11,6 +11,7 @@
 Phase 2 builds the **Context System** - the foundation of Theo's intelligence. This phase transforms the raw database schema (already created in Phase 0) into a fully functional context management system with CRUD operations, relationships, and semantic search via vector embeddings.
 
 ### Goals
+
 - Context entity CRUD services for People, Places, Events, Tasks, Deadlines
 - Relationship management system
 - Context retrieval API endpoints
@@ -18,6 +19,7 @@ Phase 2 builds the **Context System** - the foundation of Theo's intelligence. T
 - Unified context search across all entities
 
 ### Prerequisites Completed (Phase 0 & 1)
+
 - ✅ Database schema with all context tables
 - ✅ Prisma client configured
 - ✅ pgvector extension enabled
@@ -32,13 +34,15 @@ Phase 2 builds the **Context System** - the foundation of Theo's intelligence. T
 Before starting Phase 2, the following external dependencies are required:
 
 ### Required
-| Item | Purpose | Where to Get |
-|------|---------|--------------|
+
+| Item               | Purpose                                                                  | Where to Get                                            |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------- |
 | **OpenAI API Key** | Text embeddings via `text-embedding-ada-002` or `text-embedding-3-small` | [OpenAI Platform](https://platform.openai.com/api-keys) |
 
 ### Recommended (can defer)
-| Item | Purpose | Where to Get |
-|------|---------|--------------|
+
+| Item                  | Purpose                             | Where to Get                                        |
+| --------------------- | ----------------------------------- | --------------------------------------------------- |
 | **Anthropic API Key** | Alternative embeddings/future agent | [Anthropic Console](https://console.anthropic.com/) |
 
 ### Environment Variables to Add
@@ -65,6 +69,7 @@ The work is divided into 8 chunks, each producing a committable unit of work. Ch
 **Can Parallelize With**: None (foundational)
 
 ### Description
+
 Establish the service layer pattern for context entities with shared types, utilities, and base service abstractions.
 
 ### Files to Create
@@ -97,6 +102,7 @@ src/services/context/
    - Will grow as services are added
 
 ### Acceptance Criteria
+
 - [ ] All types compile without errors
 - [ ] Utilities have unit tests
 - [ ] Pattern matches existing `services/chat/types.ts` style
@@ -110,6 +116,7 @@ src/services/context/
 **Can Parallelize With**: None
 
 ### Description
+
 Full CRUD service for the Person entity, following the pattern established by ChatService.
 
 ### Files to Create/Modify
@@ -128,24 +135,40 @@ src/services/context/
 ```typescript
 interface PeopleService {
   // CRUD
-  create(userId: string, data: CreatePersonInput): Promise<Person>
-  getById(userId: string, id: string): Promise<Person | null>
-  update(userId: string, id: string, data: UpdatePersonInput): Promise<Person>
-  delete(userId: string, id: string): Promise<void>  // Soft delete
-  restore(userId: string, id: string): Promise<Person>  // Undo delete
-  
+  create(userId: string, data: CreatePersonInput): Promise<Person>;
+  getById(userId: string, id: string): Promise<Person | null>;
+  update(userId: string, id: string, data: UpdatePersonInput): Promise<Person>;
+  delete(userId: string, id: string): Promise<void>; // Soft delete
+  restore(userId: string, id: string): Promise<Person>; // Undo delete
+
   // Query
-  list(userId: string, options: ListPeopleOptions): Promise<PaginatedResult<Person>>
-  findByEmail(userId: string, email: string): Promise<Person | null>
-  findBySource(userId: string, source: string, sourceId: string): Promise<Person | null>
-  search(userId: string, query: string, options?: SearchOptions): Promise<Person[]>
-  
+  list(
+    userId: string,
+    options: ListPeopleOptions
+  ): Promise<PaginatedResult<Person>>;
+  findByEmail(userId: string, email: string): Promise<Person | null>;
+  findBySource(
+    userId: string,
+    source: string,
+    sourceId: string
+  ): Promise<Person | null>;
+  search(
+    userId: string,
+    query: string,
+    options?: SearchOptions
+  ): Promise<Person[]>;
+
   // Bulk
-  upsertFromSource(userId: string, source: string, people: SourcePerson[]): Promise<Person[]>
+  upsertFromSource(
+    userId: string,
+    source: string,
+    people: SourcePerson[]
+  ): Promise<Person[]>;
 }
 ```
 
 ### Key Features
+
 - Full audit logging on all mutations
 - Ownership verification (userId check)
 - Soft deletes with `deletedAt`
@@ -154,6 +177,7 @@ interface PeopleService {
 - Upsert for integration sync scenarios
 
 ### Acceptance Criteria
+
 - [ ] All CRUD operations work correctly
 - [ ] Audit logs created for create/update/delete
 - [ ] Soft delete works (excludes from normal queries)
@@ -169,6 +193,7 @@ interface PeopleService {
 **Can Parallelize With**: Partially (after Chunk 2, these 4 can be done in parallel)
 
 ### Description
+
 Implement CRUD services for the remaining context entities, following the People pattern.
 
 ### Files to Create
@@ -197,26 +222,31 @@ src/services/context/
 ### Entity-Specific Features
 
 **Places**:
+
 - Geocoding integration stub (future: Google Places API)
 - Search by location/city
 
 **Events**:
+
 - Time range queries (upcoming, past, on date)
 - Relation to Place (optional)
 - Status transitions
 
 **Tasks**:
+
 - Hierarchy support (parent/subtasks)
 - Status transitions (with completion timestamp)
 - Due date queries (overdue, due soon)
 - Assignment to Person
 
 **Deadlines**:
+
 - Relation to Task or Event
 - Status transitions (pending → completed/missed)
 - Urgency queries (approaching, overdue)
 
 ### Acceptance Criteria
+
 - [ ] All 4 entity services implemented
 - [ ] Each has full CRUD + list/search
 - [ ] Entity-specific queries work
@@ -232,6 +262,7 @@ src/services/context/
 **Can Parallelize With**: Chunk 3
 
 ### Description
+
 Service for managing relationships between any two entities (person-person, person-event, etc.).
 
 ### Files to Create
@@ -250,37 +281,45 @@ src/services/context/
 ```typescript
 interface RelationshipService {
   // Create/Manage
-  create(userId: string, data: CreateRelationshipInput): Promise<EntityRelationship>
-  update(userId: string, id: string, data: UpdateRelationshipInput): Promise<EntityRelationship>
-  delete(userId: string, id: string): Promise<void>
-  
+  create(
+    userId: string,
+    data: CreateRelationshipInput
+  ): Promise<EntityRelationship>;
+  update(
+    userId: string,
+    id: string,
+    data: UpdateRelationshipInput
+  ): Promise<EntityRelationship>;
+  delete(userId: string, id: string): Promise<void>;
+
   // Query
   getRelationshipsFor(
-    userId: string, 
-    entityType: EntityType, 
+    userId: string,
+    entityType: EntityType,
     entityId: string,
     options?: RelationshipQueryOptions
-  ): Promise<EntityRelationship[]>
-  
+  ): Promise<EntityRelationship[]>;
+
   getRelatedEntities<T>(
     userId: string,
     entityType: EntityType,
     entityId: string,
     targetType: EntityType,
     relationshipTypes?: string[]
-  ): Promise<T[]>
-  
+  ): Promise<T[]>;
+
   // Bulk for sync
   syncRelationships(
     userId: string,
     sourceType: EntityType,
     sourceId: string,
     relationships: CreateRelationshipInput[]
-  ): Promise<void>
+  ): Promise<void>;
 }
 ```
 
 ### Common Relationship Types to Support
+
 - `works_with`, `manages`, `reports_to` (person ↔ person)
 - `works_at`, `lives_at` (person → place)
 - `attends`, `organizes` (person → event)
@@ -288,6 +327,7 @@ interface RelationshipService {
 - `located_at` (event → place)
 
 ### Acceptance Criteria
+
 - [ ] Can create/update/delete relationships
 - [ ] Bidirectional relationships work correctly
 - [ ] Can query relationships from either direction
@@ -303,6 +343,7 @@ interface RelationshipService {
 **Can Parallelize With**: None
 
 ### Description
+
 REST API routes for all context entities, following the pattern from chat API routes.
 
 ### Files to Create
@@ -339,19 +380,20 @@ src/app/api/context/
 
 ### API Endpoints Summary
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/context/people` | List people (paginated, filterable) |
-| POST | `/api/context/people` | Create person |
-| GET | `/api/context/people/[id]` | Get person by ID |
-| PATCH | `/api/context/people/[id]` | Update person |
-| DELETE | `/api/context/people/[id]` | Soft delete person |
-| ... | (same pattern for places, events, tasks, deadlines) | ... |
-| GET | `/api/context/relationships` | List relationships |
-| POST | `/api/context/relationships` | Create relationship |
-| GET | `/api/context/search?q=...&types=...` | Unified search |
+| Method | Endpoint                                            | Description                         |
+| ------ | --------------------------------------------------- | ----------------------------------- |
+| GET    | `/api/context/people`                               | List people (paginated, filterable) |
+| POST   | `/api/context/people`                               | Create person                       |
+| GET    | `/api/context/people/[id]`                          | Get person by ID                    |
+| PATCH  | `/api/context/people/[id]`                          | Update person                       |
+| DELETE | `/api/context/people/[id]`                          | Soft delete person                  |
+| ...    | (same pattern for places, events, tasks, deadlines) | ...                                 |
+| GET    | `/api/context/relationships`                        | List relationships                  |
+| POST   | `/api/context/relationships`                        | Create relationship                 |
+| GET    | `/api/context/search?q=...&types=...`               | Unified search                      |
 
 ### Query Parameters
+
 - `?cursor=` - Cursor for pagination
 - `?limit=` - Page size (default 20, max 100)
 - `?q=` - Search query
@@ -361,6 +403,7 @@ src/app/api/context/
 - `?includeDeleted=true` - Include soft-deleted items
 
 ### Acceptance Criteria
+
 - [ ] All CRUD endpoints work
 - [ ] Authentication required on all routes
 - [ ] Ownership verification (users only see their data)
@@ -378,6 +421,7 @@ src/app/api/context/
 **Can Parallelize With**: Chunks 2-5
 
 ### Description
+
 Core embedding service for generating and storing vector embeddings using OpenAI's API.
 
 ### Files to Create
@@ -401,45 +445,47 @@ npm install openai
 ```typescript
 interface EmbeddingService {
   // Generate embedding for text
-  generateEmbedding(text: string): Promise<number[]>
-  
+  generateEmbedding(text: string): Promise<number[]>;
+
   // Store embedding for entity
   storeEmbedding(params: {
-    userId: string
-    entityType: EntityType
-    entityId: string
-    content: string
-    chunkIndex?: number
-    metadata?: Record<string, unknown>
-  }): Promise<Embedding>
-  
+    userId: string;
+    entityType: EntityType;
+    entityId: string;
+    content: string;
+    chunkIndex?: number;
+    metadata?: Record<string, unknown>;
+  }): Promise<Embedding>;
+
   // Update embedding when entity changes
   updateEmbedding(
     userId: string,
     entityType: EntityType,
     entityId: string,
     newContent: string
-  ): Promise<void>
-  
+  ): Promise<void>;
+
   // Delete embeddings when entity deleted
   deleteEmbeddings(
     userId: string,
     entityType: EntityType,
     entityId: string
-  ): Promise<void>
-  
+  ): Promise<void>;
+
   // Content chunking for long text
-  chunkContent(content: string, maxTokens?: number): string[]
+  chunkContent(content: string, maxTokens?: number): string[];
 }
 ```
 
 ### Key Considerations
+
 - Use `text-embedding-3-small` (cheaper, still good quality) or `text-embedding-ada-002`
 - Handle rate limiting with exponential backoff
 - Content deduplication via `contentHash`
 - Batch embedding generation for efficiency
 
 ### Acceptance Criteria
+
 - [ ] Can generate embeddings from OpenAI
 - [ ] Embeddings stored in database correctly
 - [ ] Content hashing prevents duplicate work
@@ -456,6 +502,7 @@ interface EmbeddingService {
 **Can Parallelize With**: None
 
 ### Description
+
 Implement vector similarity search using pgvector for semantic context retrieval.
 
 ### Files to Create/Modify
@@ -479,29 +526,29 @@ prisma/
 interface SemanticSearchService {
   // Find similar content by embedding
   searchSimilar(params: {
-    userId: string
-    query: string
-    entityTypes?: EntityType[]
-    limit?: number
-    minSimilarity?: number
-  }): Promise<SemanticSearchResult[]>
-  
+    userId: string;
+    query: string;
+    entityTypes?: EntityType[];
+    limit?: number;
+    minSimilarity?: number;
+  }): Promise<SemanticSearchResult[]>;
+
   // Find similar to existing entity
   findSimilarToEntity(params: {
-    userId: string
-    entityType: EntityType
-    entityId: string
-    targetTypes?: EntityType[]
-    limit?: number
-  }): Promise<SemanticSearchResult[]>
+    userId: string;
+    entityType: EntityType;
+    entityId: string;
+    targetTypes?: EntityType[];
+    limit?: number;
+  }): Promise<SemanticSearchResult[]>;
 }
 
 interface SemanticSearchResult {
-  entityType: EntityType
-  entityId: string
-  content: string
-  similarity: number
-  metadata: Record<string, unknown>
+  entityType: EntityType;
+  entityId: string;
+  content: string;
+  similarity: number;
+  metadata: Record<string, unknown>;
 }
 ```
 
@@ -509,7 +556,7 @@ interface SemanticSearchResult {
 
 ```sql
 -- Example query (will use Prisma.$queryRaw)
-SELECT 
+SELECT
   entity_type,
   entity_id,
   content,
@@ -527,16 +574,17 @@ LIMIT $4;
 interface ContextSearchService {
   // Combined text + semantic search
   search(params: {
-    userId: string
-    query: string
-    entityTypes?: EntityType[]
-    limit?: number
-    useSemanticSearch?: boolean  // Default: true
-  }): Promise<ContextSearchResult[]>
+    userId: string;
+    query: string;
+    entityTypes?: EntityType[];
+    limit?: number;
+    useSemanticSearch?: boolean; // Default: true
+  }): Promise<ContextSearchResult[]>;
 }
 ```
 
 ### Acceptance Criteria
+
 - [ ] Vector similarity search returns relevant results
 - [ ] Can filter by entity type
 - [ ] Similarity scores are meaningful
@@ -553,6 +601,7 @@ interface ContextSearchService {
 **Can Parallelize With**: None (final integration)
 
 ### Description
+
 Integrate embedding generation into entity lifecycle - automatically create/update embeddings when entities change.
 
 ### Files to Modify
@@ -571,14 +620,17 @@ src/services/context/
 
 ```typescript
 // In each service, after create/update:
-async function afterEntityMutation(entity: Entity, operation: 'create' | 'update') {
-  const content = buildEmbeddableContent(entity)
+async function afterEntityMutation(
+  entity: Entity,
+  operation: "create" | "update"
+) {
+  const content = buildEmbeddableContent(entity);
   await embeddingService.storeOrUpdate({
     userId: entity.userId,
-    entityType: 'person', // or appropriate type
+    entityType: "person", // or appropriate type
     entityId: entity.id,
     content,
-  })
+  });
 }
 
 // Content builder creates searchable text representation
@@ -590,12 +642,15 @@ function buildEmbeddableContent(person: Person): string {
     person.title,
     person.bio,
     person.notes,
-    person.tags.join(' '),
-  ].filter(Boolean).join(' | ')
+    person.tags.join(" "),
+  ]
+    .filter(Boolean)
+    .join(" | ");
 }
 ```
 
 ### Background Processing Option
+
 For performance, embedding generation can be queued:
 
 ```typescript
@@ -609,6 +664,7 @@ await embeddingQueue.add('generate-embedding', { entityType, entityId })
 For MVP, inline is fine. Can add BullMQ queue later for scale.
 
 ### Acceptance Criteria
+
 - [ ] Creating entity generates embedding
 - [ ] Updating entity updates embedding
 - [ ] Deleting entity removes embedding
@@ -633,6 +689,7 @@ Each chunk should include:
    - Embedding generation (mock OpenAI)
 
 3. **Test Files Structure**
+
 ```
 tests/
 ├── services/
@@ -703,22 +760,26 @@ npm run build
 ## Notes for Agents
 
 ### Code Style
+
 - Follow existing patterns in `src/services/chat/`
 - Use Zod for input validation
 - Include JSDoc comments on public methods
 - Use barrel exports (`index.ts`)
 
 ### Error Handling
+
 - Throw typed errors that API routes can catch
 - Include helpful error messages
 - Log errors with context
 
 ### Audit Logging
+
 - All mutations should call audit service
 - Include `entitySnapshot` for create/update
 - Include `reasoning` when applicable
 
 ### Database Queries
+
 - Use Prisma's type-safe queries
 - For vector ops, use `$queryRaw` with parameterized queries
 - Always filter by `userId` for ownership
@@ -751,4 +812,3 @@ Phase 2 is complete when:
 - [ ] All audit logging in place
 - [ ] Tests pass, build succeeds
 - [ ] No TypeScript or lint errors
-

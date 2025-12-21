@@ -202,4 +202,43 @@ export const RATE_LIMITS = {
     maxRequests: 20,
     keyPrefix: "chat",
   } as RateLimitConfig,
+
+  // ─────────────────────────────────────────────────────────────
+  // Gmail Integration Rate Limits
+  // ─────────────────────────────────────────────────────────────
+
+  /** Gmail sync operations: 10 per minute (expensive operations) */
+  gmailSync: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "gmail-sync",
+  } as RateLimitConfig,
+
+  /** Gmail send/compose: 20 per minute (prevent spam) */
+  gmailSend: {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    keyPrefix: "gmail-send",
+  } as RateLimitConfig,
+
+  /** Gmail connection/disconnection: 5 per minute */
+  gmailConnect: {
+    windowMs: 60 * 1000,
+    maxRequests: 5,
+    keyPrefix: "gmail-connect",
+  } as RateLimitConfig,
+
+  /** Gmail approval actions: 30 per minute */
+  gmailApprovals: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "gmail-approvals",
+  } as RateLimitConfig,
+
+  /** Gmail drafts: 30 per minute */
+  gmailDrafts: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "gmail-drafts",
+  } as RateLimitConfig,
 } as const;

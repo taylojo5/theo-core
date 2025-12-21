@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Full Sync
-// Initial import of all emails from Gmail
+// Initial import of all emails from Gmail with checkpoint-based resumption
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createGmailClient, GmailClient } from "../client";
@@ -14,11 +14,18 @@ import {
   mapGmailLabelsToEmailLabels,
 } from "../mappers";
 import { GmailError, GmailErrorCode } from "../errors";
+import { syncLogger } from "../logger";
+import { FULL_SYNC_MAX_PAGES, MESSAGE_FETCH_CONCURRENCY } from "../constants";
+import { queueFullSyncEmbeddings } from "./utils";
 import { logAuditEntry } from "@/services/audit";
-import { addJob, QUEUE_NAMES } from "@/lib/queue";
-import { JOB_NAMES } from "@/lib/queue/jobs";
+import { db } from "@/lib/db";
 import type { ParsedGmailMessage, GmailLabel } from "../types";
-import type { EmailSyncResult, EmailSyncError, FullSyncOptions } from "./types";
+import type {
+  EmailSyncResult,
+  EmailSyncError,
+  FullSyncOptions,
+  FullSyncCheckpoint,
+} from "./types";
 
 // ─────────────────────────────────────────────────────────────
 // Default Options
@@ -29,6 +36,7 @@ const DEFAULT_OPTIONS: Required<FullSyncOptions> = {
   labelIds: [],
   afterDate: undefined as unknown as Date,
   pageSize: 100,
+  resumeFromCheckpoint: false,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -43,7 +51,8 @@ const DEFAULT_OPTIONS: Required<FullSyncOptions> = {
  * 2. Gets the current history ID
  * 3. Fetches all messages (paginated)
  * 4. Stores emails in the database
- * 5. Updates sync state with new history ID
+ * 5. Saves checkpoints for resumption
+ * 6. Updates sync state with new history ID
  *
  * @param userId - The user ID to sync for
  * @param accessToken - OAuth2 access token
@@ -73,6 +82,28 @@ export async function fullSync(
     errors: [],
   };
 
+  // Check for existing checkpoint if resuming
+  let startPageToken: string | undefined;
+  let startProgress = 0;
+
+  if (opts.resumeFromCheckpoint) {
+    const checkpoint = await getCheckpoint(userId);
+    if (checkpoint) {
+      startPageToken = checkpoint.pageToken;
+      startProgress = checkpoint.progress;
+      result.total = startProgress;
+
+      syncLogger.info("Resuming full sync from checkpoint", {
+        userId,
+        pageToken: startPageToken
+          ? `${startPageToken.slice(0, 20)}...`
+          : "none",
+        progress: startProgress,
+        startedAt: checkpoint.startedAt,
+      });
+    }
+  }
+
   try {
     // Mark sync as in progress
     await syncStateRepository.startSync(userId);
@@ -84,14 +115,23 @@ export async function fullSync(
     const historyId = await client.getHistoryId();
     result.historyId = historyId;
 
-    // Step 2: Sync labels
-    await syncLabels(client, userId);
+    // Step 2: Sync labels (only on fresh start)
+    if (!startPageToken) {
+      await syncLabels(client, userId);
+
+      // Initialize checkpoint
+      await saveCheckpoint(userId, {
+        pageToken: undefined,
+        progress: 0,
+        startedAt: new Date(),
+      });
+    }
 
     // Step 3: Build query for message fetching
     const query = buildSyncQuery(opts);
 
     // Step 4: Fetch and store messages in batches
-    let pageToken: string | undefined;
+    let pageToken: string | undefined = startPageToken;
     let page = 0;
 
     do {
@@ -132,9 +172,17 @@ export async function fullSync(
       result.updated += storeResult.updated;
       result.total += messages.length;
 
+      // Save checkpoint after each page
+      await saveCheckpoint(userId, {
+        pageToken: listResult.nextPageToken,
+        progress: result.total,
+        startedAt: new Date(startTime),
+      });
+
       // Check if we've hit the max emails limit
       if (opts.maxEmails && result.total >= opts.maxEmails) {
         result.hasMore = !!listResult.nextPageToken;
+        result.nextPageToken = listResult.nextPageToken;
         break;
       }
 
@@ -142,15 +190,21 @@ export async function fullSync(
       page++;
 
       // Safety limit to prevent infinite loops
-      if (page > 100) {
-        console.warn(`[FullSync] Safety limit reached after ${page} pages`);
+      if (page > FULL_SYNC_MAX_PAGES) {
+        syncLogger.warn("Full sync safety limit reached", {
+          userId,
+          pages: page,
+          totalProcessed: result.total,
+        });
         result.hasMore = true;
+        result.nextPageToken = pageToken;
         break;
       }
     } while (pageToken);
 
-    // Step 5: Complete sync
+    // Step 5: Complete sync and clear checkpoint
     await syncStateRepository.completeSync(userId, historyId, true);
+    await clearCheckpoint(userId);
 
     // Log audit entry
     await logAuditEntry({
@@ -162,6 +216,7 @@ export async function fullSync(
       metadata: {
         source: "gmail",
         syncType: "full",
+        resumed: !!startPageToken,
         stats: {
           added: result.added,
           updated: result.updated,
@@ -187,7 +242,7 @@ export async function fullSync(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
 
-    // Mark sync as failed
+    // Mark sync as failed but preserve checkpoint for resumption
     await syncStateRepository.failSync(userId, errorMessage);
 
     // Log error to audit
@@ -202,6 +257,7 @@ export async function fullSync(
       metadata: {
         source: "gmail",
         syncType: "full",
+        checkpointSaved: true,
         partialStats: {
           added: result.added,
           updated: result.updated,
@@ -285,19 +341,17 @@ async function fetchMessageBatch(
   client: GmailClient,
   messageIds: string[]
 ): Promise<ParsedGmailMessage[]> {
-  // Fetch messages in parallel with concurrency limit
-  const concurrency = 10;
   const messages: ParsedGmailMessage[] = [];
 
-  for (let i = 0; i < messageIds.length; i += concurrency) {
-    const batch = messageIds.slice(i, i + concurrency);
+  for (let i = 0; i < messageIds.length; i += MESSAGE_FETCH_CONCURRENCY) {
+    const batch = messageIds.slice(i, i + MESSAGE_FETCH_CONCURRENCY);
     const batchResults = await Promise.all(
       batch.map((id) =>
         client.getMessage(id, { format: "full" }).catch((error) => {
-          console.warn(
-            `[FullSync] Failed to fetch message ${id}:`,
-            error.message
-          );
+          syncLogger.warn("Failed to fetch message", {
+            messageId: id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return null;
         })
       )
@@ -377,12 +431,13 @@ async function storeMessages(
   // Queue embedding generation for new emails (in batches)
   if (newEmailIds.length > 0) {
     try {
-      await queueEmailEmbeddings(userId, newEmailIds);
+      await queueFullSyncEmbeddings(userId, newEmailIds);
     } catch (error) {
-      console.warn(
-        `[FullSync] Failed to queue embeddings for ${newEmailIds.length} emails:`,
-        error
-      );
+      syncLogger.warn("Failed to queue embeddings", {
+        userId,
+        emailCount: newEmailIds.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
       // Don't fail the sync if embedding queue fails
     }
   }
@@ -390,29 +445,79 @@ async function storeMessages(
   return { created, updated, emailIds: newEmailIds };
 }
 
+// ─────────────────────────────────────────────────────────────
+// Checkpoint Management
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Queue embedding generation jobs for emails
+ * Get the current checkpoint for a user's full sync
  */
-async function queueEmailEmbeddings(
-  userId: string,
-  emailIds: string[]
-): Promise<void> {
-  // Batch into groups of 20 emails
-  const batchSize = 20;
+export async function getCheckpoint(
+  userId: string
+): Promise<FullSyncCheckpoint | null> {
+  const syncState = await db.gmailSyncState.findUnique({
+    where: { userId },
+    select: {
+      fullSyncPageToken: true,
+      fullSyncProgress: true,
+      fullSyncStartedAt: true,
+    },
+  });
 
-  for (let i = 0; i < emailIds.length; i += batchSize) {
-    const batch = emailIds.slice(i, i + batchSize);
-
-    await addJob(
-      QUEUE_NAMES.EMBEDDINGS,
-      JOB_NAMES.BULK_EMAIL_EMBED,
-      { userId, emailIds: batch },
-      {
-        // Low priority - sync is more important
-        priority: 10,
-      }
-    );
+  if (!syncState?.fullSyncStartedAt) {
+    return null;
   }
+
+  return {
+    pageToken: syncState.fullSyncPageToken ?? undefined,
+    progress: syncState.fullSyncProgress,
+    startedAt: syncState.fullSyncStartedAt,
+  };
+}
+
+/**
+ * Save a checkpoint for resumable full sync
+ */
+export async function saveCheckpoint(
+  userId: string,
+  checkpoint: FullSyncCheckpoint
+): Promise<void> {
+  await db.gmailSyncState.upsert({
+    where: { userId },
+    create: {
+      user: { connect: { id: userId } },
+      fullSyncPageToken: checkpoint.pageToken,
+      fullSyncProgress: checkpoint.progress,
+      fullSyncStartedAt: checkpoint.startedAt,
+    },
+    update: {
+      fullSyncPageToken: checkpoint.pageToken,
+      fullSyncProgress: checkpoint.progress,
+      fullSyncStartedAt: checkpoint.startedAt,
+    },
+  });
+}
+
+/**
+ * Clear the checkpoint after successful sync completion
+ */
+export async function clearCheckpoint(userId: string): Promise<void> {
+  await db.gmailSyncState.update({
+    where: { userId },
+    data: {
+      fullSyncPageToken: null,
+      fullSyncProgress: 0,
+      fullSyncStartedAt: null,
+    },
+  });
+}
+
+/**
+ * Check if a user has a pending checkpoint
+ */
+export async function hasCheckpoint(userId: string): Promise<boolean> {
+  const checkpoint = await getCheckpoint(userId);
+  return checkpoint !== null && checkpoint.pageToken !== undefined;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -420,21 +525,46 @@ async function queueEmailEmbeddings(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Resume a full sync from a specific page token
+ * Resume a full sync from a saved checkpoint
  * Used when a sync was interrupted
  */
 export async function resumeFullSync(
   userId: string,
   accessToken: string,
+  options: FullSyncOptions = {}
+): Promise<EmailSyncResult> {
+  syncLogger.info("Resuming full sync from checkpoint", { userId });
+
+  return fullSync(userId, accessToken, {
+    ...options,
+    resumeFromCheckpoint: true,
+  });
+}
+
+/**
+ * Resume a full sync from a specific page token (explicit)
+ * Used when manually resuming with a known page token
+ */
+export async function resumeFullSyncFromToken(
+  userId: string,
+  accessToken: string,
   pageToken: string,
   options: FullSyncOptions = {}
 ): Promise<EmailSyncResult> {
-  // For now, we don't support true resumption
-  // We'll restart the sync with the page token
-  // A more robust implementation would track sync progress in the database
-  console.log(
-    `[FullSync] Resuming sync for user ${userId} from page ${pageToken}`
-  );
+  syncLogger.info("Resuming full sync from explicit page token", {
+    userId,
+    pageToken: pageToken.slice(0, 20) + "...",
+  });
 
-  return fullSync(userId, accessToken, options);
+  // Save the page token as a checkpoint first
+  await saveCheckpoint(userId, {
+    pageToken,
+    progress: 0, // Unknown progress when explicitly providing token
+    startedAt: new Date(),
+  });
+
+  return fullSync(userId, accessToken, {
+    ...options,
+    resumeFromCheckpoint: true,
+  });
 }

@@ -620,15 +620,27 @@ export const syncStateRepository = {
     isFullSync = false
   ): Promise<GmailSyncState> => {
     const now = new Date();
+
+    // Check if history ID changed
+    const currentState = await db.gmailSyncState.findUnique({
+      where: { userId },
+      select: { historyId: true },
+    });
+    const historyIdChanged = currentState?.historyId !== historyId;
+
     const updateData: Prisma.GmailSyncStateUpdateInput = {
       syncStatus: "idle",
       syncError: null,
       historyId,
       lastSyncAt: now,
+      // Update historyIdSetAt when history ID changes (for expiration tracking)
+      ...(historyIdChanged ? { historyIdSetAt: now } : {}),
     };
 
     if (isFullSync) {
       updateData.lastFullSyncAt = now;
+      // Full sync always sets a new history ID
+      updateData.historyIdSetAt = now;
     }
 
     // Get updated email count
@@ -641,6 +653,7 @@ export const syncStateRepository = {
         user: { connect: { id: userId } },
         syncStatus: "idle",
         historyId,
+        historyIdSetAt: now,
         lastSyncAt: now,
         lastFullSyncAt: isFullSync ? now : null,
         emailCount,

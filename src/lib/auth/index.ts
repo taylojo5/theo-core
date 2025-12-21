@@ -1,8 +1,14 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
-import { formatScopes, SCOPE_SETS } from "./scopes";
+import {
+  formatScopes,
+  SCOPE_SETS,
+  ALL_GMAIL_SCOPES,
+  hasAllScopes,
+  parseScopes,
+} from "./scopes";
+import { EncryptedPrismaAdapter } from "./encrypted-adapter";
 
 // Re-export scope utilities for convenience
 export * from "./scopes";
@@ -35,7 +41,7 @@ function getConfiguredScopes(): string {
  * @see https://authjs.dev/getting-started/installation
  */
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(db),
+  adapter: EncryptedPrismaAdapter(db),
 
   providers: [
     Google({
@@ -106,6 +112,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       return true; // Allow access to public pages
+    },
+  },
+
+  // Events to respond to authentication lifecycle
+  events: {
+    /**
+     * Called when an account is linked or updated
+     * This is triggered after OAuth callback when scopes may have been granted/upgraded
+     */
+    async linkAccount({ user, account }) {
+      // Check if Gmail scopes were granted
+      if (account.provider === "google" && account.scope && user.id) {
+        const grantedScopes = parseScopes(account.scope);
+        const hasGmailScopes = hasAllScopes(grantedScopes, ALL_GMAIL_SCOPES);
+
+        if (hasGmailScopes) {
+          // Dynamically import to avoid bundling issues
+          try {
+            const { startRecurringSync, triggerSync } =
+              await import("@/integrations/gmail");
+            // Start recurring sync for the user
+            await startRecurringSync(user.id);
+            // Trigger an immediate sync
+            await triggerSync(user.id);
+            console.log(
+              `[Auth] Started auto-sync for user ${user.id} after Gmail connect`
+            );
+          } catch (error) {
+            console.error(`[Auth] Failed to start auto-sync:`, error);
+          }
+        }
+      }
     },
   },
 

@@ -12,6 +12,8 @@ import {
   rejectApproval,
 } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -28,13 +30,23 @@ const ActionSchema = z.object({
 // ─────────────────────────────────────────────────────────────
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailApprovals
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const { id: approvalId } = await params;
@@ -44,11 +56,11 @@ export async function GET(
     if (!approval) {
       return NextResponse.json(
         { error: "Approval not found" },
-        { status: 404 }
+        { status: 404, headers }
       );
     }
 
-    return NextResponse.json(approval);
+    return NextResponse.json(approval, { headers });
   } catch (error) {
     console.error("[Approval API] Get error:", error);
     return NextResponse.json(
@@ -56,7 +68,7 @@ export async function GET(
         error:
           error instanceof Error ? error.message : "Failed to get approval",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -69,16 +81,30 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailApprovals
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
-    const { id: approvalId } = await params;
-
-    // Parse and validate body
+    // Parse body first so we can check CSRF from body
     const body = await request.json();
+
+    // CSRF protection - critical for approval/rejection actions
+    const csrfError = await withCsrfProtection(request, body, headers);
+    if (csrfError) return csrfError;
+
+    const { id: approvalId } = await params;
     const parseResult = ActionSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -87,7 +113,7 @@ export async function POST(
           error: "Validation failed",
           details: parseResult.error.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -98,7 +124,7 @@ export async function POST(
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -115,15 +141,18 @@ export async function POST(
             error: result.errorMessage || "Failed to send email",
             approval: result.approval,
           },
-          { status: 500 }
+          { status: 500, headers }
         );
       }
 
-      return NextResponse.json({
-        success: true,
-        approval: result.approval,
-        sentMessageId: result.sentMessageId,
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          approval: result.approval,
+          sentMessageId: result.sentMessageId,
+        },
+        { headers }
+      );
     }
 
     // Reject
@@ -134,10 +163,13 @@ export async function POST(
       notes
     );
 
-    return NextResponse.json({
-      success: true,
-      approval: result.approval,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        approval: result.approval,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Approval API] Action error:", error);
 
@@ -152,7 +184,7 @@ export async function POST(
           ? 400
           : 500;
 
-    return NextResponse.json({ error: errorMessage }, { status });
+    return NextResponse.json({ error: errorMessage }, { status, headers });
   }
 }
 
@@ -161,13 +193,23 @@ export async function POST(
 // ─────────────────────────────────────────────────────────────
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailApprovals
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const { id: approvalId } = await params;
@@ -177,7 +219,7 @@ export async function DELETE(
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -189,10 +231,13 @@ export async function DELETE(
       "Cancelled by user"
     );
 
-    return NextResponse.json({
-      success: true,
-      approval: result.approval,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        approval: result.approval,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Approval API] Delete error:", error);
     return NextResponse.json(
@@ -200,7 +245,7 @@ export async function DELETE(
         error:
           error instanceof Error ? error.message : "Failed to cancel approval",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

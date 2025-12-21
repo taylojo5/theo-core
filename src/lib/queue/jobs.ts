@@ -19,6 +19,7 @@ export const JOB_NAMES = {
   // Email embedding jobs (Phase 3)
   GENERATE_EMAIL_EMBEDDING: "generate-email-embedding",
   BULK_EMAIL_EMBED: "bulk-email-embed",
+  RETRY_FAILED_EMBEDDINGS: "retry-failed-embeddings",
 
   // Contact sync jobs (Phase 3)
   SYNC_CONTACTS: "sync-contacts",
@@ -39,6 +40,7 @@ export const JOB_NAMES = {
   // Maintenance jobs
   CLEANUP_EMBEDDINGS: "cleanup-embeddings",
   REFRESH_TOKEN: "refresh-token",
+  CHECK_HISTORY_EXPIRATION: "check-history-expiration",
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -102,6 +104,12 @@ export interface BulkEmailEmbedJobData {
   emailIds: string[];
 }
 
+export interface RetryFailedEmbeddingsJobData {
+  userId: string;
+  maxRetries?: number;
+  batchSize?: number;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notification Jobs
 // ─────────────────────────────────────────────────────────────
@@ -133,4 +141,8 @@ export interface RefreshTokenJobData {
   userId: string;
   accountId: string;
   provider: "google" | "slack";
+}
+
+export interface CheckHistoryExpirationJobData {
+  userId?: string; // If not provided, check all users
 }

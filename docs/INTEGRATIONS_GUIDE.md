@@ -90,68 +90,221 @@ model ConnectedAccount {
 # .env.local
 GOOGLE_CLIENT_ID="your-client-id"
 GOOGLE_CLIENT_SECRET="your-client-secret"
+TOKEN_ENCRYPTION_KEY="32-byte-base64-encoded-key"  # For encrypting tokens at rest
 ```
 
 ### Scopes Required
 
 ```typescript
-const GMAIL_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.modify",
+// src/lib/auth/scopes.ts
+export const GMAIL_SCOPES = {
+  READ: "https://www.googleapis.com/auth/gmail.readonly",
+  SEND: "https://www.googleapis.com/auth/gmail.send",
+  MODIFY: "https://www.googleapis.com/auth/gmail.modify",
+  CONTACTS: "https://www.googleapis.com/auth/contacts.readonly",
+};
+
+// All scopes needed for full Gmail functionality
+export const ALL_GMAIL_SCOPES = [
+  GMAIL_SCOPES.READ,
+  GMAIL_SCOPES.SEND,
+  GMAIL_SCOPES.MODIFY,
+  GMAIL_SCOPES.CONTACTS,
 ];
 ```
+
+### API Endpoints
+
+| Endpoint                                 | Method | Description             |
+| ---------------------------------------- | ------ | ----------------------- |
+| `/api/integrations/gmail/connect`        | GET    | Initiate OAuth flow     |
+| `/api/integrations/gmail/callback`       | GET    | OAuth callback handler  |
+| `/api/integrations/gmail/disconnect`     | DELETE | Remove Gmail connection |
+| `/api/integrations/gmail/sync`           | POST   | Trigger sync            |
+| `/api/integrations/gmail/status`         | GET    | Get connection status   |
+| `/api/integrations/gmail/contacts`       | POST   | Sync contacts           |
+| `/api/integrations/gmail/drafts`         | POST   | Create draft            |
+| `/api/integrations/gmail/send`           | POST   | Send email              |
+| `/api/integrations/gmail/approvals`      | GET    | List pending approvals  |
+| `/api/integrations/gmail/approvals/[id]` | POST   | Approve/reject email    |
 
 ### Integration Interface
 
 ```typescript
 // src/integrations/gmail/index.ts
-export interface GmailIntegration {
-  // Sync operations
-  syncEmails(userId: string, options?: SyncOptions): Promise<SyncResult>;
+import { GmailClient, createGmailClient } from "@/integrations/gmail";
 
-  // Read operations
-  listThreads(userId: string, options?: ListOptions): Promise<Thread[]>;
-  getThread(userId: string, threadId: string): Promise<Thread>;
-  searchEmails(userId: string, query: string): Promise<Email[]>;
+// Create a client with access token
+const client = createGmailClient(accessToken, userId);
 
-  // Write operations
-  sendEmail(userId: string, email: SendEmailInput): Promise<Email>;
-  replyToThread(
-    userId: string,
-    threadId: string,
-    reply: ReplyInput
-  ): Promise<Email>;
+// Profile
+const profile = await client.getProfile();
 
-  // Draft operations
-  createDraft(userId: string, draft: DraftInput): Promise<Draft>;
-  updateDraft(
-    userId: string,
-    draftId: string,
-    draft: DraftInput
-  ): Promise<Draft>;
+// Messages
+const messages = await client.listMessages({ labelIds: ["INBOX"] });
+const message = await client.getMessage(messageId);
+await client.modifyMessage(messageId, { addLabelIds: ["STARRED"] });
+
+// Threads
+const threads = await client.listThreads({ maxResults: 50 });
+const thread = await client.getThread(threadId);
+
+// Labels
+const labels = await client.listLabels();
+await client.createLabel("Custom Label", { backgroundColor: "#ff0000" });
+
+// History (for incremental sync)
+const history = await client.listHistory({ startHistoryId });
+
+// Drafts
+const draft = await client.createDraft({ to, subject, body });
+await client.updateDraft(draftId, { subject: "Updated" });
+await client.sendDraft(draftId);
+
+// Send directly
+await client.sendMessage({ to, subject, body });
+
+// Contacts
+const contacts = await client.listContactsParsed({ pageSize: 100 });
+```
+
+### Sync Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    GMAIL SYNC ARCHITECTURE                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                     FULL SYNC                              │   │
+│  │  ─ Initial import of all emails (up to configurable max)  │   │
+│  │  ─ Syncs labels first, then messages                      │   │
+│  │  ─ Saves checkpoints for resumable sync                   │   │
+│  │  ─ Queues embedding generation for each batch             │   │
+│  │  ─ Captures current historyId for incremental sync        │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                            │                                      │
+│                            ▼                                      │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                  INCREMENTAL SYNC                          │   │
+│  │  ─ Uses Gmail History API for efficient delta sync        │   │
+│  │  ─ Handles messageAdded, messageDeleted, labelsChanged    │   │
+│  │  ─ Runs on 5-minute recurring schedule                    │   │
+│  │  ─ Falls back to full sync if historyId expired (~30d)    │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                            │                                      │
+│                            ▼                                      │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                  EMBEDDING GENERATION                      │   │
+│  │  ─ Batched processing (configurable batch size)           │   │
+│  │  ─ Includes subject, body preview, sender, recipients     │   │
+│  │  ─ Metadata for filtering (date, labels, importance)      │   │
+│  │  ─ Stored in vector database for semantic search          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Email Approval Workflow
+
+For agent-initiated emails, Theo uses an approval workflow:
+
+```typescript
+// 1. Agent requests approval to send an email
+import { requestApproval } from "@/integrations/gmail";
+
+const result = await requestApproval(client, userId, {
+  to: ["recipient@example.com"],
+  subject: "Follow-up from our meeting",
+  body: "Hi...",
+  requestedBy: "theo-agent",
+  expiresInMinutes: 60 * 24, // 24 hours
+  metadata: {
+    conversationId: "conv_123",
+    context: "User asked to follow up after the meeting",
+  },
+});
+// Returns { approval, draftId }
+
+// 2. User reviews and approves/rejects
+import { approveAndSend, rejectApproval } from "@/integrations/gmail";
+
+// Approve and send
+await approveAndSend(client, userId, approvalId, {
+  notes: "Looks good, send it",
+});
+
+// Or reject
+await rejectApproval(userId, approvalId, {
+  reason: "Tone is too formal",
+});
+
+// 3. Expired approvals are automatically cleaned up
+import { expireOverdueApprovals } from "@/integrations/gmail";
+await expireOverdueApprovals(); // Run via scheduled job
+```
+
+### Content Extraction
+
+Theo extracts structured data from emails:
+
+```typescript
+import { processEmailContent } from "@/integrations/gmail";
+
+const result = await processEmailContent(email);
+
+// Result includes:
+// - people: Sender and recipients with extracted contact info
+// - dates: Mentioned dates, deadlines, meeting times
+// - actionItems: Tasks extracted from email body
+// - topics: Categorized topics (work, personal, finance, etc.)
+```
+
+### Rate Limiting
+
+The Gmail client includes built-in rate limiting:
+
+```typescript
+import { createRateLimiter, GMAIL_RATE_LIMITS } from "@/integrations/gmail";
+
+// Rate limits are per-user and respect Gmail API quotas
+// Default: 100 quota units/second, 250,000 units/day
+
+// The client automatically:
+// - Waits when approaching limits
+// - Retries with exponential backoff on 429 errors
+// - Tracks quota usage across operations
+```
+
+### Error Handling
+
+```typescript
+import {
+  GmailError,
+  GmailErrorCode,
+  parseGoogleApiError,
+  isRetryableError,
+  needsTokenRefresh,
+} from "@/integrations/gmail";
+
+try {
+  await client.getMessage(messageId);
+} catch (error) {
+  const gmailError = parseGoogleApiError(error);
+
+  switch (gmailError.code) {
+    case GmailErrorCode.UNAUTHORIZED:
+      // Token expired - trigger refresh
+      break;
+    case GmailErrorCode.RATE_LIMITED:
+      // Wait and retry
+      await sleep(gmailError.retryAfterMs);
+      break;
+    case GmailErrorCode.NOT_FOUND:
+      // Message was deleted
+      break;
+  }
 }
-```
-
-### Sync Flow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    GMAIL SYNC FLOW                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  1. Get ConnectedAccount for user                           │
-│  2. Refresh token if expired                                │
-│  3. Fetch new emails since lastSyncAt                       │
-│  4. For each email:                                         │
-│     a. Extract people (from, to, cc)                        │
-│     b. Extract events (if invitation)                       │
-│     c. Extract tasks (if action required)                   │
-│     d. Store relationships                                  │
-│  5. Update syncCursor and lastSyncAt                       │
-│  6. Queue embedding generation                              │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Email Processing
@@ -186,6 +339,10 @@ async function processEmail(
   return { people: [sender, ...recipients], events, tasks, relationships };
 }
 ```
+
+### Troubleshooting
+
+For common issues and solutions, see the [Gmail Troubleshooting Guide](./services/GMAIL_TROUBLESHOOTING.md).
 
 ---
 

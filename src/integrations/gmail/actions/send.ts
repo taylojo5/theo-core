@@ -4,7 +4,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { logAuditEntry } from "@/services/audit";
+import { sanitizeComposeHtml, containsDangerousHtml } from "@/lib/sanitize";
 import { GmailClient } from "../client";
+import { actionsLogger } from "../logger";
 import type { ParsedGmailMessage } from "../types";
 import type { ComposeEmailParams, SendEmailResult } from "./types";
 
@@ -23,6 +25,22 @@ export async function sendEmailDirect(
   userId: string,
   params: ComposeEmailParams
 ): Promise<SendEmailResult> {
+  // Sanitize HTML body to prevent XSS
+  const sanitizedBodyHtml = params.bodyHtml
+    ? sanitizeComposeHtml(params.bodyHtml)
+    : undefined;
+
+  // Log a warning if dangerous content was detected
+  if (params.bodyHtml && containsDangerousHtml(params.bodyHtml)) {
+    actionsLogger.warn(
+      "Potentially dangerous HTML detected in email body - content was sanitized",
+      {
+        userId,
+        recipients: params.to,
+      }
+    );
+  }
+
   try {
     const sentMessage = await client.sendMessage({
       to: params.to,
@@ -30,7 +48,7 @@ export async function sendEmailDirect(
       bcc: params.bcc,
       subject: params.subject,
       body: params.body,
-      bodyHtml: params.bodyHtml,
+      bodyHtml: sanitizedBodyHtml,
       threadId: params.threadId,
       inReplyTo: params.inReplyTo,
       references: params.references,

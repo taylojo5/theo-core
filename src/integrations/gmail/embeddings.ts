@@ -6,6 +6,14 @@
 import type { Email } from "@prisma/client";
 import { getEmbeddingService } from "@/lib/embeddings";
 import { emailRepository } from "./repository";
+import { embeddingsLogger } from "./logger";
+import {
+  EMBEDDING_MAX_BODY_LENGTH,
+  EMBEDDING_BATCH_SIZE,
+  EMBEDDING_BATCH_DELAY_MS,
+  MIN_CONTENT_LENGTH_FOR_EMBEDDING,
+  SYSTEM_LABELS_TO_FILTER,
+} from "./constants";
 
 // ─────────────────────────────────────────────────────────────
 // Constants
@@ -13,12 +21,6 @@ import { emailRepository } from "./repository";
 
 /** Entity type for emails in the embedding system */
 export const EMAIL_ENTITY_TYPE = "email" as const;
-
-/** Maximum body length to include in embedding (to manage token costs) */
-const MAX_BODY_LENGTH = 2000;
-
-/** Batch size for bulk embedding operations */
-const EMBEDDING_BATCH_SIZE = 5;
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -92,9 +94,9 @@ export function buildEmailContent(email: Email): string {
 
   // Body text (truncated to manage token costs)
   if (email.bodyText) {
-    const bodyContent = email.bodyText.slice(0, MAX_BODY_LENGTH);
+    const bodyContent = email.bodyText.slice(0, EMBEDDING_MAX_BODY_LENGTH);
     parts.push(`Content: ${bodyContent}`);
-    if (email.bodyText.length > MAX_BODY_LENGTH) {
+    if (email.bodyText.length > EMBEDDING_MAX_BODY_LENGTH) {
       parts.push("...[truncated]");
     }
   }
@@ -103,8 +105,7 @@ export function buildEmailContent(email: Email): string {
   if (email.labelIds && email.labelIds.length > 0) {
     // Filter out common system labels for cleaner search
     const meaningfulLabels = email.labelIds.filter(
-      (label) =>
-        !["INBOX", "UNREAD", "SENT", "DRAFT", "TRASH", "SPAM"].includes(label)
+      (label) => !(SYSTEM_LABELS_TO_FILTER as readonly string[]).includes(label)
     );
     if (meaningfulLabels.length > 0) {
       parts.push(`Labels: ${meaningfulLabels.join(", ")}`);
@@ -148,7 +149,7 @@ export async function generateEmailEmbedding(
     const content = buildEmailContent(email);
 
     // Skip if content is too short to be meaningful
-    if (content.trim().length < 20) {
+    if (content.trim().length < MIN_CONTENT_LENGTH_FOR_EMBEDDING) {
       return {
         emailId: email.id,
         success: false,
@@ -173,9 +174,13 @@ export async function generateEmailEmbedding(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(
-      `[EmailEmbedding] Failed to generate embedding for email ${email.id}:`,
-      message
+    embeddingsLogger.error(
+      "Failed to generate embedding",
+      {
+        emailId: email.id,
+        userId: email.userId,
+      },
+      error
     );
     return {
       emailId: email.id,
@@ -247,7 +252,9 @@ export async function generateEmailEmbeddings(
 
     // Small delay between batches to respect rate limits
     if (i + EMBEDDING_BATCH_SIZE < emails.length) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) =>
+        setTimeout(resolve, EMBEDDING_BATCH_DELAY_MS)
+      );
     }
   }
 

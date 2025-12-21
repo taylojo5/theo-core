@@ -32,3 +32,6 @@ export {
   syncTestContacts,
   expectedSyncWithEmailRequired,
 } from "./contacts";
+
+// Re-export mocks from the mocks directory
+export * from "../mocks";

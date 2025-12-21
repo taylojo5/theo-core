@@ -4,11 +4,12 @@
 // GET /api/integrations/gmail/sync/contacts - Get contact sync status
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { hasContactsAccess } from "@/lib/auth/scopes";
 import { checkGmailScopes } from "@/lib/auth/scope-upgrade";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   syncContacts,
   getContactSyncStatus,
@@ -56,8 +57,16 @@ interface ContactSyncStatusResponse {
 // ─────────────────────────────────────────────────────────────
 
 export async function POST(
-  request: Request
+  request: NextRequest
 ): Promise<NextResponse<SyncContactsResponse>> {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse)
+    return rateLimitResponse as NextResponse<SyncContactsResponse>;
+
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -66,7 +75,7 @@ export async function POST(
         success: false,
         error: "Unauthorized",
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
@@ -94,7 +103,7 @@ export async function POST(
         error:
           "Missing contacts access. Please reconnect Gmail with contacts permission.",
       },
-      { status: 403 }
+      { status: 403, headers }
     );
   }
 
@@ -107,7 +116,7 @@ export async function POST(
         success: false,
         error: "Unable to get valid access token. Please reconnect Gmail.",
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
@@ -131,19 +140,22 @@ export async function POST(
       conversationId: undefined,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully synced ${result.total} contacts`,
-      data: {
-        created: result.created,
-        updated: result.updated,
-        unchanged: result.unchanged,
-        skipped: result.skipped,
-        total: result.total,
-        errors: result.errors.length,
-        durationMs: result.durationMs,
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Successfully synced ${result.total} contacts`,
+        data: {
+          created: result.created,
+          updated: result.updated,
+          unchanged: result.unchanged,
+          skipped: result.skipped,
+          total: result.total,
+          errors: result.errors.length,
+          durationMs: result.durationMs,
+        },
       },
-    });
+      { headers }
+    );
   } catch (error) {
     console.error("[ContactSync] Sync failed:", error);
 
@@ -155,7 +167,7 @@ export async function POST(
         success: false,
         error: `Contact sync failed: ${errorMessage}`,
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -165,7 +177,17 @@ export async function POST(
 // Get contact sync status
 // ─────────────────────────────────────────────────────────────
 
-export async function GET(): Promise<NextResponse<ContactSyncStatusResponse>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<ContactSyncStatusResponse>> {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse)
+    return rateLimitResponse as NextResponse<ContactSyncStatusResponse>;
+
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -176,7 +198,7 @@ export async function GET(): Promise<NextResponse<ContactSyncStatusResponse>> {
         status: "unknown",
         hasContactsAccess: false,
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
@@ -189,10 +211,13 @@ export async function GET(): Promise<NextResponse<ContactSyncStatusResponse>> {
   // Get sync status
   const status = await getContactSyncStatus(userId);
 
-  return NextResponse.json({
-    contactCount: status.contactCount,
-    lastSyncAt: status.lastSyncAt?.toISOString() ?? null,
-    status: status.status,
-    hasContactsAccess: hasAccess,
-  });
+  return NextResponse.json(
+    {
+      contactCount: status.contactCount,
+      lastSyncAt: status.lastSyncAt?.toISOString() ?? null,
+      status: status.status,
+      hasContactsAccess: hasAccess,
+    },
+    { headers }
+  );
 }

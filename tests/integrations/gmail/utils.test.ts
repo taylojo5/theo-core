@@ -28,7 +28,6 @@ import {
   conversationThread,
   fullContact,
   minimalContact,
-  expectedParsedFullContact,
 } from "./fixtures";
 
 // ─────────────────────────────────────────────────────────────

@@ -3,8 +3,9 @@
 // Get sync status and statistics
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   syncStateRepository,
   emailRepository,
@@ -20,12 +21,22 @@ import {
 // Get sync status and statistics
 // ─────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     // Authenticate
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const userId = session.user.id;
@@ -61,45 +72,48 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json({
-      status: syncState.syncStatus,
-      error: syncState.syncError,
+    return NextResponse.json(
+      {
+        status: syncState.syncStatus,
+        error: syncState.syncError,
 
-      // Sync timing
-      lastSyncAt: syncState.lastSyncAt,
-      lastFullSyncAt: syncState.lastFullSyncAt,
-      historyId: syncState.historyId,
+        // Sync timing
+        lastSyncAt: syncState.lastSyncAt,
+        lastFullSyncAt: syncState.lastFullSyncAt,
+        historyId: syncState.historyId,
 
-      // Statistics
-      stats: {
-        emailCount,
-        unreadCount,
-        labelCount: labels.length,
-        contactCount: syncState.contactCount,
+        // Statistics
+        stats: {
+          emailCount,
+          unreadCount,
+          labelCount: labels.length,
+          contactCount: syncState.contactCount,
+        },
+
+        // Labels
+        labels: labels.map((label) => ({
+          id: label.gmailId,
+          name: label.name,
+          type: label.type,
+          messageCount: label.messageCount,
+          unreadCount: label.unreadCount,
+        })),
+
+        // Sync configuration
+        config: {
+          syncLabels: syncState.syncLabels,
+          excludeLabels: syncState.excludeLabels,
+          maxEmailAgeDays: syncState.maxEmailAgeDays,
+          syncAttachments: syncState.syncAttachments,
+        },
+
+        // Job status
+        recurring: isRecurring,
+        pendingJobs: pendingJobsInfo,
+        hasActiveSyncs: pendingJobsInfo.some((j) => j.status === "active"),
       },
-
-      // Labels
-      labels: labels.map((label) => ({
-        id: label.gmailId,
-        name: label.name,
-        type: label.type,
-        messageCount: label.messageCount,
-        unreadCount: label.unreadCount,
-      })),
-
-      // Sync configuration
-      config: {
-        syncLabels: syncState.syncLabels,
-        excludeLabels: syncState.excludeLabels,
-        maxEmailAgeDays: syncState.maxEmailAgeDays,
-        syncAttachments: syncState.syncAttachments,
-      },
-
-      // Job status
-      recurring: isRecurring,
-      pendingJobs: pendingJobsInfo,
-      hasActiveSyncs: pendingJobsInfo.some((j) => j.status === "active"),
-    });
+      { headers }
+    );
   } catch (error) {
     console.error("[Gmail Sync Status API] Error:", error);
     return NextResponse.json(
@@ -107,7 +121,7 @@ export async function GET() {
         error: "Failed to get sync status",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

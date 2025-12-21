@@ -7,10 +7,11 @@ import { createGmailClient, GmailClient } from "../client";
 import { emailRepository, syncStateRepository } from "../repository";
 import { mapGmailMessageToEmail } from "../mappers";
 import { GmailError, GmailErrorCode } from "../errors";
-import { logAuditEntry } from "@/services/audit";
-import { addJob, QUEUE_NAMES } from "@/lib/queue";
-import { JOB_NAMES } from "@/lib/queue/jobs";
+import { syncLogger } from "../logger";
+import { MESSAGE_FETCH_CONCURRENCY } from "../constants";
+import { queueIncrementalSyncEmbeddings } from "./utils";
 import { deleteEmailEmbeddings } from "../embeddings";
+import { logAuditEntry } from "@/services/audit";
 import type { ParsedGmailMessage, GmailHistory } from "../types";
 import type {
   EmailSyncResult,
@@ -310,8 +311,39 @@ async function fetchHistory(
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// History Change Types
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Categorized message IDs from history entries
+ */
+interface CategorizedChanges {
+  messagesToAdd: Set<string>;
+  messagesToDelete: Set<string>;
+  messagesToUpdate: Set<string>;
+}
+
+/**
+ * Result of processing a category of changes
+ */
+interface ProcessingResult {
+  count: number;
+  emailIds: string[];
+}
+
+// ─────────────────────────────────────────────────────────────
+// History Processing - Main Entry Point
+// ─────────────────────────────────────────────────────────────
+
 /**
  * Process history changes and update database
+ *
+ * Orchestrates the processing of Gmail history changes:
+ * 1. Categorizes changes (add/delete/update)
+ * 2. Processes deletions (and cleans up embeddings)
+ * 3. Processes additions (and queues embeddings)
+ * 4. Processes label updates
  */
 async function processHistoryChanges(
   client: GmailClient,
@@ -323,28 +355,74 @@ async function processHistoryChanges(
   updated: number;
   deleted: number;
 }> {
-  const stats = { added: 0, updated: 0, deleted: 0 };
-  const newEmailIds: string[] = [];
-  const deletedEmailIds: string[] = [];
+  // Step 1: Categorize changes from history
+  const changes = categorizeHistoryChanges(history);
 
-  // Collect unique message IDs for each operation type
+  // Step 2: Process deletions
+  const deleteResult = await processDeletions(
+    userId,
+    changes.messagesToDelete,
+    errors
+  );
+
+  // Step 3: Process additions
+  const addResult = await processAdditions(
+    client,
+    userId,
+    changes.messagesToAdd,
+    errors
+  );
+
+  // Step 4: Process updates (label changes)
+  const updateResult = await processUpdates(
+    client,
+    userId,
+    changes.messagesToUpdate,
+    errors
+  );
+
+  // Step 5: Queue embeddings for new emails
+  if (addResult.emailIds.length > 0) {
+    await safeQueueEmbeddings(userId, addResult.emailIds);
+  }
+
+  return {
+    added: addResult.count,
+    updated: updateResult.count,
+    deleted: deleteResult.count,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// History Processing - Categorization
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Categorize history changes into add/delete/update sets
+ *
+ * Handles deduplication and conflict resolution:
+ * - If a message is added then deleted, it's only deleted
+ * - If a message is deleted then added, it's only added
+ * - Label changes on new messages are ignored (handled by add)
+ */
+function categorizeHistoryChanges(history: GmailHistory[]): CategorizedChanges {
   const messagesToAdd = new Set<string>();
   const messagesToDelete = new Set<string>();
   const messagesToUpdate = new Set<string>();
 
   for (const entry of history) {
-    // Messages added
+    // Process added messages
     if (entry.messagesAdded) {
       for (const item of entry.messagesAdded) {
         if (item.message?.id) {
           messagesToAdd.add(item.message.id);
-          // Remove from delete set if it was added back
+          // Remove from delete set if it was re-added
           messagesToDelete.delete(item.message.id);
         }
       }
     }
 
-    // Messages deleted
+    // Process deleted messages
     if (entry.messagesDeleted) {
       for (const item of entry.messagesDeleted) {
         if (item.message?.id) {
@@ -355,7 +433,7 @@ async function processHistoryChanges(
       }
     }
 
-    // Labels added/removed (updates)
+    // Process label additions (only for existing messages)
     if (entry.labelsAdded) {
       for (const item of entry.labelsAdded) {
         if (item.message?.id && !messagesToAdd.has(item.message.id)) {
@@ -364,6 +442,7 @@ async function processHistoryChanges(
       }
     }
 
+    // Process label removals (only for existing messages)
     if (entry.labelsRemoved) {
       for (const item of entry.labelsRemoved) {
         if (item.message?.id && !messagesToAdd.has(item.message.id)) {
@@ -373,131 +452,195 @@ async function processHistoryChanges(
     }
   }
 
-  // Process deletions (need to get email IDs before deleting)
-  if (messagesToDelete.size > 0) {
-    // First, get the internal email IDs for embedding cleanup
-    for (const gmailId of messagesToDelete) {
-      const email = await emailRepository.findByGmailId(gmailId);
-      if (email) {
-        deletedEmailIds.push(email.id);
-      }
-    }
+  // Remove updates for messages that will be deleted
+  for (const id of messagesToDelete) {
+    messagesToUpdate.delete(id);
+  }
 
-    stats.deleted = await emailRepository.deleteMany(
-      Array.from(messagesToDelete)
-    );
+  return { messagesToAdd, messagesToDelete, messagesToUpdate };
+}
 
-    // Delete embeddings for removed emails
-    if (deletedEmailIds.length > 0) {
-      try {
-        await deleteEmailEmbeddings(userId, deletedEmailIds);
-      } catch (error) {
-        console.warn(
-          `[IncrementalSync] Failed to delete embeddings for ${deletedEmailIds.length} emails:`,
-          error
-        );
-      }
+// ─────────────────────────────────────────────────────────────
+// History Processing - Deletions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Process message deletions
+ *
+ * 1. Looks up internal email IDs for embedding cleanup
+ * 2. Deletes emails from database
+ * 3. Cleans up associated embeddings
+ */
+async function processDeletions(
+  userId: string,
+  messagesToDelete: Set<string>,
+  _errors: EmailSyncError[]
+): Promise<ProcessingResult> {
+  if (messagesToDelete.size === 0) {
+    return { count: 0, emailIds: [] };
+  }
+
+  const deletedEmailIds: string[] = [];
+
+  // Get internal email IDs for embedding cleanup
+  for (const gmailId of messagesToDelete) {
+    const email = await emailRepository.findByGmailId(gmailId);
+    if (email) {
+      deletedEmailIds.push(email.id);
     }
   }
 
-  // Process additions
-  if (messagesToAdd.size > 0) {
-    const messages = await fetchMessageBatch(
-      client,
-      Array.from(messagesToAdd),
-      errors
-    );
+  // Delete from database
+  const deletedCount = await emailRepository.deleteMany(
+    Array.from(messagesToDelete)
+  );
 
-    for (const message of messages) {
-      try {
-        const input = mapGmailMessageToEmail(message, userId);
-        const email = await emailRepository.create(input);
-        stats.added++;
-        newEmailIds.push(email.id);
-      } catch (error) {
-        // If email already exists, update instead
-        if (
-          error instanceof Error &&
-          error.message.includes("Unique constraint")
-        ) {
-          const input = mapGmailMessageToEmail(message, userId);
-          await emailRepository.upsert(input);
-          stats.updated++;
-        } else {
-          errors.push({
-            messageId: message.id,
-            threadId: message.threadId,
-            message: error instanceof Error ? error.message : "Unknown error",
-            code: "ADD_ERROR",
-            retryable: false,
-          });
-        }
-      }
+  // Clean up embeddings
+  if (deletedEmailIds.length > 0) {
+    try {
+      await deleteEmailEmbeddings(userId, deletedEmailIds);
+    } catch (error) {
+      syncLogger.warn("Failed to delete embeddings for removed emails", {
+        userId,
+        emailCount: deletedEmailIds.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  // Process updates (fetch fresh data and update)
-  if (messagesToUpdate.size > 0) {
-    const messages = await fetchMessageBatch(
-      client,
-      Array.from(messagesToUpdate),
-      errors
-    );
+  return { count: deletedCount, emailIds: deletedEmailIds };
+}
 
-    for (const message of messages) {
-      try {
+// ─────────────────────────────────────────────────────────────
+// History Processing - Additions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Process new message additions
+ *
+ * 1. Fetches full message details from Gmail
+ * 2. Creates new email records in database
+ * 3. Falls back to upsert on unique constraint errors
+ */
+async function processAdditions(
+  client: GmailClient,
+  userId: string,
+  messagesToAdd: Set<string>,
+  errors: EmailSyncError[]
+): Promise<ProcessingResult> {
+  if (messagesToAdd.size === 0) {
+    return { count: 0, emailIds: [] };
+  }
+
+  const newEmailIds: string[] = [];
+  let addedCount = 0;
+
+  // Fetch full message details
+  const messages = await fetchMessageBatch(
+    client,
+    Array.from(messagesToAdd),
+    errors
+  );
+
+  // Store each message
+  for (const message of messages) {
+    try {
+      const input = mapGmailMessageToEmail(message, userId);
+      const email = await emailRepository.create(input);
+      addedCount++;
+      newEmailIds.push(email.id);
+    } catch (error) {
+      // Handle unique constraint (race condition or duplicate)
+      if (
+        error instanceof Error &&
+        error.message.includes("Unique constraint")
+      ) {
         const input = mapGmailMessageToEmail(message, userId);
         await emailRepository.upsert(input);
-        stats.updated++;
-      } catch (error) {
+        // Don't count as added since it already existed
+      } else {
         errors.push({
           messageId: message.id,
           threadId: message.threadId,
           message: error instanceof Error ? error.message : "Unknown error",
-          code: "UPDATE_ERROR",
+          code: "ADD_ERROR",
           retryable: false,
         });
       }
     }
   }
 
-  // Queue embedding generation for new emails
-  if (newEmailIds.length > 0) {
+  return { count: addedCount, emailIds: newEmailIds };
+}
+
+// ─────────────────────────────────────────────────────────────
+// History Processing - Updates
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Process label updates for existing messages
+ *
+ * 1. Fetches fresh message details from Gmail
+ * 2. Upserts the updated data to database
+ */
+async function processUpdates(
+  client: GmailClient,
+  userId: string,
+  messagesToUpdate: Set<string>,
+  errors: EmailSyncError[]
+): Promise<ProcessingResult> {
+  if (messagesToUpdate.size === 0) {
+    return { count: 0, emailIds: [] };
+  }
+
+  let updatedCount = 0;
+
+  // Fetch fresh message details
+  const messages = await fetchMessageBatch(
+    client,
+    Array.from(messagesToUpdate),
+    errors
+  );
+
+  // Update each message
+  for (const message of messages) {
     try {
-      await queueEmailEmbeddings(userId, newEmailIds);
+      const input = mapGmailMessageToEmail(message, userId);
+      await emailRepository.upsert(input);
+      updatedCount++;
     } catch (error) {
-      console.warn(
-        `[IncrementalSync] Failed to queue embeddings for ${newEmailIds.length} emails:`,
-        error
-      );
+      errors.push({
+        messageId: message.id,
+        threadId: message.threadId,
+        message: error instanceof Error ? error.message : "Unknown error",
+        code: "UPDATE_ERROR",
+        retryable: false,
+      });
     }
   }
 
-  return stats;
+  return { count: updatedCount, emailIds: [] };
 }
 
+// ─────────────────────────────────────────────────────────────
+// History Processing - Embedding Queue
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Queue embedding generation jobs for emails
+ * Safely queue embeddings for new emails (non-throwing)
  */
-async function queueEmailEmbeddings(
+async function safeQueueEmbeddings(
   userId: string,
   emailIds: string[]
 ): Promise<void> {
-  // For incremental sync, we typically have fewer emails
-  // so we can queue individual jobs or smaller batches
-  const batchSize = 10;
-
-  for (let i = 0; i < emailIds.length; i += batchSize) {
-    const batch = emailIds.slice(i, i + batchSize);
-
-    await addJob(
-      QUEUE_NAMES.EMBEDDINGS,
-      JOB_NAMES.BULK_EMAIL_EMBED,
-      { userId, emailIds: batch },
-      {
-        priority: 5, // Slightly higher priority for incremental
-      }
-    );
+  try {
+    await queueIncrementalSyncEmbeddings(userId, emailIds);
+  } catch (error) {
+    syncLogger.warn("Failed to queue embeddings for new emails", {
+      userId,
+      emailCount: emailIds.length,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -510,10 +653,9 @@ async function fetchMessageBatch(
   errors: EmailSyncError[]
 ): Promise<ParsedGmailMessage[]> {
   const messages: ParsedGmailMessage[] = [];
-  const concurrency = 10;
 
-  for (let i = 0; i < messageIds.length; i += concurrency) {
-    const batch = messageIds.slice(i, i + concurrency);
+  for (let i = 0; i < messageIds.length; i += MESSAGE_FETCH_CONCURRENCY) {
+    const batch = messageIds.slice(i, i + MESSAGE_FETCH_CONCURRENCY);
     const results = await Promise.all(
       batch.map((id) =>
         client.getMessage(id, { format: "full" }).catch((error) => {

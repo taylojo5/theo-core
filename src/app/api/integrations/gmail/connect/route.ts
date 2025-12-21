@@ -3,10 +3,16 @@
 // POST /api/integrations/gmail/connect - Initiate Gmail connection
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkGmailScopes, generateUpgradeUrl } from "@/lib/auth/scope-upgrade";
 import { ALL_GMAIL_SCOPES } from "@/lib/auth/scopes";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import {
+  startRecurringSync,
+  hasRecurringSync,
+  triggerSync,
+} from "@/integrations/gmail";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -32,8 +38,16 @@ interface ConnectResponse {
 // ─────────────────────────────────────────────────────────────
 
 export async function POST(
-  request: Request
+  request: NextRequest
 ): Promise<NextResponse<ConnectResponse>> {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailConnect
+  );
+  if (rateLimitResponse)
+    return rateLimitResponse as NextResponse<ConnectResponse>;
+
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -42,7 +56,7 @@ export async function POST(
         success: false,
         error: "Unauthorized",
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
@@ -62,13 +76,31 @@ export async function POST(
   // Check current Gmail scope status
   const scopeCheck = await checkGmailScopes(userId);
 
-  // If already connected and not forcing, return early
+  // If already connected and not forcing, ensure recurring sync is running and return
   if (scopeCheck.hasRequiredScopes && !body.force) {
-    return NextResponse.json({
-      success: true,
-      alreadyConnected: true,
-      message: "Gmail is already connected with all required permissions",
-    });
+    // Ensure recurring sync is running when Gmail is connected
+    try {
+      const hasRecurring = await hasRecurringSync(userId);
+      if (!hasRecurring) {
+        // Start recurring sync for this user (runs every 5 min)
+        await startRecurringSync(userId);
+        // Also trigger an immediate sync to get the latest emails
+        await triggerSync(userId);
+        console.log(`[GmailConnect] Started auto-sync for user ${userId}`);
+      }
+    } catch (error) {
+      // Log but don't fail the request if sync scheduling fails
+      console.error(`[GmailConnect] Failed to start auto-sync:`, error);
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        alreadyConnected: true,
+        message: "Gmail is already connected with all required permissions",
+      },
+      { headers }
+    );
   }
 
   // Generate state parameter for OAuth flow
@@ -91,13 +123,16 @@ export async function POST(
     ALL_GMAIL_SCOPES.includes(scope as (typeof ALL_GMAIL_SCOPES)[number])
   );
 
-  return NextResponse.json({
-    success: true,
-    authUrl,
-    message: hasAnyGmailScopes
-      ? "Additional permissions required for Gmail"
-      : "Authorization required to connect Gmail",
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      authUrl,
+      message: hasAnyGmailScopes
+        ? "Additional permissions required for Gmail"
+        : "Authorization required to connect Gmail",
+    },
+    { headers }
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -105,7 +140,7 @@ export async function POST(
 // Returns connection status and upgrade URL if needed
 // ─────────────────────────────────────────────────────────────
 
-export async function GET(): Promise<
+export async function GET(request: NextRequest): Promise<
   NextResponse<{
     connected: boolean;
     hasRequiredScopes: boolean;
@@ -113,6 +148,19 @@ export async function GET(): Promise<
     upgradeUrl?: string;
   }>
 > {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailConnect
+  );
+  if (rateLimitResponse)
+    return rateLimitResponse as NextResponse<{
+      connected: boolean;
+      hasRequiredScopes: boolean;
+      missingScopes: string[];
+      upgradeUrl?: string;
+    }>;
+
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -122,16 +170,19 @@ export async function GET(): Promise<
         hasRequiredScopes: false,
         missingScopes: [...ALL_GMAIL_SCOPES],
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
   const scopeCheck = await checkGmailScopes(session.user.id);
 
-  return NextResponse.json({
-    connected: scopeCheck.hasRequiredScopes,
-    hasRequiredScopes: scopeCheck.hasRequiredScopes,
-    missingScopes: scopeCheck.missingScopes,
-    upgradeUrl: scopeCheck.upgradeUrl,
-  });
+  return NextResponse.json(
+    {
+      connected: scopeCheck.hasRequiredScopes,
+      hasRequiredScopes: scopeCheck.hasRequiredScopes,
+      missingScopes: scopeCheck.missingScopes,
+      upgradeUrl: scopeCheck.upgradeUrl,
+    },
+    { headers }
+  );
 }

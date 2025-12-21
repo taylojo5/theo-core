@@ -132,6 +132,7 @@ describe("getValidAccessToken", () => {
     vi.clearAllMocks();
     process.env.GOOGLE_CLIENT_ID = "test-client-id";
     process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
+    process.env.TOKEN_ENCRYPTION_KEY = "test-encryption-key-minimum-32-chars";
   });
 
   it("should return existing token if still valid", async () => {
@@ -287,6 +288,7 @@ describe("forceTokenRefresh", () => {
     vi.clearAllMocks();
     process.env.GOOGLE_CLIENT_ID = "test-client-id";
     process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
+    process.env.TOKEN_ENCRYPTION_KEY = "test-encryption-key-minimum-32-chars";
   });
 
   it("should force refresh even if token is valid", async () => {

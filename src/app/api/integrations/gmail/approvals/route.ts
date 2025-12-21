@@ -15,6 +15,7 @@ import {
 } from "@/integrations/gmail/actions";
 import type { ApprovalStatus } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -41,10 +42,20 @@ const RequestApprovalSchema = z.object({
 // ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailApprovals
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -58,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Return stats only if requested
     if (statsOnly) {
       const stats = await getApprovalStats(session.user.id);
-      return NextResponse.json(stats);
+      return NextResponse.json(stats, { headers });
     }
 
     // Get pending approvals or all with filter
@@ -77,12 +88,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      approvals,
-      count: approvals.length,
-      offset,
-      limit,
-    });
+    return NextResponse.json(
+      {
+        approvals,
+        count: approvals.length,
+        offset,
+        limit,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Approvals API] List error:", error);
     return NextResponse.json(
@@ -90,7 +104,7 @@ export async function GET(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to list approvals",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -100,10 +114,20 @@ export async function GET(request: NextRequest) {
 // ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailApprovals
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     // Parse and validate body
@@ -116,7 +140,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: parseResult.error.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -130,7 +154,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: validation.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -139,7 +163,7 @@ export async function POST(request: NextRequest) {
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -153,7 +177,7 @@ export async function POST(request: NextRequest) {
         draftId: result.draftId,
         gmailDraftId: result.gmailDraftId,
       },
-      { status: 201 }
+      { status: 201, headers }
     );
   } catch (error) {
     console.error("[Approvals API] Create error:", error);
@@ -162,7 +186,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to request approval",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

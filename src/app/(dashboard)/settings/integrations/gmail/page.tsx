@@ -380,6 +380,26 @@ export default function GmailSettingsPage() {
     }
   };
 
+  const handleSyncContacts = async () => {
+    try {
+      const res = await fetch("/api/integrations/gmail/sync/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || `Contact sync failed (${res.status})`);
+      }
+
+      // Refresh the sync status to get updated contact count
+      await fetchSyncStatus();
+    } catch (error) {
+      console.error("Failed to sync contacts:", error);
+      throw error;
+    }
+  };
+
   // ───────────────────────────────────────────────────────────
   // Render
   // ───────────────────────────────────────────────────────────
@@ -440,6 +460,7 @@ export default function GmailSettingsPage() {
               data={statsData}
               isLoading={loadingStates.sync}
               isConnected={isConnected}
+              onSyncContacts={handleSyncContacts}
             />
 
             {/* Pending Approvals */}

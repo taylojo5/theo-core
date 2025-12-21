@@ -5,7 +5,9 @@
 
 import { db } from "@/lib/db";
 import { logAuditEntry } from "@/services/audit";
+import { sanitizeComposeHtml, containsDangerousHtml } from "@/lib/sanitize";
 import { GmailClient } from "../client";
+import { actionsLogger } from "../logger";
 import { createDraft } from "./compose";
 import type {
   Prisma,
@@ -85,6 +87,22 @@ export async function requestApproval(
     threadId?: string;
   } | null = null;
 
+  // Sanitize HTML body to prevent XSS if the email is displayed in a web UI
+  const sanitizedBodyHtml = params.bodyHtml
+    ? sanitizeComposeHtml(params.bodyHtml)
+    : undefined;
+
+  // Log a warning if dangerous content was detected
+  if (params.bodyHtml && containsDangerousHtml(params.bodyHtml)) {
+    actionsLogger.warn(
+      "Potentially dangerous HTML detected in email body - content was sanitized",
+      {
+        userId,
+        recipients: params.to,
+      }
+    );
+  }
+
   try {
     // Create the draft in Gmail first
     draftResult = await createDraft(client, {
@@ -93,7 +111,7 @@ export async function requestApproval(
       bcc: params.bcc,
       subject: params.subject,
       body: params.body,
-      bodyHtml: params.bodyHtml,
+      bodyHtml: sanitizedBodyHtml,
       threadId: params.threadId,
       inReplyTo: params.inReplyTo,
       references: params.references,
@@ -104,7 +122,7 @@ export async function requestApproval(
       params.expiresInMinutes ?? DEFAULT_EXPIRATION_MINUTES;
     const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
 
-    // Create approval record
+    // Create approval record with sanitized HTML
     const approval = await db.emailApproval.create({
       data: {
         userId,
@@ -115,7 +133,7 @@ export async function requestApproval(
         bcc: params.bcc ?? [],
         subject: params.subject,
         body: params.body,
-        bodyHtml: params.bodyHtml,
+        bodyHtml: sanitizedBodyHtml,
         threadId: params.threadId ?? draftResult.threadId,
         inReplyTo: params.inReplyTo,
         status: "pending",
@@ -154,8 +172,12 @@ export async function requestApproval(
         await client.deleteDraft(draftResult.draftId);
       } catch (cleanupError) {
         // Log cleanup failure but don't mask the original error
-        console.error(
-          `Failed to cleanup orphaned draft ${draftResult.draftId}:`,
+        actionsLogger.error(
+          "Failed to cleanup orphaned draft",
+          {
+            draftId: draftResult.draftId,
+            userId,
+          },
           cleanupError
         );
       }
@@ -315,9 +337,10 @@ export async function rejectApproval(
     await client.deleteDraft(approval.draftId);
   } catch {
     // Draft may already be deleted or not exist
-    console.warn(
-      `Failed to delete draft ${approval.draftId}, it may not exist`
-    );
+    actionsLogger.warn("Failed to delete draft - it may not exist", {
+      draftId: approval.draftId,
+      approvalId: approval.id,
+    });
   }
 
   // Update approval record

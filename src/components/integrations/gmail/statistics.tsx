@@ -7,6 +7,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -33,6 +34,7 @@ export interface StatisticsProps {
   data?: GmailStatisticsData;
   isLoading?: boolean;
   isConnected?: boolean;
+  onSyncContacts?: () => Promise<void>;
   className?: string;
 }
 
@@ -44,8 +46,21 @@ export function Statistics({
   data,
   isLoading = false,
   isConnected = false,
+  onSyncContacts,
   className,
 }: StatisticsProps) {
+  const [isSyncingContacts, setIsSyncingContacts] = React.useState(false);
+
+  const handleSyncContacts = async () => {
+    if (!onSyncContacts) return;
+    setIsSyncingContacts(true);
+    try {
+      await onSyncContacts();
+    } finally {
+      setIsSyncingContacts(false);
+    }
+  };
+
   if (!isConnected) {
     return (
       <Card className={cn("opacity-60", className)}>
@@ -63,11 +78,32 @@ export function Statistics({
   return (
     <Card className={cn("relative", className)}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ChartIcon className="size-5" />
-          Statistics
-        </CardTitle>
-        <CardDescription>Your Gmail integration at a glance</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ChartIcon className="size-5" />
+              Statistics
+            </CardTitle>
+            <CardDescription>
+              Your Gmail integration at a glance
+            </CardDescription>
+          </div>
+          {onSyncContacts && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncContacts}
+              disabled={isSyncingContacts || isLoading}
+            >
+              {isSyncingContacts ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <ContactIcon className="mr-2 size-4" />
+              )}
+              Sync Contacts
+            </Button>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent>

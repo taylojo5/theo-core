@@ -13,6 +13,8 @@ export const GMAIL_JOB_NAMES = {
   FULL_SYNC: "gmail-full-sync",
   INCREMENTAL_SYNC: "gmail-incremental-sync",
   SYNC_LABELS: "gmail-sync-labels",
+  EXPIRE_APPROVALS: "gmail-expire-approvals",
+  SYNC_CONTACTS: "gmail-sync-contacts",
 } as const;
 
 export type GmailJobName =
@@ -84,6 +86,22 @@ export interface LabelSyncJobData {
   userId: string;
 }
 
+/**
+ * Data for expiring overdue approvals
+ * This is a global job (not user-specific)
+ */
+export interface ExpireApprovalsJobData {
+  /** Optional: limit to specific user for testing */
+  userId?: string;
+}
+
+/**
+ * Data for syncing contacts
+ */
+export interface ContactSyncJobData {
+  userId: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Job Options
 // ─────────────────────────────────────────────────────────────
@@ -119,6 +137,24 @@ export const GMAIL_JOB_OPTIONS = {
     removeOnComplete: 10,
     removeOnFail: 50,
   },
+  EXPIRE_APPROVALS: {
+    attempts: 3,
+    backoff: {
+      type: "exponential" as const,
+      delay: 5000,
+    },
+    removeOnComplete: 20,
+    removeOnFail: 50,
+  },
+  CONTACT_SYNC: {
+    attempts: 3,
+    backoff: {
+      type: "exponential" as const,
+      delay: 3000,
+    },
+    removeOnComplete: 20,
+    removeOnFail: 50,
+  },
 } as const;
 
 /**
@@ -128,5 +164,16 @@ export const INCREMENTAL_SYNC_REPEAT = {
   /** Sync every 5 minutes */
   every: 5 * 60 * 1000,
   /** Start immediately */
+  immediately: true,
+} as const;
+
+/**
+ * Repeatable job configuration for approval expiration
+ * Runs every hour to check for and expire overdue approvals
+ */
+export const EXPIRE_APPROVALS_REPEAT = {
+  /** Check for expired approvals every hour */
+  every: 60 * 60 * 1000,
+  /** Start immediately on registration */
   immediately: true,
 } as const;

@@ -85,6 +85,66 @@ export {
 } from "./errors";
 
 // ─────────────────────────────────────────────────────────────
+// Logger
+// ─────────────────────────────────────────────────────────────
+
+export {
+  gmailLogger,
+  syncLogger,
+  workerLogger,
+  schedulerLogger,
+  actionsLogger,
+  clientLogger,
+  embeddingsLogger,
+  createGmailLogger,
+  GmailLogger,
+} from "./logger";
+
+export type { LogLevel, GmailLogEntry } from "./logger";
+
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Sync constants
+  FULL_SYNC_MAX_PAGES,
+  INCREMENTAL_SYNC_MAX_HISTORY_ENTRIES,
+  DEFAULT_MESSAGE_PAGE_SIZE,
+  DEFAULT_CONTACTS_PAGE_SIZE,
+  MESSAGE_FETCH_CONCURRENCY,
+
+  // Embedding constants
+  EMBEDDING_MAX_BODY_LENGTH,
+  EMBEDDING_BATCH_SIZE,
+  FULL_SYNC_EMBEDDING_BATCH_SIZE,
+  INCREMENTAL_SYNC_EMBEDDING_BATCH_SIZE,
+  EMBEDDING_BATCH_DELAY_MS,
+  MIN_CONTENT_LENGTH_FOR_EMBEDDING,
+  SYSTEM_LABELS_TO_FILTER,
+
+  // Rate limiting constants
+  GMAIL_QUOTA_PER_SECOND,
+  GMAIL_QUOTA_PER_MINUTE,
+  GMAIL_MAX_BATCH_REQUESTS,
+
+  // Client constants
+  GMAIL_REQUEST_TIMEOUT_MS,
+  GMAIL_MAX_RETRIES,
+  GMAIL_MAX_RETRY_DELAY_MS,
+  GMAIL_BASE_RETRY_DELAY_MS,
+
+  // Job scheduling constants
+  INCREMENTAL_SYNC_INTERVAL_MS,
+  APPROVAL_EXPIRATION_CHECK_INTERVAL_MS,
+  BATCH_SYNC_STAGGER_DELAY_MS,
+  RATE_LIMIT_WAIT_TIMEOUT_MS,
+
+  // Contact API constants
+  DEFAULT_CONTACT_PERSON_FIELDS,
+} from "./constants";
+
+// ─────────────────────────────────────────────────────────────
 // Rate Limiting
 // ─────────────────────────────────────────────────────────────
 
@@ -230,6 +290,16 @@ export {
   getPendingSyncJobs,
   cancelPendingSyncs,
 
+  // Approval expiration scheduler
+  startApprovalExpirationScheduler,
+  stopApprovalExpirationScheduler,
+  isApprovalExpirationSchedulerRunning,
+  triggerApprovalExpiration,
+
+  // Contact sync scheduling
+  scheduleContactSync,
+  triggerContactSync,
+
   // Worker registration
   registerGmailSyncWorker,
 
@@ -237,6 +307,7 @@ export {
   GMAIL_JOB_NAMES,
   GMAIL_JOB_OPTIONS,
   INCREMENTAL_SYNC_REPEAT,
+  EXPIRE_APPROVALS_REPEAT,
 } from "./sync";
 
 export type {
@@ -269,6 +340,8 @@ export type {
   FullSyncJobData,
   IncrementalSyncJobData,
   LabelSyncJobData,
+  ExpireApprovalsJobData,
+  ContactSyncJobData,
 } from "./sync";
 
 // ─────────────────────────────────────────────────────────────

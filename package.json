@@ -22,6 +22,7 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed.ts",
+    "db:encrypt-tokens": "tsx scripts/encrypt-tokens.ts",
     "db:generate": "prisma generate",
     "docker:clean": "docker compose down -v --remove-orphans",
     "docker:logs": "docker compose logs -f",

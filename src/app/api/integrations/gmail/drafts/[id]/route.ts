@@ -13,6 +13,7 @@ import {
   validateComposeParams,
 } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -36,13 +37,23 @@ const UpdateDraftSchema = z.object({
 // ─────────────────────────────────────────────────────────────
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailDrafts
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const { id: draftId } = await params;
@@ -52,7 +63,7 @@ export async function GET(
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -60,7 +71,7 @@ export async function GET(
     const client = createGmailClient(accessToken, session.user.id);
     const draft = await getDraft(client, draftId);
 
-    return NextResponse.json(draft);
+    return NextResponse.json(draft, { headers });
   } catch (error) {
     console.error("[Drafts API] Get error:", error);
 
@@ -72,7 +83,7 @@ export async function GET(
         ? 404
         : 500;
 
-    return NextResponse.json({ error: errorMessage }, { status });
+    return NextResponse.json({ error: errorMessage }, { status, headers });
   }
 }
 
@@ -84,10 +95,20 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailDrafts
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const { id: draftId } = await params;
@@ -102,7 +123,7 @@ export async function PUT(
           error: "Validation failed",
           details: parseResult.error.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -116,7 +137,7 @@ export async function PUT(
           error: "Validation failed",
           details: validation.errors,
         },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -125,7 +146,7 @@ export async function PUT(
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -133,7 +154,7 @@ export async function PUT(
     const client = createGmailClient(accessToken, session.user.id);
     const result = await updateDraft(client, draftId, updateParams);
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers });
   } catch (error) {
     console.error("[Drafts API] Update error:", error);
     return NextResponse.json(
@@ -141,7 +162,7 @@ export async function PUT(
         error:
           error instanceof Error ? error.message : "Failed to update draft",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -151,13 +172,23 @@ export async function PUT(
 // ─────────────────────────────────────────────────────────────
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailDrafts
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const { id: draftId } = await params;
@@ -167,7 +198,7 @@ export async function DELETE(
     if (!accessToken) {
       return NextResponse.json(
         { error: "Gmail not connected or token expired" },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -175,7 +206,7 @@ export async function DELETE(
     const client = createGmailClient(accessToken, session.user.id);
     await deleteDraft(client, draftId);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, { headers });
   } catch (error) {
     console.error("[Drafts API] Delete error:", error);
     return NextResponse.json(
@@ -183,7 +214,7 @@ export async function DELETE(
         error:
           error instanceof Error ? error.message : "Failed to delete draft",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

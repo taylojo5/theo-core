@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { db } from "@/lib/db";
+import { decrypt } from "@/lib/crypto";
 import {
   parseScopes,
   formatScopes,
@@ -279,8 +280,10 @@ export async function revokeGmailAccess(
     // Revoke the token at Google (this revokes ALL scopes for this app)
     if (account.access_token) {
       try {
+        // Decrypt the token before using it for revocation
+        const decryptedToken = decrypt(account.access_token);
         await fetch(
-          `https://oauth2.googleapis.com/revoke?token=${account.access_token}`,
+          `https://oauth2.googleapis.com/revoke?token=${decryptedToken}`,
           { method: "POST" }
         );
       } catch {

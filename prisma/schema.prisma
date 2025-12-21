@@ -594,6 +594,12 @@ model Email {
   // Attachment info (stored as JSON)
   attachments Json @default("[]")
 
+  // Embedding status tracking
+  embeddingStatus   String    @default("pending") // pending, processing, completed, failed
+  embeddingError    String?   // Error message if embedding failed
+  embeddingAttempts Int       @default(0) // Number of embedding attempts
+  embeddedAt        DateTime? // When embedding was last successful
+
   // Timestamps
   internalDate DateTime // Gmail's internal date
   receivedAt   DateTime // When the email was received
@@ -609,6 +615,7 @@ model Email {
   @@index([userId, fromEmail])
   @@index([userId, isRead])
   @@index([gmailId])
+  @@index([userId, embeddingStatus])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -705,9 +712,15 @@ model GmailSyncState {
   userId String @unique
 
   // Sync tracking
-  historyId      String? // Gmail history ID for incremental sync
-  lastSyncAt     DateTime?
-  lastFullSyncAt DateTime?
+  historyId       String? // Gmail history ID for incremental sync
+  historyIdSetAt  DateTime? // When the history ID was set (for expiration tracking)
+  lastSyncAt      DateTime?
+  lastFullSyncAt  DateTime?
+
+  // Full sync checkpoint (for resumable sync)
+  fullSyncPageToken   String? // Page token to resume from
+  fullSyncProgress    Int     @default(0) // Emails processed so far
+  fullSyncStartedAt   DateTime? // When full sync started
 
   // Status
   syncStatus String  @default("idle") // idle, syncing, error
@@ -717,6 +730,11 @@ model GmailSyncState {
   emailCount   Int @default(0)
   labelCount   Int @default(0)
   contactCount Int @default(0)
+
+  // Embedding statistics
+  embeddingsPending   Int @default(0)
+  embeddingsCompleted Int @default(0)
+  embeddingsFailed    Int @default(0)
 
   // Sync configuration
   syncLabels       String[] @default([]) // Labels to sync (empty = all)

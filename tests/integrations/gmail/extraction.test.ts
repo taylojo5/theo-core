@@ -21,7 +21,6 @@ import {
 import type {
   ExtractedDate,
   ExtractedActionItem,
-  ExtractedTopic,
   EmailProcessingResult,
   ActionPriority,
 } from "@/integrations/gmail";

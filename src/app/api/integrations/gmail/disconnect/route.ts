@@ -3,10 +3,12 @@
 // DELETE /api/integrations/gmail/disconnect - Revoke Gmail access
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { revokeGmailAccess, isGmailConnected } from "@/lib/auth/scope-upgrade";
 import { logAuditEntry } from "@/services/audit";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
+import { withCsrfProtection } from "@/lib/csrf";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -22,7 +24,21 @@ interface DisconnectResponse {
 // DELETE /api/integrations/gmail/disconnect
 // ─────────────────────────────────────────────────────────────
 
-export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
+export async function DELETE(
+  request: NextRequest
+): Promise<NextResponse<DisconnectResponse>> {
+  // Apply rate limiting
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    request,
+    RATE_LIMITS.gmailConnect
+  );
+  if (rateLimitResponse)
+    return rateLimitResponse as NextResponse<DisconnectResponse>;
+
+  // CSRF protection - critical for disconnecting accounts
+  const csrfError = await withCsrfProtection(request, undefined, headers);
+  if (csrfError) return csrfError as NextResponse<DisconnectResponse>;
+
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -31,7 +47,7 @@ export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
         success: false,
         error: "Unauthorized",
       },
-      { status: 401 }
+      { status: 401, headers }
     );
   }
 
@@ -41,10 +57,13 @@ export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
   const isConnected = await isGmailConnected(userId);
 
   if (!isConnected) {
-    return NextResponse.json({
-      success: true,
-      message: "Gmail is not currently connected",
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Gmail is not currently connected",
+      },
+      { headers }
+    );
   }
 
   // Revoke Gmail access
@@ -56,7 +75,7 @@ export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
         success: false,
         error: result.error || "Failed to disconnect Gmail",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -77,10 +96,13 @@ export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
     console.error("Failed to log Gmail disconnect audit entry:", error);
   });
 
-  return NextResponse.json({
-    success: true,
-    message: "Gmail has been disconnected successfully",
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      message: "Gmail has been disconnected successfully",
+    },
+    { headers }
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -88,7 +110,9 @@ export async function DELETE(): Promise<NextResponse<DisconnectResponse>> {
 // Alternative method for disconnect (for form submissions)
 // ─────────────────────────────────────────────────────────────
 
-export async function POST(): Promise<NextResponse<DisconnectResponse>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<DisconnectResponse>> {
   // Delegate to DELETE handler
-  return DELETE();
+  return DELETE(request);
 }

@@ -5,13 +5,17 @@
 
 import { addJob, getQueue, QUEUE_NAMES } from "@/lib/queue";
 import { syncStateRepository } from "../repository";
+import { schedulerLogger } from "../logger";
 import {
   GMAIL_JOB_NAMES,
   GMAIL_JOB_OPTIONS,
   INCREMENTAL_SYNC_REPEAT,
+  EXPIRE_APPROVALS_REPEAT,
   type FullSyncJobData,
   type IncrementalSyncJobData,
   type LabelSyncJobData,
+  type ExpireApprovalsJobData,
+  type ContactSyncJobData,
 } from "./jobs";
 
 // ─────────────────────────────────────────────────────────────
@@ -126,7 +130,7 @@ export async function startRecurringSync(userId: string): Promise<void> {
     ...GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC,
   });
 
-  console.log(`[Scheduler] Started recurring sync for user ${userId}`);
+  schedulerLogger.info("Started recurring sync", { userId });
 }
 
 /**
@@ -144,7 +148,7 @@ export async function stopRecurringSync(userId: string): Promise<void> {
 
   if (job) {
     await queue.removeRepeatableByKey(job.key);
-    console.log(`[Scheduler] Stopped recurring sync for user ${userId}`);
+    schedulerLogger.info("Stopped recurring sync", { userId });
   }
 }
 
@@ -245,8 +249,11 @@ export async function scheduleMultipleUserSyncs(
       await scheduleSyncAuto(userId);
       scheduled++;
     } catch (error) {
-      console.error(
-        `[Scheduler] Failed to schedule sync for ${userId}:`,
+      schedulerLogger.error(
+        "Failed to schedule sync",
+        {
+          userId,
+        },
         error
       );
     }
@@ -298,4 +305,116 @@ export async function cancelPendingSyncs(userId: string): Promise<number> {
   }
 
   return cancelled;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Approval Expiration Scheduler
+// ─────────────────────────────────────────────────────────────
+
+const EXPIRE_APPROVALS_JOB_ID = "gmail-expire-approvals-recurring";
+
+/**
+ * Start the recurring approval expiration job
+ *
+ * This job runs hourly to check for and expire overdue pending approvals.
+ * It should be started once on application startup.
+ */
+export async function startApprovalExpirationScheduler(): Promise<void> {
+  const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
+
+  // Remove existing recurring job if any
+  const existingJobs = await queue.getRepeatableJobs();
+  const existing = existingJobs.find((j) => j.id === EXPIRE_APPROVALS_JOB_ID);
+  if (existing) {
+    await queue.removeRepeatableByKey(existing.key);
+  }
+
+  // Create new repeatable job
+  const jobData: ExpireApprovalsJobData = {};
+
+  await queue.add(GMAIL_JOB_NAMES.EXPIRE_APPROVALS, jobData, {
+    repeat: {
+      every: EXPIRE_APPROVALS_REPEAT.every,
+      immediately: EXPIRE_APPROVALS_REPEAT.immediately,
+    },
+    jobId: EXPIRE_APPROVALS_JOB_ID,
+    ...GMAIL_JOB_OPTIONS.EXPIRE_APPROVALS,
+  });
+
+  schedulerLogger.info("Started approval expiration scheduler", {
+    intervalMs: EXPIRE_APPROVALS_REPEAT.every,
+  });
+}
+
+/**
+ * Stop the recurring approval expiration job
+ */
+export async function stopApprovalExpirationScheduler(): Promise<void> {
+  const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
+
+  const repeatableJobs = await queue.getRepeatableJobs();
+  const job = repeatableJobs.find((j) => j.id === EXPIRE_APPROVALS_JOB_ID);
+
+  if (job) {
+    await queue.removeRepeatableByKey(job.key);
+    schedulerLogger.info("Stopped approval expiration scheduler");
+  }
+}
+
+/**
+ * Check if the approval expiration scheduler is running
+ */
+export async function isApprovalExpirationSchedulerRunning(): Promise<boolean> {
+  const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
+  const repeatableJobs = await queue.getRepeatableJobs();
+  return repeatableJobs.some((j) => j.id === EXPIRE_APPROVALS_JOB_ID);
+}
+
+/**
+ * Trigger approval expiration check immediately
+ */
+export async function triggerApprovalExpiration(): Promise<void> {
+  const jobData: ExpireApprovalsJobData = {};
+
+  await addJob(
+    QUEUE_NAMES.EMAIL_SYNC,
+    GMAIL_JOB_NAMES.EXPIRE_APPROVALS,
+    jobData,
+    { priority: 1 }
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Contact Sync Scheduler
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Schedule a contact sync for a user
+ */
+export async function scheduleContactSync(
+  userId: string,
+  options?: {
+    delay?: number;
+    priority?: number;
+  }
+) {
+  const jobData: ContactSyncJobData = { userId };
+
+  return addJob(
+    QUEUE_NAMES.EMAIL_SYNC,
+    GMAIL_JOB_NAMES.SYNC_CONTACTS,
+    jobData,
+    {
+      delay: options?.delay,
+      priority: options?.priority,
+      ...GMAIL_JOB_OPTIONS.CONTACT_SYNC,
+    }
+  );
+}
+
+/**
+ * Trigger contact sync immediately (high priority)
+ */
+export async function triggerContactSync(userId: string) {
+  return scheduleContactSync(userId, { priority: 1 });
 }

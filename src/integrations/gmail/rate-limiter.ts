@@ -6,6 +6,12 @@
 import { checkRateLimitAsync, type RateLimitConfig } from "@/lib/rate-limit";
 import { GmailError, GmailErrorCode } from "./errors";
 import { GMAIL_QUOTA_UNITS, type GmailOperation } from "./types";
+import {
+  GMAIL_QUOTA_PER_SECOND,
+  GMAIL_QUOTA_PER_MINUTE,
+  GMAIL_MAX_BATCH_REQUESTS,
+  RATE_LIMIT_WAIT_TIMEOUT_MS,
+} from "./constants";
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limit Configuration
@@ -26,21 +32,21 @@ export const GMAIL_RATE_LIMITS = {
   /** Per-second limit (in quota units) */
   perSecond: {
     windowMs: 1000,
-    maxRequests: 100, // Quota units, not requests
+    maxRequests: GMAIL_QUOTA_PER_SECOND,
     keyPrefix: "gmail:sec",
   } as RateLimitConfig,
 
   /** Per-minute limit (in quota units) */
   perMinute: {
     windowMs: 60 * 1000,
-    maxRequests: 15000,
+    maxRequests: GMAIL_QUOTA_PER_MINUTE,
     keyPrefix: "gmail:min",
   } as RateLimitConfig,
 
   /** Batch operation limit (concurrent batch requests) */
   batch: {
     windowMs: 1000,
-    maxRequests: 10,
+    maxRequests: GMAIL_MAX_BATCH_REQUESTS,
     keyPrefix: "gmail:batch",
   } as RateLimitConfig,
 } as const;
@@ -112,7 +118,7 @@ export class GmailRateLimiter {
    */
   async waitForQuota(
     operation: GmailOperation,
-    timeoutMs: number = 30000
+    timeoutMs: number = RATE_LIMIT_WAIT_TIMEOUT_MS
   ): Promise<void> {
     const startTime = Date.now();
     const units = GMAIL_QUOTA_UNITS[operation];

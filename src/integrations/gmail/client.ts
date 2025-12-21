@@ -6,6 +6,12 @@
 import { google, gmail_v1, people_v1 } from "googleapis";
 import { GmailError, GmailErrorCode, parseGoogleApiError } from "./errors";
 import { GmailRateLimiter, createRateLimiter } from "./rate-limiter";
+import { clientLogger } from "./logger";
+import {
+  GMAIL_MAX_RETRY_DELAY_MS,
+  GMAIL_REQUEST_TIMEOUT_MS,
+  GMAIL_MAX_RETRIES,
+} from "./constants";
 import {
   parseGmailMessage,
   parseGmailThread,
@@ -55,8 +61,8 @@ export interface GmailClientConfig {
 
 const DEFAULT_CONFIG = {
   enableRateLimiting: true,
-  maxRetries: 3,
-  timeoutMs: 30000,
+  maxRetries: GMAIL_MAX_RETRIES,
+  timeoutMs: GMAIL_REQUEST_TIMEOUT_MS,
 } as const;
 
 // Default fields for contacts
@@ -744,11 +750,18 @@ export class GmailClient {
 
         // Calculate backoff delay
         const baseDelay = gmailError.retryAfterMs || 1000;
-        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 30000);
-
-        console.warn(
-          `[GmailClient] Retrying ${operation} (attempt ${attempt}/${this.config.maxRetries}) after ${delay}ms: ${gmailError.message}`
+        const delay = Math.min(
+          baseDelay * Math.pow(2, attempt - 1),
+          GMAIL_MAX_RETRY_DELAY_MS
         );
+
+        clientLogger.warn("Retrying operation", {
+          operation,
+          attempt,
+          maxRetries: this.config.maxRetries,
+          delayMs: delay,
+          error: gmailError.message,
+        });
 
         await this.sleep(delay);
       }

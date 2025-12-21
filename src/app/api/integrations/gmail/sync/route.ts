@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   triggerSync,
   triggerFullSync,
@@ -22,11 +23,21 @@ import { syncStateRepository } from "@/integrations/gmail/repository";
 // ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting first (outside try-catch so headers is accessible)
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    req,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     // Authenticate
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const userId = session.user.id;
@@ -65,14 +76,17 @@ export async function POST(req: NextRequest) {
     const syncState = await syncStateRepository.get(userId);
     const isRecurring = await hasRecurringSync(userId);
 
-    return NextResponse.json({
-      success: true,
-      message: job ? "Sync scheduled" : "Recurring sync updated",
-      jobId: job?.id,
-      syncType: syncType || null,
-      recurring: isRecurring,
-      currentStatus: syncState.syncStatus,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: job ? "Sync scheduled" : "Recurring sync updated",
+        jobId: job?.id,
+        syncType: syncType || null,
+        recurring: isRecurring,
+        currentStatus: syncState.syncStatus,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Gmail Sync API] Error:", error);
     return NextResponse.json(
@@ -80,7 +94,7 @@ export async function POST(req: NextRequest) {
         error: "Failed to schedule sync",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
@@ -91,11 +105,21 @@ export async function POST(req: NextRequest) {
 // ─────────────────────────────────────────────────────────────
 
 export async function DELETE(req: NextRequest) {
+  // Apply rate limiting first (outside try-catch so headers is accessible)
+  const { response: rateLimitResponse, headers } = await applyRateLimit(
+    req,
+    RATE_LIMITS.gmailSync
+  );
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     // Authenticate
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     const userId = session.user.id;
@@ -112,12 +136,15 @@ export async function DELETE(req: NextRequest) {
     // Cancel pending jobs
     const cancelled = await cancelPendingSyncs(userId);
 
-    return NextResponse.json({
-      success: true,
-      message: `Cancelled ${cancelled} pending sync jobs`,
-      cancelled,
-      recurringStopped: stopRecurring,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Cancelled ${cancelled} pending sync jobs`,
+        cancelled,
+        recurringStopped: stopRecurring,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("[Gmail Sync API] Error:", error);
     return NextResponse.json(
@@ -125,7 +152,7 @@ export async function DELETE(req: NextRequest) {
         error: "Failed to cancel syncs",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
