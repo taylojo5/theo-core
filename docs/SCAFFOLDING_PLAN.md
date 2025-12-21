@@ -814,6 +814,51 @@ export class KrogerShoppingService {
 
 ---
 
+## Phase 9: Memory System (Weeks 27-30)
+
+> **See**: [PHASE_9_MEMORY.md](./PHASE_9_MEMORY.md) for full specification
+
+### Goals
+
+- Enable Theo to remember user preferences and context
+- Explicit, inspectable, overrideable, and safe memory system
+- Hard memory (deterministic rules) and soft memory (contextual)
+- Memory proposal workflow (agent suggests, user confirms)
+- Full auditability of memory usage
+
+### 9.1 Memory Types
+
+- **Hard Memory**: Explicit preferences treated as rules (e.g., "no meetings after 4pm")
+- **Soft Memory**: Narrative context for judgment (e.g., "currently planning a wedding")
+
+### 9.2 Core Features
+
+- Memory CRUD with domain categorization
+- Semantic search for soft memory retrieval
+- Agent memory middleware (mandatory context injection)
+- Proposal → Confirmation workflow
+- UI for viewing/editing/deleting memories
+
+### 9.3 Safety & Privacy
+
+- Sensitive domains (health, finance) require opt-in
+- Proper phrasing enforcement ("You told me..." not "You believe...")
+- Full audit trail for memory usage
+
+### Deliverables
+
+- [ ] MemoryItem + MemoryEmbedding database tables
+- [ ] MemoryService (CRUD, proposals, confirmations)
+- [ ] MemoryRetrievalService (semantic search)
+- [ ] Memory API routes
+- [ ] Agent memory middleware
+- [ ] Memory tools (propose_memory, query_memory)
+- [ ] Memory UI panel
+- [ ] Sensitive domain opt-in flow
+- [ ] Memory usage logging
+
+---
+
 ## Success Criteria
 
 ### MVP (End of Phase 8)
@@ -831,6 +876,19 @@ export class KrogerShoppingService {
 - [ ] Agent can generate preference-aware shopping lists from recipes
 - [ ] Full audit trail visible to user
 
+### Enhanced MVP (End of Phase 9)
+
+- [ ] User can view all memories Theo has stored
+- [ ] User can edit or delete any memory
+- [ ] Agent proposes memories, user confirms before saving
+- [ ] Hard preferences are respected in all actions
+- [ ] Soft context improves agent judgment
+- [ ] Memory citations appear in relevant responses
+- [ ] Sensitive domains require explicit opt-in
+- [ ] Memory usage is fully audited
+- [ ] > 80% of relevant actions cite memory items
+- [ ] <10% of memories require correction on confirm
+
 ---
 
 ## Risk Mitigation
@@ -842,6 +900,10 @@ export class KrogerShoppingService {
 | LLM cost overruns       | Token budgets, caching, local models         |
 | Data privacy concerns   | Encryption, minimal retention, user controls |
 | Integration API changes | Abstraction layers, version pinning          |
+| Memory hallucination    | Explicit confirmation, no auto-save          |
+| Sensitive data leakage  | Domain opt-in, careful phrasing rules        |
+| Memory staleness        | Recency weighting, expiration policies       |
+| User trust erosion      | Full transparency, easy deletion, citations  |
 
 ---
 
