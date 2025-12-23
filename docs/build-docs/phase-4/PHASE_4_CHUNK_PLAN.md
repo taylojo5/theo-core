@@ -53,26 +53,37 @@ This document breaks down Phase 4 (Google Calendar Integration) into manageable 
 │                           Event Actions &                                       │
 │                           Approval Workflow                                     │
 │                                │                                                │
-│                    ┌───────────┴───────────┐                                    │
-│                    ▼                       ▼                                    │
-│               Chunk 9:                Chunk 10:                                 │
-│               API Routes              Agent Integration                         │
-│                    │                       │                                    │
-│                    └───────────┬───────────┘                                    │
 │                                ▼                                                │
-│                           Chunk 11:                                             │
+│                           Chunk 9:                                              │
+│                           API Routes                                            │
+│                                │                                                │
+│                                ▼                                                │
+│                           Chunk 10:                                             │
 │                           Calendar UI                                           │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                           │
 ┌─────────────────────────────────────────│───────────────────────────────────────┐
 │                        FINALIZATION     │                                        │
 │                                         ▼                                        │
-│                           Chunk 12: Integration Testing                          │
+│                           Chunk 11: Integration Testing                          │
 │                                         │                                        │
 │                                         ▼                                        │
-│                           Chunk 13: Polish & Review                              │
+│                           Chunk 12: Polish & Review                              │
 └─────────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌─────────────────────────────────────────┐
+                    │           DEFERRED TO FUTURE PHASE      │
+                    │                                         │
+                    │    Agent Integration (Calendar Tools)   │
+                    │    - Depends on Agent Engine Phase      │
+                    │    - Will integrate with Calendar APIs  │
+                    └─────────────────────────────────────────┘
 ```
+
+> **Note**: Agent Integration has been deferred to a future phase when the Agent Engine 
+> is implemented. The Calendar integration is fully functional through the API routes 
+> (Chunk 9), and agent tools will be added once the tool registration and context 
+> injection architecture is defined.
 
 ### Parallelization Analysis
 
@@ -83,9 +94,9 @@ This document breaks down Phase 4 (Google Calendar Integration) into manageable 
 | 5 | ❌ Sequential | Depends on 2, 3, 4 |
 | 6, 7 | ✅ Parallel | Both depend on 5 |
 | 8 | ❌ Sequential | Depends on 6 + 7 |
-| 9, 10 | ✅ Parallel | Both depend on 8 |
-| 11 | ❌ Sequential | Depends on 9 |
-| 12, 13 | ❌ Sequential | Final phases |
+| 9 | ❌ Sequential | Depends on 8 |
+| 10 | ❌ Sequential | Depends on 9 |
+| 11, 12 | ❌ Sequential | Final phases |
 
 ---
 
@@ -1373,145 +1384,15 @@ src/openapi/
 
 ---
 
-## Chunk 10: Agent Integration
-
-**Estimated Time**: 3-4 hours  
-**Dependencies**: Chunk 8  
-**Goal**: Create agent tools for calendar operations.
-
-### Prerequisites
-
-- [ ] Chunk 8 complete
-
-### Architecture Notes
-
-Agent tools enable the AI to:
-- Query user's schedule
-- Check availability
-- Create/modify events (with approval)
-- Provide schedule context
-
-**Context Injection**:
-- Include upcoming events in agent context
-- Include availability windows
-- Include recent event activity
-
-### Tasks
-
-1. [ ] Create `src/services/skills/calendar/index.ts`
-   - Export all calendar tools
-
-2. [ ] Implement `list_calendar_events` tool
-   ```typescript
-   export const listCalendarEventsTool = {
-     name: 'list_calendar_events',
-     description: 'Query user calendar for events',
-     parameters: z.object({
-       startDate: z.string().optional(),
-       endDate: z.string().optional(),
-       limit: z.number().optional(),
-     }),
-     execute: async (params, context) => { ... }
-   };
-   ```
-
-3. [ ] Implement `check_availability` tool
-   ```typescript
-   export const checkAvailabilityTool = {
-     name: 'check_availability',
-     description: 'Find free time slots',
-     parameters: z.object({
-       date: z.string(),
-       duration: z.number(), // minutes
-     }),
-     execute: async (params, context) => { ... }
-   };
-   ```
-
-4. [ ] Implement `create_calendar_event` tool
-   ```typescript
-   export const createCalendarEventTool = {
-     name: 'create_calendar_event',
-     description: 'Schedule new event (requires approval)',
-     parameters: z.object({
-       title: z.string(),
-       startTime: z.string(),
-       endTime: z.string(),
-       description: z.string().optional(),
-       location: z.string().optional(),
-       attendees: z.array(z.string()).optional(),
-     }),
-     execute: async (params, context) => { ... }
-   };
-   ```
-
-5. [ ] Implement `update_calendar_event` tool
-   - Find event by ID or description
-   - Request update with approval
-
-6. [ ] Implement `respond_to_invite` tool
-   - Find invite event
-   - Request response with approval
-
-7. [ ] Create context injection middleware
-   ```typescript
-   export async function getCalendarContext(
-     userId: string,
-     options?: ContextOptions
-   ): Promise<CalendarContext>;
-   ```
-
-8. [ ] Register tools with agent system
-   - Add to tool registry
-   - Configure permissions
-
-### Files to Create
-
-```
-src/services/skills/calendar/
-├── index.ts                     # NEW: Exports
-├── tools.ts                     # NEW: Tool definitions
-├── context.ts                   # NEW: Context injection
-```
-
-### Security Checklist
-
-- [ ] Tools verify user context
-- [ ] Approval required for mutations
-- [ ] Context limited to user's data
-
-### Testing Requirements
-
-- [ ] Unit tests for each tool
-- [ ] Test tool parameter validation
-- [ ] Test approval flow integration
-- [ ] Test context injection
-- [ ] Integration tests for agent workflows
-
-### Documentation Updates
-
-- [ ] Document available calendar tools
-- [ ] Document context injection format
-
-### Acceptance Criteria
-
-- [ ] All tools implemented
-- [ ] Tools registered with agent
-- [ ] Context injection working
-- [ ] All tests pass
-
----
-
-## Chunk 11: Calendar UI
+## Chunk 10: Calendar UI
 
 **Estimated Time**: 4-5 hours  
-**Dependencies**: Chunk 9, Chunk 10  
+**Dependencies**: Chunk 9  
 **Goal**: Create UI components for Calendar settings and approvals.
 
 ### Prerequisites
 
 - [ ] Chunk 9 complete (API routes available)
-- [ ] Chunk 10 complete (context available)
 
 ### Architecture Notes
 
@@ -1604,7 +1485,7 @@ src/app/(dashboard)/settings/
 
 ---
 
-## Chunk 12: Integration Testing
+## Chunk 11: Integration Testing
 
 **Estimated Time**: 4-5 hours  
 **Dependencies**: All previous chunks  
@@ -1612,7 +1493,7 @@ src/app/(dashboard)/settings/
 
 ### Prerequisites
 
-- [ ] All feature chunks complete (1-11)
+- [ ] All feature chunks complete (0-10)
 
 ### Architecture Notes
 
@@ -1697,15 +1578,15 @@ tests/integrations/calendar/
 
 ---
 
-## Chunk 13: Polish & Review
+## Chunk 12: Polish & Review
 
 **Estimated Time**: 3-4 hours  
-**Dependencies**: Chunk 12  
+**Dependencies**: Chunk 11  
 **Goal**: Final polish, review, and documentation completion.
 
 ### Prerequisites
 
-- [ ] Chunk 12 complete
+- [ ] Chunk 11 complete
 
 ### Tasks
 
@@ -1820,19 +1701,19 @@ src/components/integrations/calendar/
 ├── CalendarApprovals.tsx
 └── CalendarSyncStatus.tsx
 
-src/services/skills/calendar/
-├── index.ts
-├── tools.ts
-└── context.ts
-
 tests/integrations/calendar/
 ├── factories.ts
 ├── full-sync.test.ts
 ├── incremental-sync.test.ts
 ├── webhook.test.ts
 ├── actions.test.ts
-├── api.test.ts
-└── agent.test.ts
+└── api.test.ts
+
+# DEFERRED TO FUTURE PHASE (Agent Engine)
+# src/services/skills/calendar/
+# ├── index.ts
+# ├── tools.ts
+# └── context.ts
 ```
 
 ---
@@ -1850,14 +1731,18 @@ tests/integrations/calendar/
 | 6: Full Sync | 4-5 | 7 |
 | 7: Incremental Sync | 4-5 | 6 |
 | 8: Actions & Approval | 4-5 | - |
-| 9: API Routes | 4-5 | 10 |
-| 10: Agent Integration | 3-4 | 9 |
-| 11: Calendar UI | 4-5 | - |
-| 12: Integration Testing | 4-5 | - |
-| 13: Polish & Review | 3-4 | - |
+| 9: API Routes | 4-5 | - |
+| 10: Calendar UI | 4-5 | - |
+| 11: Integration Testing | 4-5 | - |
+| 12: Polish & Review | 3-4 | - |
+| *(Deferred) Agent Integration* | *3-4* | *Future Phase* |
 
-**Total Estimated Hours**: 48-60 hours  
-**With Parallelization**: ~35-45 hours
+**Total Estimated Hours**: 45-56 hours  
+**With Parallelization**: ~32-42 hours
+
+> **Note**: Agent Integration (3-4 hours) has been deferred to a future phase 
+> when the Agent Engine is implemented. This reduces the Phase 4 scope while 
+> maintaining full Calendar functionality through API routes.
 
 ---
 
@@ -1875,7 +1760,11 @@ tests/integrations/calendar/
 
 ---
 
-*Document Version: 1.0*  
+*Document Version: 1.1*  
 *Created: December 22, 2024*  
+*Updated: December 23, 2024*  
 *Based on: PHASE_4_CALENDAR.md, CHUNKING_BEST_PRACTICES.md*
+
+> **Version 1.1 Changes**: Agent Integration chunk deferred to future phase when
+> Agent Engine is implemented. Chunks renumbered (11→10, 12→11, 13→12).
 
