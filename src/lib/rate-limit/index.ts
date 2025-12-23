@@ -181,7 +181,9 @@ export async function consumeRateLimitAsync(
       let ttl = results[1][1] as number;
 
       // Set expiry on first request in window
-      if (ttl === -1) {
+      // ttl === -1: key exists but has no TTL
+      // ttl === -2: key does not exist (race condition edge case)
+      if (ttl === -1 || ttl === -2) {
         await redis.pexpire(fullKey, config.windowMs);
         ttl = config.windowMs;
       }

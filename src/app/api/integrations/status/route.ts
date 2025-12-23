@@ -34,6 +34,13 @@ interface IntegrationStatusResponse {
     lastSyncAt?: string;
     emailCount?: number;
   };
+  calendar: {
+    connected: boolean;
+    canRead: boolean;
+    canWrite: boolean;
+    eventCount?: number;
+    missingScopes?: string[];
+  };
   contacts: {
     connected: boolean;
     contactCount?: number;
@@ -59,6 +66,11 @@ export async function GET(): Promise<NextResponse<IntegrationStatusResponse>> {
           canRead: false,
           canSend: false,
           canManageLabels: false,
+        },
+        calendar: {
+          connected: false,
+          canRead: false,
+          canWrite: false,
         },
         contacts: { connected: false },
         missingScopes: [],
@@ -92,6 +104,11 @@ export async function GET(): Promise<NextResponse<IntegrationStatusResponse>> {
         canSend: false,
         canManageLabels: false,
       },
+      calendar: {
+        connected: false,
+        canRead: false,
+        canWrite: false,
+      },
       contacts: { connected: false },
       missingScopes: [],
       upgradeRequired: false,
@@ -117,6 +134,17 @@ export async function GET(): Promise<NextResponse<IntegrationStatusResponse>> {
         lastSyncAt: true,
         status: true,
         syncCursor: true,
+      },
+    });
+  }
+
+  // Get Calendar sync state if connected
+  let calendarSyncState = null;
+  if (integrationStatus.calendar.connected) {
+    calendarSyncState = await db.calendarSyncState.findUnique({
+      where: { userId },
+      select: {
+        eventCount: true,
       },
     });
   }
@@ -155,6 +183,13 @@ export async function GET(): Promise<NextResponse<IntegrationStatusResponse>> {
       canManageLabels: integrationStatus.gmail.canManageLabels,
       syncStatus: gmailSyncState?.status || undefined,
       lastSyncAt: gmailSyncState?.lastSyncAt?.toISOString() || undefined,
+    },
+    calendar: {
+      connected: integrationStatus.calendar.connected,
+      canRead: integrationStatus.calendar.canRead,
+      canWrite: integrationStatus.calendar.canWrite,
+      eventCount: calendarSyncState?.eventCount || 0,
+      missingScopes: integrationStatus.calendar.missingScopes,
     },
     contacts: {
       connected: integrationStatus.contacts.connected,

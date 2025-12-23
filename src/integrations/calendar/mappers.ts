@@ -355,16 +355,26 @@ export function mapEventStatus(googleStatus?: string): string {
 
 /**
  * Map event visibility from Google to internal format
+ * 
+ * Google Calendar API visibility values:
+ * - "default": Uses the calendar's default visibility
+ * - "public": Visible to everyone
+ * - "private": Only visible to attendees
+ * - "confidential": Similar to private, but hides event details
  */
 export function mapEventVisibility(googleVisibility?: string): string {
   switch (googleVisibility) {
+    case "default":
+      return "default";
     case "public":
       return "public";
     case "private":
+      return "private";
     case "confidential":
-      return "private";
+      return "confidential";
     default:
-      return "private";
+      // If no visibility specified, default to "default" (inherits from calendar)
+      return "default";
   }
 }
 

@@ -30,6 +30,12 @@ interface IntegrationStatus {
     canSend: boolean;
     emailCount?: number;
   };
+  calendar: {
+    connected: boolean;
+    canRead: boolean;
+    canWrite: boolean;
+    eventCount?: number;
+  };
   contacts: {
     connected: boolean;
     contactCount?: number;
@@ -55,6 +61,11 @@ export default function IntegrationsPage() {
               connected: false,
               canRead: false,
               canSend: false,
+            },
+            calendar: data.calendar || {
+              connected: false,
+              canRead: false,
+              canWrite: false,
             },
             contacts: data.contacts || { connected: false },
           });
@@ -124,20 +135,31 @@ export default function IntegrationsPage() {
                 ctaText={status?.gmail.connected ? "Manage" : "Connect"}
               />
 
-              {/* Calendar Integration - Coming Soon */}
+              {/* Calendar Integration */}
               <IntegrationCard
                 icon={<CalendarIcon className="size-6" />}
                 iconBg="from-blue-500 to-blue-600"
                 title="Google Calendar"
                 description="Sync events, check availability, and schedule meetings"
-                status="coming_soon"
+                status={
+                  status?.calendar.connected
+                    ? status.calendar.canWrite
+                      ? "connected"
+                      : "limited"
+                    : "disconnected"
+                }
                 features={[
                   "View upcoming events",
                   "Check availability",
-                  "Create calendar events",
+                  "Create calendar events (with approval)",
                 ]}
-                ctaText="Coming Soon"
-                disabled
+                stats={
+                  status?.calendar.connected
+                    ? [`${status.calendar.eventCount || 0} events synced`]
+                    : undefined
+                }
+                href="/settings/integrations/calendar"
+                ctaText={status?.calendar.connected ? "Manage" : "Connect"}
               />
 
               {/* Slack Integration - Coming Soon */}
