@@ -38,23 +38,139 @@ if (typeof setInterval !== "undefined") {
 
 /**
  * Check rate limit using Redis, with memory fallback
- * This INCREMENTS the counter on every call (check-and-consume pattern)
+ * This INCREMENTS the counter by 1 on every call (check-and-consume pattern)
  */
 export async function checkRateLimitAsync(
   key: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
+  return checkRateLimitAsyncWithUnits(key, config, 1);
+}
+
+/**
+ * Check rate limit and consume a specific number of units
+ * Use this for operations with variable costs (e.g., API calls with different quota costs)
+ * 
+ * This function checks BEFORE consuming to avoid wasting quota on rejected requests.
+ * Uses a Lua script for atomic check-and-increment in Redis.
+ * 
+ * @param key - The rate limit key (e.g., user ID)
+ * @param config - Rate limit configuration
+ * @param units - Number of quota units to consume (default: 1)
+ */
+export async function checkRateLimitAsyncWithUnits(
+  key: string,
+  config: RateLimitConfig,
+  units: number = 1
+): Promise<RateLimitResult> {
   const now = Date.now();
   const fullKey = `ratelimit:${config.keyPrefix || "default"}:${key}`;
+  const safeUnits = Math.max(1, Math.floor(units));
 
   // Try Redis first
   if (isRedisConnected()) {
     try {
       await ensureRedisConnection();
 
-      // Use Redis INCR + PTTL
+      // Lua script for atomic check-then-increment
+      // Only increments if the new count would be <= maxRequests
+      // Returns: [allowed (0/1), count after operation, ttl]
+      const luaScript = `
+        local key = KEYS[1]
+        local units = tonumber(ARGV[1])
+        local maxRequests = tonumber(ARGV[2])
+        local windowMs = tonumber(ARGV[3])
+        
+        local current = tonumber(redis.call('GET', key) or '0')
+        local newCount = current + units
+        local allowed = 0
+        
+        if newCount <= maxRequests then
+          -- Allowed: increment the counter
+          redis.call('INCRBY', key, units)
+          allowed = 1
+          -- Set expiry if not already set
+          local ttl = redis.call('PTTL', key)
+          if ttl == -1 or ttl == -2 then
+            redis.call('PEXPIRE', key, windowMs)
+          end
+        end
+        
+        local ttl = redis.call('PTTL', key)
+        if ttl == -2 then ttl = windowMs end
+        if ttl == -1 then ttl = windowMs end
+        
+        -- Return the count AFTER the operation (if allowed) or current (if not)
+        local finalCount = allowed == 1 and newCount or current
+        return {allowed, finalCount, ttl}
+      `;
+
+      const result = await redis.eval(
+        luaScript,
+        1,
+        fullKey,
+        safeUnits.toString(),
+        config.maxRequests.toString(),
+        config.windowMs.toString()
+      ) as [number, number, number];
+
+      const [allowed, count, ttl] = result;
+      // count is the current counter value:
+      // - If allowed: count is AFTER increment (newCount)
+      // - If rejected: count is the unchanged current value
+      // In both cases, remaining = maxRequests - count gives the correct available slots
+      const remaining = Math.max(0, config.maxRequests - count);
+      const resetAt = new Date(now + ttl);
+
+      return {
+        allowed: allowed === 1,
+        remaining,
+        resetAt,
+        retryAfterMs: allowed ? undefined : ttl,
+      };
+    } catch (error) {
+      console.warn(
+        "[RateLimit] Redis unavailable, using memory fallback:",
+        error
+      );
+    }
+  }
+
+  // Fallback to memory
+  return checkRateLimitMemoryWithUnits(key, config, safeUnits);
+}
+
+/**
+ * Unconditionally consume quota units (always increments, ignores limit)
+ * Use this to track actual API usage that has already occurred.
+ * 
+ * Unlike checkRateLimitAsyncWithUnits (which only increments when allowed),
+ * this function ALWAYS increments the counter regardless of whether the
+ * limit would be exceeded. This is appropriate for:
+ * - Tracking API calls that have already happened
+ * - Accounting for nested/prefetch operations
+ * 
+ * @param key - The rate limit key (e.g., user ID)
+ * @param config - Rate limit configuration  
+ * @param units - Number of quota units to consume (default: 1)
+ */
+export async function consumeRateLimitAsync(
+  key: string,
+  config: RateLimitConfig,
+  units: number = 1
+): Promise<RateLimitResult> {
+  const now = Date.now();
+  const fullKey = `ratelimit:${config.keyPrefix || "default"}:${key}`;
+  const safeUnits = Math.max(1, Math.floor(units));
+
+  // Try Redis first
+  if (isRedisConnected()) {
+    try {
+      await ensureRedisConnection();
+
+      // Unconditionally increment by units using INCRBY
       const multi = redis.multi();
-      multi.incr(fullKey);
+      multi.incrby(fullKey, safeUnits);
       multi.pttl(fullKey);
 
       const results = await multi.exec();
@@ -71,6 +187,7 @@ export async function checkRateLimitAsync(
       }
 
       const remaining = Math.max(0, config.maxRequests - count);
+      // allowed indicates if we're still within limits after consumption
       const allowed = count <= config.maxRequests;
       const resetAt = new Date(now + ttl);
 
@@ -89,7 +206,7 @@ export async function checkRateLimitAsync(
   }
 
   // Fallback to memory
-  return checkRateLimitMemory(key, config);
+  return consumeRateLimitMemory(key, config, safeUnits);
 }
 
 /**
@@ -100,8 +217,25 @@ export async function peekRateLimitAsync(
   key: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
+  return peekRateLimitAsyncWithUnits(key, config, 1);
+}
+
+/**
+ * Peek at rate limit status for a specific number of units without incrementing
+ * Use this to check if a multi-unit operation would be allowed
+ * 
+ * @param key - The rate limit key (e.g., user ID)
+ * @param config - Rate limit configuration
+ * @param units - Number of quota units to check for (default: 1)
+ */
+export async function peekRateLimitAsyncWithUnits(
+  key: string,
+  config: RateLimitConfig,
+  units: number = 1
+): Promise<RateLimitResult> {
   const now = Date.now();
   const fullKey = `ratelimit:${config.keyPrefix || "default"}:${key}`;
+  const safeUnits = Math.max(1, Math.floor(units));
 
   // Try Redis first
   if (isRedisConnected()) {
@@ -126,12 +260,10 @@ export async function peekRateLimitAsync(
         ttl = config.windowMs;
       }
 
-      // Use same operator as check (<=) for consistency
-      // This checks: "if we add one more request, would it still be within limits?"
-      const allowed = count + 1 <= config.maxRequests;
-      // Calculate remaining AFTER a hypothetical request (consistent with check's post-increment remaining)
-      // This predicts what check would report after actually making the request
-      const remaining = Math.max(0, config.maxRequests - count - 1);
+      // Check if adding these units would exceed the limit
+      const allowed = count + safeUnits <= config.maxRequests;
+      // Current available quota (not after hypothetical consumption)
+      const remaining = Math.max(0, config.maxRequests - count);
       const resetAt = new Date(now + ttl);
 
       return {
@@ -149,7 +281,7 @@ export async function peekRateLimitAsync(
   }
 
   // Fallback to memory (peek-only version)
-  return peekRateLimitMemory(key, config);
+  return peekRateLimitMemoryWithUnits(key, config, safeUnits);
 }
 
 /**
@@ -164,11 +296,25 @@ export function checkRateLimit(
 }
 
 /**
- * Memory-based rate limiting (increments counter)
+ * Memory-based rate limiting (increments counter by 1)
  */
 function checkRateLimitMemory(
   key: string,
   config: RateLimitConfig
+): RateLimitResult {
+  return checkRateLimitMemoryWithUnits(key, config, 1);
+}
+
+/**
+ * Memory-based rate limiting with unit support (increments counter by units)
+ * 
+ * Unlike Redis (which requires atomic increment-then-check), the memory version
+ * checks BEFORE incrementing to avoid wasting quota on rejected requests.
+ */
+function checkRateLimitMemoryWithUnits(
+  key: string,
+  config: RateLimitConfig,
+  units: number
 ): RateLimitResult {
   const now = Date.now();
   const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
@@ -181,14 +327,63 @@ function checkRateLimitMemory(
       count: 0,
       resetAt: now + config.windowMs,
     };
+    memoryStore.set(fullKey, entry);
   }
 
-  entry.count++;
+  // Check if adding these units would exceed the limit BEFORE incrementing
+  // This prevents wasting quota on rejected requests
+  const wouldBeAllowed = entry.count + units <= config.maxRequests;
+
+  if (wouldBeAllowed) {
+    // Only increment if allowed
+    entry.count += units;
+    memoryStore.set(fullKey, entry);
+  }
+
+  // entry.count is the current counter value:
+  // - If allowed: count is AFTER increment
+  // - If rejected: count is unchanged
+  // In both cases, remaining = maxRequests - count gives the correct available slots
+  const remaining = Math.max(0, config.maxRequests - entry.count);
+  
+  return {
+    allowed: wouldBeAllowed,
+    remaining,
+    resetAt: new Date(entry.resetAt),
+    retryAfterMs: wouldBeAllowed ? undefined : entry.resetAt - now,
+  };
+}
+
+/**
+ * Memory-based unconditional consumption (always increments, ignores limit)
+ * Use for tracking API usage that has already occurred.
+ */
+function consumeRateLimitMemory(
+  key: string,
+  config: RateLimitConfig,
+  units: number
+): RateLimitResult {
+  const now = Date.now();
+  const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
+
+  let entry = memoryStore.get(fullKey);
+
+  // Reset if window expired
+  if (!entry || entry.resetAt < now) {
+    entry = {
+      count: 0,
+      resetAt: now + config.windowMs,
+    };
+    memoryStore.set(fullKey, entry);
+  }
+
+  // Always increment - this is unconditional consumption
+  entry.count += units;
   memoryStore.set(fullKey, entry);
 
   const remaining = Math.max(0, config.maxRequests - entry.count);
   const allowed = entry.count <= config.maxRequests;
-
+  
   return {
     allowed,
     remaining,
@@ -198,11 +393,15 @@ function checkRateLimitMemory(
 }
 
 /**
- * Memory-based rate limit peek (read-only, no increment)
+ * Memory-based rate limit peek with unit support (read-only, no increment)
+ * 
+ * Note: `remaining` represents the current available quota (not after hypothetical consumption).
+ * The `allowed` field indicates whether the specified units would fit within limits.
  */
-function peekRateLimitMemory(
+function peekRateLimitMemoryWithUnits(
   key: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
+  units: number
 ): RateLimitResult {
   const now = Date.now();
   const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
@@ -213,18 +412,17 @@ function peekRateLimitMemory(
   if (!entry || entry.resetAt < now) {
     return {
       allowed: true,
-      // Predict remaining AFTER a hypothetical request (count would be 1)
-      remaining: config.maxRequests - 1,
+      // Current available quota (full capacity since window is fresh/expired)
+      remaining: config.maxRequests,
       resetAt: new Date(now + config.windowMs),
       retryAfterMs: undefined,
     };
   }
 
-  // Use same operator as check (<=) for consistency
-  // This checks: "if we add one more request, would it still be within limits?"
-  const allowed = entry.count + 1 <= config.maxRequests;
-  // Calculate remaining AFTER a hypothetical request (consistent with check's post-increment remaining)
-  const remaining = Math.max(0, config.maxRequests - entry.count - 1);
+  // Check if adding these units would exceed the limit
+  const allowed = entry.count + units <= config.maxRequests;
+  // Current available quota (not after hypothetical consumption)
+  const remaining = Math.max(0, config.maxRequests - entry.count);
 
   return {
     allowed,

@@ -370,6 +370,18 @@ export const calendarSyncStateRepository = {
   },
 
   /**
+   * Find sync state by webhook channel ID
+   * Used for processing webhook notifications
+   */
+  findByWebhookChannel: async (channelId: string): Promise<CalendarSyncState | null> => {
+    return db.calendarSyncState.findFirst({
+      where: {
+        webhookChannelId: channelId,
+      },
+    });
+  },
+
+  /**
    * Delete sync state for a user
    */
   delete: async (userId: string): Promise<void> => {
@@ -661,6 +673,9 @@ export const calendarEventRepository = {
           virtualUrl: input.virtualUrl,
           status: input.status,
           visibility: input.visibility,
+          // Update source tracking - important for correct event categorization
+          source: input.source,
+          sourceId: input.sourceId,
           sourceSyncedAt: input.sourceSyncedAt ?? new Date(),
           metadata: input.metadata as Prisma.InputJsonValue,
           tags: input.tags,
@@ -692,14 +707,82 @@ export const calendarEventRepository = {
 
   /**
    * Bulk upsert events for efficient sync
+   * Uses a transaction to ensure atomicity - all events are upserted or none are.
    */
   upsertMany: async (inputs: EventDbCreateInput[]): Promise<number> => {
-    let count = 0;
-    for (const input of inputs) {
-      await calendarEventRepository.upsert(input);
-      count++;
-    }
-    return count;
+    if (inputs.length === 0) return 0;
+
+    // Use interactive transaction for atomicity
+    const results = await db.$transaction(async (tx) => {
+      const upserted: Event[] = [];
+
+      for (const input of inputs) {
+        // Validate required fields
+        if (!input.googleEventId) {
+          throw new Error("Cannot upsert event without googleEventId");
+        }
+
+        // Find existing event by googleEventId and userId
+        const existing = await tx.event.findFirst({
+          where: {
+            userId: input.userId,
+            googleEventId: input.googleEventId,
+          },
+        });
+
+        if (existing) {
+          // Update existing event
+          const updated = await tx.event.update({
+            where: { id: existing.id },
+            data: {
+              title: input.title,
+              description: input.description,
+              type: input.type,
+              startsAt: input.startsAt,
+              endsAt: input.endsAt,
+              allDay: input.allDay,
+              timezone: input.timezone,
+              location: input.location,
+              virtualUrl: input.virtualUrl,
+              status: input.status,
+              visibility: input.visibility,
+              source: input.source,
+              sourceId: input.sourceId,
+              sourceSyncedAt: input.sourceSyncedAt ?? new Date(),
+              metadata: input.metadata as Prisma.InputJsonValue,
+              tags: input.tags,
+              googleCalendarId: input.googleCalendarId,
+              calendarId: input.calendarId,
+              recurringEventId: input.recurringEventId,
+              recurrence: input.recurrence as Prisma.InputJsonValue,
+              attendees: input.attendees as Prisma.InputJsonValue,
+              organizer: input.organizer as Prisma.InputJsonValue,
+              creator: input.creator as Prisma.InputJsonValue,
+              conferenceData: input.conferenceData as Prisma.InputJsonValue,
+              hangoutLink: input.hangoutLink,
+              reminders: input.reminders as Prisma.InputJsonValue,
+              iCalUID: input.iCalUID,
+              sequence: input.sequence ?? 0,
+              etag: input.etag,
+              htmlLink: input.htmlLink,
+              updatedAt: new Date(),
+              deletedAt: null,
+            },
+          });
+          upserted.push(updated);
+        } else {
+          // Create new event
+          const created = await tx.event.create({
+            data: eventInputToUncheckedPrisma(input),
+          });
+          upserted.push(created);
+        }
+      }
+
+      return upserted;
+    });
+
+    return results.length;
   },
 
   /**

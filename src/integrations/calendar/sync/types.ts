@@ -203,45 +203,7 @@ export interface SyncState {
 // ─────────────────────────────────────────────────────────────
 // Job Data Types
 // ─────────────────────────────────────────────────────────────
-
-/**
- * Data for a full calendar sync job
- */
-export interface FullCalendarSyncJobData {
-  userId: string;
-  options?: FullCalendarSyncOptions;
-}
-
-/**
- * Data for an incremental calendar sync job
- */
-export interface IncrementalCalendarSyncJobData {
-  userId: string;
-  options?: IncrementalCalendarSyncOptions;
-}
-
-/**
- * Data for calendar webhook notification processing
- */
-export interface WebhookProcessJobData {
-  userId: string;
-  channelId: string;
-  resourceId: string;
-  resourceState: "sync" | "exists" | "not_exists";
-}
-
-/**
- * Data for expiring calendar approvals
- */
-export interface ExpireCalendarApprovalsJobData {
-  /** Optional: limit to specific user for testing */
-  userId?: string;
-}
-
-/**
- * Data for renewing calendar webhook
- */
-export interface RenewWebhookJobData {
-  userId: string;
-}
+// NOTE: Job data types are defined in ./jobs.ts to avoid duplication.
+// Import from there for FullSyncJobData, IncrementalSyncJobData,
+// ProcessWebhookJobData, ExpireApprovalsJobData, RenewWebhookJobData, etc.
 

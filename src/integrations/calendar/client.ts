@@ -16,18 +16,19 @@ import {
   DEFAULT_CALENDAR_PAGE_SIZE,
   WEBHOOK_MAX_LIFETIME_MS,
 } from "./constants";
-import type {
-  GoogleCalendar,
-  GoogleEvent,
-  CalendarListResponse,
-  EventListResponse,
-  WatchResponse,
-  ListCalendarsOptions,
-  ListEventsOptions,
-  EventCreateInput,
-  EventUpdateInput,
-  CalendarOperation,
-  AttendeeResponseStatus,
+import {
+  CALENDAR_QUOTA_UNITS,
+  type GoogleCalendar,
+  type GoogleEvent,
+  type CalendarListResponse,
+  type EventListResponse,
+  type WatchResponse,
+  type ListCalendarsOptions,
+  type ListEventsOptions,
+  type EventCreateInput,
+  type EventUpdateInput,
+  type CalendarOperation,
+  type AttendeeResponseStatus,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -237,13 +238,21 @@ export class CalendarClient {
    */
   async getEvent(calendarId: string, eventId: string): Promise<GoogleEvent> {
     return this.execute("events.get", async () => {
-      const response = await this.calendar.events.get({
-        calendarId,
-        eventId,
-      });
-
-      return response.data as GoogleEvent;
+      return this._getEventRaw(calendarId, eventId);
     });
+  }
+
+  /**
+   * Internal method to fetch event without rate limiting
+   * Use this within operations that are already wrapped in execute()
+   */
+  private async _getEventRaw(calendarId: string, eventId: string): Promise<GoogleEvent> {
+    const response = await this.calendar.events.get({
+      calendarId,
+      eventId,
+    });
+
+    return response.data as GoogleEvent;
   }
 
   /**
@@ -331,6 +340,13 @@ export class CalendarClient {
 
   /**
    * Update an existing event
+   * 
+   * Note: This operation costs 3 quota units total:
+   * - 1 unit for events.get (prefetch existing event)
+   * - 2 units for events.update (the actual update)
+   * 
+   * All 3 units are checked and consumed atomically before any API calls,
+   * preventing quota waste if the rate limit check fails.
    */
   async updateEvent(
     calendarId: string,
@@ -341,9 +357,12 @@ export class CalendarClient {
       sendUpdates?: "all" | "externalOnly" | "none";
     } = {}
   ): Promise<GoogleEvent> {
+    // Execute with additionalUnits: 1 to account for the prefetch (events.get)
+    // This ensures all 3 quota units are checked atomically before any API calls
     return this.execute("events.update", async () => {
       // First, get the existing event to merge with updates
-      const existing = await this.getEvent(calendarId, eventId);
+      // Quota already consumed above, so use internal method without rate-limiting
+      const existing = await this._getEventRaw(calendarId, eventId);
 
       // Build the updated event
       const requestBody: calendar_v3.Schema$Event = {
@@ -369,7 +388,7 @@ export class CalendarClient {
       });
 
       return response.data as GoogleEvent;
-    });
+    }, { additionalUnits: 1 });
   }
 
   /**
@@ -464,6 +483,13 @@ export class CalendarClient {
 
   /**
    * Respond to an event invitation (RSVP)
+   * 
+   * Note: This operation costs 3 quota units total:
+   * - 1 unit for events.get (prefetch event to find attendee entry)
+   * - 2 units for events.patch (the actual RSVP update)
+   * 
+   * All 3 units are checked and consumed atomically before any API calls,
+   * preventing quota waste if the rate limit check fails.
    */
   async respondToEvent(
     calendarId: string,
@@ -476,9 +502,12 @@ export class CalendarClient {
       sendUpdates?: "all" | "externalOnly" | "none";
     } = {}
   ): Promise<GoogleEvent> {
+    // Execute with additionalUnits: 1 to account for the prefetch (events.get)
+    // This ensures all 3 quota units are checked atomically before any API calls
     return this.execute("events.patch", async () => {
       // Get the current event to find our attendee entry
-      const event = await this.getEvent(calendarId, eventId);
+      // Quota already consumed above, so use internal method without rate-limiting
+      const event = await this._getEventRaw(calendarId, eventId);
 
       // Validate event has attendees
       if (!event.attendees || event.attendees.length === 0) {
@@ -521,7 +550,7 @@ export class CalendarClient {
       });
 
       return patchResponse.data as GoogleEvent;
-    });
+    }, { additionalUnits: 1 });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -723,45 +752,71 @@ export class CalendarClient {
 
   /**
    * Execute an API call with rate limiting and retry logic
+   * 
+   * Rate limiting strategy to minimize quota waste:
+   * 1. Wait for quota availability using peek (read-only, no consumption)
+   * 2. Verify with peek immediately before consuming
+   * 3. Only consume quota via check() when we're confident it will succeed
+   * 4. If check() fails due to race condition, we've only wasted one attempt
+   * 
+   * @param operation - The primary operation being performed
+   * @param fn - The function to execute
+   * @param options.additionalUnits - Extra quota units to account for (e.g., prefetch calls)
    */
   private async execute<T>(
     operation: CalendarOperation,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
+    options?: { additionalUnits?: number }
   ): Promise<T> {
+    // Calculate total units needed (operation units + any additional)
+    const additionalUnits = options?.additionalUnits ?? 0;
+    
     // Rate limit check and consumption
     if (this.rateLimiter) {
       try {
-        // Wait for quota to become available (peek-only, no consumption)
-        await this.rateLimiter.waitForQuota(operation, this.config.timeoutMs);
+        // Get total units needed for rate limiting
+        const operationUnits = CALENDAR_QUOTA_UNITS[operation];
+        const totalUnits = operationUnits + additionalUnits;
+        
+        // Wait for total quota to become available (peek-only, no consumption)
+        await this.rateLimiter.waitForQuotaUnits(totalUnits, this.config.timeoutMs, operation);
 
-        // Now consume the quota before making the API call
-        // This prevents quota waste if waitForQuota times out
-        const checkResult = await this.rateLimiter.check(operation);
-        if (!checkResult.allowed) {
-          // Race condition: quota was consumed between wait and check
-          // IMPORTANT: The first check() already consumed a quota unit (even though it
-          // returned allowed: false). We should NOT call check() again as that would
-          // double-consume. Instead, we wait and use peek-only to verify availability,
-          // then proceed - we've already "paid" with the first check.
-          if (checkResult.waitMs) {
-            await this.sleep(checkResult.waitMs);
+        // Verify quota is still available with peek before consuming
+        // This reduces the chance of wasting quota due to race conditions
+        const peekResult = await this.rateLimiter.peekUnits(totalUnits);
+        if (!peekResult.allowed) {
+          // Quota was consumed between waitForQuota and peek
+          // Wait the suggested time and try peeking again
+          if (peekResult.waitMs) {
+            await this.sleep(peekResult.waitMs);
           }
           
-          // Use peek (read-only) to verify quota is now available
-          const peekResult = await this.rateLimiter.peek(operation);
-          if (!peekResult.allowed) {
-            // Still not available after waiting - throw error
-            // We've already consumed quota, but we can't proceed without availability
+          const retryPeek = await this.rateLimiter.peekUnits(totalUnits);
+          if (!retryPeek.allowed) {
             throw new CalendarError(
               CalendarErrorCode.RATE_LIMITED,
               "Rate limit exceeded after waiting",
               true,
-              peekResult.waitMs || 1000
+              retryPeek.waitMs || 1000
             );
           }
-          
-          // Quota appears available now - proceed without consuming again
-          // We already "paid" with the first check() call above
+        }
+
+        // Now consume total quota - at this point we're confident it should succeed
+        // If it fails due to a last-moment race condition, we accept the small
+        // quota waste as the cost of avoiding larger waste scenarios
+        const checkResult = await this.rateLimiter.checkUnits(totalUnits);
+        if (!checkResult.allowed) {
+          // Rare race condition: another request consumed quota between our
+          // peek and check. The quota units are consumed but we can't proceed.
+          // This is acceptable as it only wastes one set of units, vs the old
+          // approach which could waste many units in wait loops.
+          throw new CalendarError(
+            CalendarErrorCode.RATE_LIMITED,
+            "Rate limit exceeded (concurrent request consumed quota)",
+            true,
+            checkResult.waitMs || 1000
+          );
         }
       } catch (error) {
         // Rate limiter error - re-throw as Calendar error

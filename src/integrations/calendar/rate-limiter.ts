@@ -3,7 +3,13 @@
 // Per-user rate limiting to respect Google Calendar API quotas
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { checkRateLimitAsync, peekRateLimitAsync, type RateLimitConfig } from "@/lib/rate-limit";
+import { 
+  checkRateLimitAsyncWithUnits, 
+  peekRateLimitAsyncWithUnits, 
+  peekRateLimitAsync,
+  consumeRateLimitAsync,
+  type RateLimitConfig 
+} from "@/lib/rate-limit";
 import { CalendarError, CalendarErrorCode } from "./errors";
 import { CALENDAR_QUOTA_UNITS, type CalendarOperation } from "./types";
 import {
@@ -90,22 +96,19 @@ export class CalendarRateLimiter {
   /**
    * Check if a given number of quota units is allowed AND consume them
    * Use this when you're about to perform an operation
+   * 
+   * This method properly tracks quota UNITS (not call counts) by using
+   * INCRBY to increment the counter by the operation's unit cost.
+   * This ensures heterogeneous operations correctly share quota limits.
    */
   async checkUnits(units: number): Promise<RateLimitCheckResult> {
-    // Check both per-second and per-minute limits (this CONSUMES quota)
+    const safeUnits = Math.max(1, Math.floor(units));
+
+    // Check both per-second and per-minute limits (this CONSUMES units)
+    // Uses INCRBY to increment counter by units, not just 1
     const [secResult, minResult] = await Promise.all([
-      checkRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perSecond,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perSecond.maxRequests / units
-        ),
-      }),
-      checkRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perMinute,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perMinute.maxRequests / units
-        ),
-      }),
+      checkRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
+      checkRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
     ]);
 
     const allowed = secResult.allowed && minResult.allowed;
@@ -117,8 +120,8 @@ export class CalendarRateLimiter {
       allowed,
       waitMs,
       quotaRemaining: {
-        perSecond: secResult.remaining * units,
-        perMinute: minResult.remaining * units,
+        perSecond: secResult.remaining,
+        perMinute: minResult.remaining,
       },
     };
   }
@@ -126,22 +129,18 @@ export class CalendarRateLimiter {
   /**
    * Peek at quota status without consuming any units
    * Use this for polling/waiting loops to avoid exhausting quota
+   * 
+   * Checks if the specified number of units would be allowed without
+   * actually consuming them. Uses the unit-aware peek function.
    */
   async peekUnits(units: number): Promise<RateLimitCheckResult> {
+    const safeUnits = Math.max(1, Math.floor(units));
+
     // Peek both per-second and per-minute limits (read-only, NO consumption)
+    // Uses unit-aware peek to check if these units would be allowed
     const [secResult, minResult] = await Promise.all([
-      peekRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perSecond,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perSecond.maxRequests / units
-        ),
-      }),
-      peekRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perMinute,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perMinute.maxRequests / units
-        ),
-      }),
+      peekRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
+      peekRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
     ]);
 
     const allowed = secResult.allowed && minResult.allowed;
@@ -153,8 +152,8 @@ export class CalendarRateLimiter {
       allowed,
       waitMs,
       quotaRemaining: {
-        perSecond: secResult.remaining * units,
-        perMinute: minResult.remaining * units,
+        perSecond: secResult.remaining,
+        perMinute: minResult.remaining,
       },
     };
   }
@@ -179,12 +178,32 @@ export class CalendarRateLimiter {
     operation: CalendarOperation,
     timeoutMs: number = RATE_LIMIT_WAIT_TIMEOUT_MS
   ): Promise<void> {
-    const startTime = Date.now();
     const units = CALENDAR_QUOTA_UNITS[operation];
+    return this.waitForQuotaUnits(units, timeoutMs, operation);
+  }
+
+  /**
+   * Wait until a specific number of quota units is available (with timeout)
+   *
+   * Uses peek (read-only) to poll for availability without consuming quota.
+   * Does NOT consume quota - caller is responsible for quota consumption.
+   *
+   * @param units - Number of quota units to wait for
+   * @param timeoutMs - Maximum time to wait for quota availability
+   * @param operationName - Optional operation name for error messages
+   * @throws CalendarError with RATE_LIMITED code if timeout is reached
+   */
+  async waitForQuotaUnits(
+    units: number,
+    timeoutMs: number = RATE_LIMIT_WAIT_TIMEOUT_MS,
+    operationName?: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    const safeUnits = Math.max(1, Math.floor(units));
 
     while (Date.now() - startTime < timeoutMs) {
       // Use peekUnits to check WITHOUT consuming quota
-      const peekResult = await this.peekUnits(units);
+      const peekResult = await this.peekUnits(safeUnits);
 
       if (peekResult.allowed) {
         // Quota appears available - return and let caller consume
@@ -204,9 +223,10 @@ export class CalendarRateLimiter {
       await sleep(waitTime);
     }
 
+    const opDesc = operationName ? ` for operation ${operationName}` : "";
     throw new CalendarError(
       CalendarErrorCode.RATE_LIMITED,
-      `Rate limit timeout after ${timeoutMs}ms for operation ${operation}`,
+      `Rate limit timeout after ${timeoutMs}ms${opDesc} (${safeUnits} units)`,
       true,
       1000
     );
@@ -222,38 +242,36 @@ export class CalendarRateLimiter {
   }
 
   /**
-   * Consume a specific number of quota units
-   * Uses the same scaling logic as checkUnits for consistency
+   * Unconditionally consume a specific number of quota units
+   * 
+   * Unlike check() which only increments when allowed, this ALWAYS increments
+   * the counter regardless of whether limits are exceeded. Use this to track
+   * actual API usage that has already occurred (e.g., prefetch operations).
+   * 
+   * Uses consumeRateLimitAsync which unconditionally increments via INCRBY.
    */
   async consumeUnits(units: number): Promise<void> {
-    // Scale maxRequests by units to properly account for operation cost
-    // This is consistent with how checkUnits handles different cost operations
+    const safeUnits = Math.max(1, Math.floor(units));
+
+    // Unconditionally consume units - always increments even if over limit
+    // This is for tracking actual API usage that has already happened
     await Promise.all([
-      checkRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perSecond,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perSecond.maxRequests / units
-        ),
-      }),
-      checkRateLimitAsync(this.userId, {
-        ...CALENDAR_RATE_LIMITS.perMinute,
-        maxRequests: Math.floor(
-          CALENDAR_RATE_LIMITS.perMinute.maxRequests / units
-        ),
-      }),
+      consumeRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
+      consumeRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
     ]);
   }
 
   /**
-   * Get current quota status
+   * Get current quota status (read-only, does not consume quota)
    */
   async getStatus(): Promise<{
     perSecond: { remaining: number; resetAt: Date };
     perMinute: { remaining: number; resetAt: Date };
   }> {
+    // Use peek (read-only) to check status without consuming quota
     const [secResult, minResult] = await Promise.all([
-      checkRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perSecond),
-      checkRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perMinute),
+      peekRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perSecond),
+      peekRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perMinute),
     ]);
 
     return {

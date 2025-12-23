@@ -31,6 +31,8 @@ export enum CalendarErrorCode {
   ACCESS_DENIED = "ACCESS_DENIED",
   /** Sync token is no longer valid */
   SYNC_TOKEN_EXPIRED = "SYNC_TOKEN_EXPIRED",
+  /** A full sync is required (no sync token available) */
+  SYNC_REQUIRED = "SYNC_REQUIRED",
   /** Event time conflict detected */
   CONFLICT = "CONFLICT",
   /** Invalid recurrence rule */

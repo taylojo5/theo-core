@@ -347,6 +347,33 @@ export {
   fullCalendarSync,
   resumeFullSync,
   
+  // Incremental sync
+  incrementalCalendarSync,
+  triggerIncrementalSync,
+  
+  // Webhooks
+  registerWebhook,
+  stopWebhook,
+  processWebhookNotification,
+  parseWebhookHeaders,
+  renewExpiringWebhooks,
+  needsRenewal,
+  
+  // Scheduler
+  scheduleFullSync,
+  scheduleIncrementalSync,
+  scheduleWebhookProcessing,
+  scheduleWebhookRenewal,
+  startRecurringSync,
+  stopRecurringSync,
+  startWebhookRenewalScheduler,
+  stopWebhookRenewalScheduler,
+  startApprovalExpirationScheduler,
+  stopApprovalExpirationScheduler,
+  initializeSchedulers,
+  shutdownSchedulers,
+  hasRecurringSyncActive,
+  
   // Job names
   CALENDAR_JOB_NAMES,
   
@@ -376,6 +403,13 @@ export type {
   EventChange,
   SyncStatus,
   SyncState,
+  
+  // Webhook types
+  WebhookRegistration,
+  WebhookNotification as SyncWebhookNotification,
+  WebhookProcessResult,
+  CalendarJobQueue,
+  SchedulerConfig,
   
   // Job types
   CalendarJobName,

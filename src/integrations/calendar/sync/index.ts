@@ -26,13 +26,6 @@ export type {
   // Status types
   SyncStatus,
   SyncState,
-  
-  // Job data types
-  FullCalendarSyncJobData,
-  IncrementalCalendarSyncJobData,
-  WebhookProcessJobData,
-  ExpireCalendarApprovalsJobData,
-  RenewWebhookJobData,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -44,13 +37,18 @@ export {
 } from "./jobs";
 
 export type {
+  // Job name type
   CalendarJobName,
+  
+  // Job data types (canonical definitions)
   FullSyncJobData,
   IncrementalSyncJobData,
   ProcessWebhookJobData,
-  RenewWebhookJobData as RenewWebhookJobDataFromJobs,
+  RenewWebhookJobData,
   ExpireApprovalsJobData,
   BulkEventEmbedJobData,
+  
+  // Job result types
   SyncJobResult,
   WebhookJobResult,
   EmbeddingJobResult,
@@ -64,6 +62,66 @@ export {
   fullCalendarSync,
   resumeFullSync,
 } from "./full-sync";
+
+// ─────────────────────────────────────────────────────────────
+// Incremental Sync
+// ─────────────────────────────────────────────────────────────
+
+export {
+  incrementalCalendarSync,
+  triggerIncrementalSync,
+} from "./incremental-sync";
+
+// ─────────────────────────────────────────────────────────────
+// Webhooks
+// ─────────────────────────────────────────────────────────────
+
+export {
+  registerWebhook,
+  stopWebhook,
+  processWebhookNotification,
+  parseWebhookHeaders,
+  renewExpiringWebhooks,
+  needsRenewal,
+} from "./webhook";
+
+export type {
+  WebhookRegistration,
+  WebhookNotification,
+  WebhookProcessResult,
+} from "./webhook";
+
+// ─────────────────────────────────────────────────────────────
+// Scheduler
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // One-time job scheduling
+  scheduleFullSync,
+  scheduleIncrementalSync,
+  scheduleWebhookProcessing,
+  scheduleWebhookRenewal,
+  
+  // Recurring job management
+  startRecurringSync,
+  stopRecurringSync,
+  startWebhookRenewalScheduler,
+  stopWebhookRenewalScheduler,
+  startApprovalExpirationScheduler,
+  stopApprovalExpirationScheduler,
+  
+  // Scheduler initialization
+  initializeSchedulers,
+  shutdownSchedulers,
+  
+  // Utilities
+  hasRecurringSyncActive,
+} from "./scheduler";
+
+export type {
+  CalendarJobQueue,
+  SchedulerConfig,
+} from "./scheduler";
 
 // ─────────────────────────────────────────────────────────────
 // Utilities
@@ -92,4 +150,3 @@ export {
 } from "./utils";
 
 export type { QueueEmbeddingsOptions } from "./utils";
-
