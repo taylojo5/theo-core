@@ -7,7 +7,7 @@ Help agents stay on track and produce consistent, excellent code with multiple s
 This creates the initial phase chunks for each agent to grab onto for context when implementing.
 
 ```text
-Alright. Let's start the plan for phase X. Create a planning .MD document with the work chunked out into reasonable chunks. Each chunk should include
+Alright. Let's start the plan for phase 4. Create a planning .MD document with the work chunked out into reasonable chunks. Each chunk should include
 
 - architecture notes
 - implementation guidance
@@ -18,7 +18,9 @@ Once all chunks are complete, there should be a final chunk for implementation r
 
 Use the @CHUNKING_BEST_PRACTICES.md learnings file to inform your planning, architecture, and guidelines.
 
-Also, give an analysis for what chunks are foundational vs what chunks can be implemented in parallel
+Also, give an analysis for what chunks are foundational vs what chunks can be implemented in parallel.
+
+Store the chunk plan in the phase folder
 ```
 
 ## ANALYSIS POST PHASE
@@ -36,4 +38,10 @@ Please do a deep analysis on the phase X implementation, and create a doc calls 
 Then have a chunked plan for remediation for any issues found.
 
 Also ,please use your analysis and findings to update the @CHUNKING_BEST_PRACTICES.md  file. The idea is to use our analysis findings here to improve planning and execution for future chunk plans
+```
+
+## PROJECT PROJECT REPORT
+
+``` text
+Write a progress report document reporting on the general vibe, progress, and condition of the project now that we're done with phases 0-4. Store in the docs/progress-reports folder.
 ```
