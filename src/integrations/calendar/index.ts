@@ -237,3 +237,79 @@ export {
 
 export type { RateLimitCheckResult } from "./rate-limiter";
 
+// ─────────────────────────────────────────────────────────────
+// Mappers
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Date/Time utilities
+  parseEventDateTime,
+  isAllDayEvent,
+  formatEventDateTime,
+  getEventTimezone,
+  getStorageTimezone,
+
+  // Calendar mappers
+  mapGoogleCalendarToDb,
+  calendarInputToPrisma,
+  calendarInputToUpsertPrisma,
+  mapDbCalendarToGoogle,
+  mapGoogleCalendarsToDb,
+
+  // Event mappers
+  inferEventType,
+  mapEventStatus,
+  mapEventVisibility,
+  mapGoogleEventToDb,
+  eventInputToPrisma,
+  eventInputToUncheckedPrisma,
+  mapDbEventToGoogleInput,
+  mapEventUpdatesToGoogle,
+  mapGoogleEventsToDb,
+
+  // Attendee mappers
+  normalizeAttendee,
+  normalizeAttendees,
+  denormalizeAttendee,
+  denormalizeAttendees,
+  findSelfAttendee,
+  findOrganizer,
+  countAttendeeResponses,
+
+  // Creator/Organizer mappers
+  normalizeCreator,
+  normalizeOrganizer,
+
+  // Recurrence mappers
+  parseRecurrenceRules,
+  formatRecurrenceRules,
+  extractRecurrenceFrequency,
+  describeRecurrence,
+
+  // Conference data utilities
+  extractMeetingUrl,
+  hasConferenceData,
+  getConferenceSolutionName,
+
+  // Embedding preparation
+  prepareEventForEmbedding,
+  prepareEventEmbeddingMetadata,
+
+  // Utility functions
+  isEventCancelled,
+  isRecurringEventInstance,
+  isMasterRecurringEvent,
+  getEventDurationMinutes,
+  isEventHappening,
+  isEventPast,
+  isEventFuture,
+} from "./mappers";
+
+export type {
+  CalendarCreateInput,
+  EventDbCreateInput,
+  NormalizedAttendee,
+  NormalizedParticipant,
+  RecurrenceInfo,
+} from "./mappers";
+

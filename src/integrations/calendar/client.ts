@@ -728,10 +728,32 @@ export class CalendarClient {
     operation: CalendarOperation,
     fn: () => Promise<T>
   ): Promise<T> {
-    // Rate limit check
+    // Rate limit check and consumption
     if (this.rateLimiter) {
       try {
+        // Wait for quota to become available (peek-only, no consumption)
         await this.rateLimiter.waitForQuota(operation, this.config.timeoutMs);
+
+        // Now consume the quota before making the API call
+        // This prevents quota waste if waitForQuota times out
+        const checkResult = await this.rateLimiter.check(operation);
+        if (!checkResult.allowed) {
+          // Race condition: quota was consumed between wait and check
+          // Wait the suggested time and try again
+          if (checkResult.waitMs) {
+            await this.sleep(checkResult.waitMs);
+          }
+          // Retry the quota acquisition
+          const retryResult = await this.rateLimiter.check(operation);
+          if (!retryResult.allowed) {
+            throw new CalendarError(
+              CalendarErrorCode.RATE_LIMITED,
+              "Rate limit exceeded after retry",
+              true,
+              retryResult.waitMs || 1000
+            );
+          }
+        }
       } catch (error) {
         // Rate limiter error - re-throw as Calendar error
         if (error instanceof CalendarError) throw error;

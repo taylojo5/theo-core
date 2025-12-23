@@ -152,7 +152,19 @@ export class CalendarRateLimiter {
 
   /**
    * Wait until an operation is allowed (with timeout)
-   * Uses peek (read-only) to poll for availability, then consumes quota when allowed
+   *
+   * Uses peek (read-only) to poll for availability without consuming quota.
+   * Does NOT consume quota - caller is responsible for quota consumption
+   * when performing the actual API operation.
+   *
+   * This design prevents quota waste from race conditions:
+   * - If another request consumes quota between wait and operation, the
+   *   operation's rate limit check will fail and can be retried
+   * - No quota is wasted during the wait loop itself
+   *
+   * @param operation - The operation type to check quota for
+   * @param timeoutMs - Maximum time to wait for quota availability
+   * @throws CalendarError with RATE_LIMITED code if timeout is reached
    */
   async waitForQuota(
     operation: CalendarOperation,
@@ -166,14 +178,10 @@ export class CalendarRateLimiter {
       const peekResult = await this.peekUnits(units);
 
       if (peekResult.allowed) {
-        // Quota appears available - try to consume it
-        // Must verify checkUnits succeeds (another request could have consumed quota)
-        const consumeResult = await this.checkUnits(units);
-        if (consumeResult.allowed) {
-          return; // Successfully acquired quota
-        }
-        // Race condition: quota was consumed between peek and check
-        // Continue loop to wait and retry
+        // Quota appears available - return and let caller consume
+        // Note: Due to race conditions, actual consumption might still fail,
+        // but that's handled by the caller's retry logic, not here
+        return;
       }
 
       // Wait the suggested time or 100ms minimum

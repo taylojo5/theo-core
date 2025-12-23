@@ -126,8 +126,12 @@ export async function peekRateLimitAsync(
         ttl = config.windowMs;
       }
 
-      const remaining = Math.max(0, config.maxRequests - count);
-      const allowed = count < config.maxRequests;
+      // Use same operator as check (<=) for consistency
+      // This checks: "if we add one more request, would it still be within limits?"
+      const allowed = count + 1 <= config.maxRequests;
+      // Calculate remaining AFTER a hypothetical request (consistent with check's post-increment remaining)
+      // This predicts what check would report after actually making the request
+      const remaining = Math.max(0, config.maxRequests - count - 1);
       const resetAt = new Date(now + ttl);
 
       return {
@@ -209,14 +213,18 @@ function peekRateLimitMemory(
   if (!entry || entry.resetAt < now) {
     return {
       allowed: true,
-      remaining: config.maxRequests,
+      // Predict remaining AFTER a hypothetical request (count would be 1)
+      remaining: config.maxRequests - 1,
       resetAt: new Date(now + config.windowMs),
       retryAfterMs: undefined,
     };
   }
 
-  const remaining = Math.max(0, config.maxRequests - entry.count);
-  const allowed = entry.count < config.maxRequests;
+  // Use same operator as check (<=) for consistency
+  // This checks: "if we add one more request, would it still be within limits?"
+  const allowed = entry.count + 1 <= config.maxRequests;
+  // Calculate remaining AFTER a hypothetical request (consistent with check's post-increment remaining)
+  const remaining = Math.max(0, config.maxRequests - entry.count - 1);
 
   return {
     allowed,
