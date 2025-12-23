@@ -71,11 +71,20 @@ export class CalendarRateLimiter {
   constructor(private userId: string) {}
 
   /**
-   * Check if an operation is allowed under rate limits
+   * Check if an operation is allowed under rate limits AND consume quota
    */
   async check(operation: CalendarOperation): Promise<RateLimitCheckResult> {
     const units = CALENDAR_QUOTA_UNITS[operation];
     return this.checkUnits(units);
+  }
+
+  /**
+   * Peek at operation quota status without consuming any units
+   * Use this for read-only checks before making a consumption decision
+   */
+  async peek(operation: CalendarOperation): Promise<RateLimitCheckResult> {
+    const units = CALENDAR_QUOTA_UNITS[operation];
+    return this.peekUnits(units);
   }
 
   /**

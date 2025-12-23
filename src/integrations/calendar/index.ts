@@ -313,3 +313,28 @@ export type {
   RecurrenceInfo,
 } from "./mappers";
 
+// ─────────────────────────────────────────────────────────────
+// Repository
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Sync state repository
+  calendarSyncStateRepository,
+  // Calendar repository
+  calendarRepository,
+  // Event repository
+  calendarEventRepository,
+  // Approval repository
+  calendarApprovalRepository,
+} from "./repository";
+
+export type {
+  CalendarSyncStateUpdate,
+  CalendarUpdateInput,
+  EventUpdateInput as RepositoryEventUpdateInput,
+  EventSearchQuery,
+  EventSearchResult,
+  ApprovalCreateInput,
+  ApprovalUpdateInput,
+} from "./repository";
+

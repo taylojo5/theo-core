@@ -739,13 +739,28 @@ export class CalendarClient {
         const checkResult = await this.rateLimiter.check(operation);
         if (!checkResult.allowed) {
           // Race condition: quota was consumed between wait and check
-          // Wait the suggested time and try again
+          // The first check already consumed quota, so we need to wait and try again
+          // Use peek first to avoid double consumption on retry
           if (checkResult.waitMs) {
             await this.sleep(checkResult.waitMs);
           }
-          // Retry the quota acquisition
+          
+          // Use peek (read-only) to check if quota is now available
+          const peekResult = await this.rateLimiter.peek(operation);
+          if (!peekResult.allowed) {
+            // Still not available after waiting - throw without consuming more quota
+            throw new CalendarError(
+              CalendarErrorCode.RATE_LIMITED,
+              "Rate limit exceeded after waiting",
+              true,
+              peekResult.waitMs || 1000
+            );
+          }
+          
+          // Quota appears available - consume it now
           const retryResult = await this.rateLimiter.check(operation);
           if (!retryResult.allowed) {
+            // Another race condition - give up to avoid infinite retry loop
             throw new CalendarError(
               CalendarErrorCode.RATE_LIMITED,
               "Rate limit exceeded after retry",
