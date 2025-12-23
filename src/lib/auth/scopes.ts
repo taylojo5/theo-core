@@ -33,6 +33,30 @@ export const ALL_GMAIL_SCOPES = [
 ] as const;
 
 // ─────────────────────────────────────────────────────────────
+// Calendar Scopes
+// ─────────────────────────────────────────────────────────────
+
+export const CALENDAR_SCOPES = {
+  /** Read-only access to Calendar events */
+  READONLY: "https://www.googleapis.com/auth/calendar.readonly",
+  /** Read/write access to Calendar events */
+  EVENTS: "https://www.googleapis.com/auth/calendar.events",
+  /** Read-only access to calendar settings */
+  SETTINGS_READONLY: "https://www.googleapis.com/auth/calendar.settings.readonly",
+} as const;
+
+/** Calendar read-only scopes */
+export const CALENDAR_READ_SCOPES = [
+  CALENDAR_SCOPES.READONLY,
+] as const;
+
+/** All Calendar scopes required for full integration */
+export const ALL_CALENDAR_SCOPES = [
+  CALENDAR_SCOPES.READONLY,
+  CALENDAR_SCOPES.EVENTS,
+] as const;
+
+// ─────────────────────────────────────────────────────────────
 // Scope Sets (for different integration levels)
 // ─────────────────────────────────────────────────────────────
 
@@ -50,6 +74,22 @@ export const SCOPE_SETS = {
 
   /** Full Gmail access (read, send, manage) */
   gmailFull: [...BASE_SCOPES, ...ALL_GMAIL_SCOPES],
+
+  /** Calendar read-only (view events) */
+  calendarReadOnly: [
+    ...BASE_SCOPES,
+    CALENDAR_SCOPES.READONLY,
+  ],
+
+  /** Full Calendar access (read, create, update, delete events) */
+  calendarFull: [...BASE_SCOPES, ...ALL_CALENDAR_SCOPES],
+
+  /** Full integration (Gmail + Calendar) */
+  fullIntegration: [
+    ...BASE_SCOPES,
+    ...ALL_GMAIL_SCOPES,
+    ...ALL_CALENDAR_SCOPES,
+  ],
 } as const;
 
 // ─────────────────────────────────────────────────────────────
@@ -126,14 +166,54 @@ export function hasContactsAccess(grantedScopes: string[]): boolean {
 }
 
 /**
+ * Check if Calendar read access is enabled
+ * Note: calendar.events scope includes read access, so we check for either scope
+ */
+export function hasCalendarReadAccess(grantedScopes: string[]): boolean {
+  return (
+    hasScope(grantedScopes, CALENDAR_SCOPES.READONLY) ||
+    hasScope(grantedScopes, CALENDAR_SCOPES.EVENTS)
+  );
+}
+
+/**
+ * Check if Calendar write access is enabled (can create/update/delete events)
+ */
+export function hasCalendarWriteAccess(grantedScopes: string[]): boolean {
+  return hasScope(grantedScopes, CALENDAR_SCOPES.EVENTS);
+}
+
+/**
+ * Get required Calendar scopes for a specific action
+ */
+export function getRequiredCalendarScopes(
+  action: "read" | "write"
+): readonly string[] {
+  switch (action) {
+    case "read":
+      return CALENDAR_READ_SCOPES;
+    case "write":
+      return ALL_CALENDAR_SCOPES;
+    default:
+      return CALENDAR_READ_SCOPES;
+  }
+}
+
+/**
  * Get a human-readable description of a scope
  */
 export function getScopeDescription(scope: string): string {
   const descriptions: Record<string, string> = {
+    // Gmail scopes
     [GMAIL_SCOPES.READONLY]: "Read your emails",
     [GMAIL_SCOPES.SEND]: "Send emails on your behalf",
     [GMAIL_SCOPES.LABELS]: "View and manage your email labels",
     [GMAIL_SCOPES.CONTACTS_READONLY]: "View your contacts",
+    // Calendar scopes
+    [CALENDAR_SCOPES.READONLY]: "View your calendar events",
+    [CALENDAR_SCOPES.EVENTS]: "Create, update, and delete calendar events",
+    [CALENDAR_SCOPES.SETTINGS_READONLY]: "View your calendar settings",
+    // Base scopes
     openid: "Verify your identity",
     email: "View your email address",
     profile: "View your basic profile info",
@@ -151,34 +231,62 @@ export interface IntegrationStatus {
     canRead: boolean;
     canSend: boolean;
     canManageLabels: boolean;
+    /** Missing scopes for full Gmail access */
+    missingScopes: string[];
   };
   contacts: {
     connected: boolean;
   };
+  calendar: {
+    connected: boolean;
+    canRead: boolean;
+    canWrite: boolean;
+    /** Missing scopes for full Calendar access */
+    missingScopes: string[];
+  };
+  /**
+   * Missing Gmail scopes only (for backward compatibility)
+   * @deprecated Use gmail.missingScopes or calendar.missingScopes instead
+   */
   missingScopes: string[];
 }
 
 export function getIntegrationStatus(
   grantedScopes: string[]
 ): IntegrationStatus {
-  const canRead = hasGmailReadAccess(grantedScopes);
+  // Gmail status
+  const canReadGmail = hasGmailReadAccess(grantedScopes);
   const canSend = hasGmailSendAccess(grantedScopes);
   const canManageLabels = hasScope(grantedScopes, GMAIL_SCOPES.LABELS);
   const hasContacts = hasContactsAccess(grantedScopes);
 
-  const missingScopes = getMissingScopes(grantedScopes, ALL_GMAIL_SCOPES);
+  // Calendar status
+  const canReadCalendar = hasCalendarReadAccess(grantedScopes);
+  const canWriteCalendar = hasCalendarWriteAccess(grantedScopes);
+
+  // Calculate missing scopes per integration
+  const missingGmailScopes = getMissingScopes(grantedScopes, ALL_GMAIL_SCOPES);
+  const missingCalendarScopes = getMissingScopes(grantedScopes, ALL_CALENDAR_SCOPES);
 
   return {
     gmail: {
-      connected: canRead,
-      canRead,
+      connected: canReadGmail,
+      canRead: canReadGmail,
       canSend,
       canManageLabels,
+      missingScopes: missingGmailScopes,
     },
     contacts: {
       connected: hasContacts,
     },
-    missingScopes,
+    calendar: {
+      connected: canReadCalendar,
+      canRead: canReadCalendar,
+      canWrite: canWriteCalendar,
+      missingScopes: missingCalendarScopes,
+    },
+    // Keep backward compatibility - only Gmail scopes as before
+    missingScopes: missingGmailScopes,
   };
 }
 
@@ -187,4 +295,5 @@ export function getIntegrationStatus(
 // ─────────────────────────────────────────────────────────────
 
 export type GmailScope = (typeof GMAIL_SCOPES)[keyof typeof GMAIL_SCOPES];
+export type CalendarScope = (typeof CALENDAR_SCOPES)[keyof typeof CALENDAR_SCOPES];
 export type ScopeSet = keyof typeof SCOPE_SETS;
