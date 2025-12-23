@@ -65,9 +65,11 @@ export const EMBEDDING_MAX_BODY_LENGTH = 2000;
 
 /**
  * Batch size for bulk embedding generation
- * Balances throughput with memory usage and API rate limits
+ * Processing sequentially (1 at a time) to avoid rate limits
+ * The worker already runs multiple jobs concurrently, so this prevents
+ * bursty traffic that triggers OpenAI rate limits
  */
-export const EMBEDDING_BATCH_SIZE = 5;
+export const EMBEDDING_BATCH_SIZE = 1;
 
 /**
  * Batch size for queueing embeddings during full sync
@@ -82,10 +84,12 @@ export const FULL_SYNC_EMBEDDING_BATCH_SIZE = 20;
 export const INCREMENTAL_SYNC_EMBEDDING_BATCH_SIZE = 10;
 
 /**
- * Delay between embedding batches in milliseconds
- * Helps respect rate limits and prevent API throttling
+ * Delay between embedding API calls in milliseconds
+ * Throttles requests to ~40/minute to stay well under OpenAI rate limits
+ * Since this is async background processing, throughput is less important
+ * than reliability
  */
-export const EMBEDDING_BATCH_DELAY_MS = 100;
+export const EMBEDDING_BATCH_DELAY_MS = 1500;
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting Constants

@@ -107,6 +107,31 @@ export async function cleanQueue(
 }
 
 /**
+ * Drain all waiting jobs from a queue
+ * Useful for clearing backlog after config changes
+ */
+export async function drainQueue(queueName: QueueName): Promise<number> {
+  const queue = getQueue(queueName);
+  
+  // Get waiting and delayed jobs and remove them
+  const waiting = await queue.getWaiting();
+  const delayed = await queue.getDelayed();
+  
+  let removed = 0;
+  for (const job of [...waiting, ...delayed]) {
+    try {
+      await job.remove();
+      removed++;
+    } catch {
+      // Job might have been picked up, ignore
+    }
+  }
+  
+  console.log(`[Queue:${queueName}] Drained ${removed} jobs`);
+  return removed;
+}
+
+/**
  * Close all queues gracefully
  */
 export async function closeQueues(): Promise<void> {

@@ -9,7 +9,6 @@ import { emailRepository } from "./repository";
 import { embeddingsLogger } from "./logger";
 import {
   EMBEDDING_MAX_BODY_LENGTH,
-  EMBEDDING_BATCH_SIZE,
   EMBEDDING_BATCH_DELAY_MS,
   MIN_CONTENT_LENGTH_FOR_EMBEDDING,
   SYSTEM_LABELS_TO_FILTER,
@@ -240,7 +239,11 @@ export async function generateEmailEmbeddingById(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Generate embeddings for multiple emails (batched for efficiency)
+ * Generate embeddings for multiple emails (throttled to avoid rate limits)
+ * 
+ * Processes emails sequentially with delays between each API call to prevent
+ * hitting OpenAI rate limits. Since this is async background processing,
+ * throughput is less critical than reliability.
  */
 export async function generateEmailEmbeddings(
   emails: Email[]
@@ -249,30 +252,45 @@ export async function generateEmailEmbeddings(
   let succeeded = 0;
   let failed = 0;
 
-  // Process in batches to avoid overwhelming the API
-  for (let i = 0; i < emails.length; i += EMBEDDING_BATCH_SIZE) {
-    const batch = emails.slice(i, i + EMBEDDING_BATCH_SIZE);
-
-    const batchResults = await Promise.all(
-      batch.map((email) => generateEmailEmbedding(email))
-    );
-
-    for (const result of batchResults) {
+  // Process emails sequentially with throttling to avoid rate limits
+  for (let i = 0; i < emails.length; i++) {
+    const email = emails[i];
+    
+    try {
+      const result = await generateEmailEmbedding(email);
       results.push(result);
+      
       if (result.success) {
         succeeded++;
       } else {
         failed++;
       }
+    } catch (error) {
+      // Catch any unexpected errors to ensure we continue processing
+      const message = error instanceof Error ? error.message : "Unknown error";
+      results.push({
+        emailId: email.id,
+        success: false,
+        error: message,
+      });
+      failed++;
     }
 
-    // Small delay between batches to respect rate limits
-    if (i + EMBEDDING_BATCH_SIZE < emails.length) {
+    // Throttle between each API call to stay under rate limits
+    // Only delay if there are more emails to process
+    if (i < emails.length - 1) {
       await new Promise((resolve) =>
         setTimeout(resolve, EMBEDDING_BATCH_DELAY_MS)
       );
     }
   }
+
+  embeddingsLogger.debug("Bulk embedding complete", {
+    total: emails.length,
+    succeeded,
+    failed,
+    avgDelayMs: EMBEDDING_BATCH_DELAY_MS,
+  });
 
   return {
     total: emails.length,

@@ -35,12 +35,14 @@ type AnyEmbeddingJobData =
 /**
  * Initialize the embedding worker
  * Call this on server startup to start processing embedding jobs
+ * 
+ * Note: Concurrency is set to 1 to prevent rate limiting from OpenAI.
+ * Each job processes emails sequentially with delays between API calls.
  */
 export function initializeEmbeddingWorker() {
   return registerWorker<AnyEmbeddingJobData>(
     QUEUE_NAMES.EMBEDDINGS,
     async (job: Job<AnyEmbeddingJobData>) => {
-      console.log('Embedding worker disabled for now'); return;
       const data = job.data;
       
       // Handle bulk email embedding jobs
@@ -64,7 +66,7 @@ export function initializeEmbeddingWorker() {
       // Handle single entity embedding jobs
       await processSingleEmbedding(data as EmbeddingJobData);
     },
-    { concurrency: 3 }
+    { concurrency: 1 } // Single job at a time to prevent OpenAI rate limits
   );
 }
 
@@ -137,8 +139,12 @@ async function processSingleEmbedding(data: EmbeddingJobData): Promise<void> {
   );
 }
 
+/** Delay between embedding API calls to avoid rate limits */
+const EMBEDDING_THROTTLE_MS = 1500;
+
 /**
  * Process a bulk embedding job
+ * Processes entities sequentially with delays to avoid OpenAI rate limits
  */
 async function processBulkEmbedding(data: BulkEmbedJobData): Promise<void> {
   const { userId, entityType, entityIds } = data;
@@ -147,37 +153,38 @@ async function processBulkEmbedding(data: BulkEmbedJobData): Promise<void> {
     `[EmbeddingWorker] Processing bulk embed for ${entityIds.length} ${entityType}s`
   );
 
-  // Process in batches to avoid overwhelming the API
-  const batchSize = 5;
-  for (let i = 0; i < entityIds.length; i += batchSize) {
-    const batch = entityIds.slice(i, i + batchSize);
-    await Promise.all(
-      batch.map(async (entityId) => {
-        try {
-          const entity = await fetchEntity(entityType, entityId, userId);
-          if (!entity) {
-            console.warn(
-              `[EmbeddingWorker] Entity ${entityType}:${entityId} not found, skipping`
-            );
-            return;
-          }
+  // Process entities sequentially with throttling to avoid rate limits
+  for (let i = 0; i < entityIds.length; i++) {
+    const entityId = entityIds[i];
+    
+    try {
+      const entity = await fetchEntity(entityType, entityId, userId);
+      if (!entity) {
+        console.warn(
+          `[EmbeddingWorker] Entity ${entityType}:${entityId} not found, skipping`
+        );
+        continue;
+      }
 
-          const content = buildEntityContent(entityType, entity);
-          const embeddingService = getEmbeddingService();
-          await embeddingService.storeEntityEmbedding(
-            userId,
-            entityType,
-            entityId,
-            content
-          );
-        } catch (err) {
-          console.error(
-            `[EmbeddingWorker] Failed to embed ${entityType}:${entityId}:`,
-            err
-          );
-        }
-      })
-    );
+      const content = buildEntityContent(entityType, entity);
+      const embeddingService = getEmbeddingService();
+      await embeddingService.storeEntityEmbedding(
+        userId,
+        entityType,
+        entityId,
+        content
+      );
+    } catch (err) {
+      console.error(
+        `[EmbeddingWorker] Failed to embed ${entityType}:${entityId}:`,
+        err
+      );
+    }
+
+    // Throttle between API calls to stay under rate limits
+    if (i < entityIds.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+    }
   }
 }
 

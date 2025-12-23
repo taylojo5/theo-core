@@ -35,6 +35,9 @@ const SENTENCE_ENDINGS = /([.!?])\s+/g;
 /** Paragraph separators for chunking */
 const PARAGRAPH_SEPARATORS = /\n\n+/g;
 
+/** Delay between embedding API calls to avoid rate limits (ms) */
+const EMBEDDING_THROTTLE_MS = 1500;
+
 // ─────────────────────────────────────────────────────────────
 // Embedding Service Implementation
 // ─────────────────────────────────────────────────────────────
@@ -181,7 +184,7 @@ export class EmbeddingService implements IEmbeddingService {
 
   /**
    * Update embedding when entity content changes
-   * Handles chunking for long content
+   * Handles chunking for long content with throttling to avoid rate limits
    */
   async updateEmbedding(
     userId: string,
@@ -198,10 +201,7 @@ export class EmbeddingService implements IEmbeddingService {
     // Chunk content if needed
     const chunks = this.chunkContent(newContent);
 
-    // Generate embeddings for all chunks
-    const embeddings = await this.generateEmbeddings(chunks);
-
-    // Delete existing embeddings with higher chunk indices
+    // Delete existing embeddings with higher chunk indices first
     await db.$executeRaw`
       DELETE FROM "Embedding"
       WHERE "userId" = ${userId}
@@ -210,10 +210,10 @@ export class EmbeddingService implements IEmbeddingService {
         AND "chunkIndex" >= ${chunks.length}
     `;
 
-    // Store each chunk's embedding
+    // Generate and store embeddings for each chunk sequentially with throttling
     for (let i = 0; i < chunks.length; i++) {
       const contentHash = generateContentHash(chunks[i]);
-      const embedding = embeddings[i];
+      const embedding = await this.generateEmbedding(chunks[i]);
 
       await db.$executeRaw`
         INSERT INTO "Embedding" (
@@ -249,6 +249,11 @@ export class EmbeddingService implements IEmbeddingService {
           embedding = EXCLUDED.embedding,
           "updatedAt" = NOW()
       `;
+
+      // Throttle between chunks to avoid rate limits
+      if (i < chunks.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+      }
     }
   }
 
@@ -388,7 +393,8 @@ export class EmbeddingService implements IEmbeddingService {
 
   /**
    * Store embeddings for entity content (with auto-chunking)
-   * This is a convenience method for the common case
+   * This is a convenience method for the common case.
+   * Includes throttling between chunks to avoid OpenAI rate limits.
    */
   async storeEntityEmbedding(
     userId: string,
@@ -415,6 +421,12 @@ export class EmbeddingService implements IEmbeddingService {
         metadata,
       });
       results.push(result);
+
+      // Throttle between chunks to avoid rate limits
+      // Only delay if there are more chunks to process
+      if (i < chunks.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+      }
     }
 
     // Clean up any old chunks beyond current chunk count
