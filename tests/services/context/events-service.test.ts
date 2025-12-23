@@ -87,6 +87,22 @@ const mockEvent: Event = {
   createdAt: new Date("2024-01-01"),
   updatedAt: new Date("2024-01-01"),
   deletedAt: null,
+  // Calendar-specific fields (optional)
+  googleEventId: null,
+  googleCalendarId: null,
+  calendarId: null,
+  recurringEventId: null,
+  recurrence: null,
+  attendees: null,
+  organizer: null,
+  creator: null,
+  conferenceData: null,
+  hangoutLink: null,
+  reminders: null,
+  iCalUID: null,
+  sequence: 0,
+  etag: null,
+  htmlLink: null,
 };
 
 const mockCreateInput: CreateEventInput = {

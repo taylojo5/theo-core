@@ -48,6 +48,11 @@ model User {
   emailLabels    EmailLabel[]
   gmailSyncState GmailSyncState?
   emailApprovals EmailApproval[]
+
+  // Calendar integration
+  calendars         Calendar[]
+  calendarSyncState CalendarSyncState?
+  calendarApprovals CalendarApproval[]
 }
 
 model Account {
@@ -249,17 +254,54 @@ model Event {
   metadata Json     @default("{}")
   tags     String[] @default([])
 
+  // ─────────────────────────────────────────────────────────────
+  // Google Calendar specific fields
+  // ─────────────────────────────────────────────────────────────
+
+  // Google Calendar identifiers
+  googleEventId    String? // Google Calendar event ID
+  googleCalendarId String? // Google Calendar ID this event belongs to
+  calendarId       String? // FK to our Calendar model
+
+  // Recurring events
+  recurringEventId String? // ID of the recurring event this is an instance of
+  recurrence       Json? // Recurrence rules (RRULE, EXDATE, etc.)
+
+  // Participants
+  attendees Json? // Array of attendee objects
+  organizer Json? // Organizer info { email, displayName, self }
+  creator   Json? // Creator info { email, displayName, self }
+
+  // Conferencing
+  conferenceData Json? // Google Meet/conference data
+  hangoutLink    String? // Quick link to Hangout/Meet
+
+  // Reminders
+  reminders Json? // { useDefault, overrides: [] }
+
+  // Sync tracking
+  iCalUID  String? // iCalendar UID
+  sequence Int     @default(0) // Update sequence number
+  etag     String? // ETag for conflict detection
+  htmlLink String? // Link to event in Google Calendar UI
+
   // Timestamps
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  // Relations
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   place     Place?     @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  calendar  Calendar?  @relation(fields: [calendarId], references: [id], onDelete: SetNull)
   deadlines Deadline[]
 
+  // Indexes
   @@index([userId])
   @@index([startsAt])
+  @@index([googleEventId])
+  @@index([googleCalendarId])
+  @@index([userId, googleCalendarId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -585,18 +627,18 @@ model Email {
 
   // Metadata
   labelIds       String[]
-  isRead         Boolean @default(false)
-  isStarred      Boolean @default(false)
-  isImportant    Boolean @default(false)
-  isDraft        Boolean @default(false)
-  hasAttachments Boolean @default(false)
+  isRead         Boolean  @default(false)
+  isStarred      Boolean  @default(false)
+  isImportant    Boolean  @default(false)
+  isDraft        Boolean  @default(false)
+  hasAttachments Boolean  @default(false)
 
   // Attachment info (stored as JSON)
   attachments Json @default("[]")
 
   // Embedding status tracking
   embeddingStatus   String    @default("pending") // pending, processing, completed, failed
-  embeddingError    String?   // Error message if embedding failed
+  embeddingError    String? // Error message if embedding failed
   embeddingAttempts Int       @default(0) // Number of embedding attempts
   embeddedAt        DateTime? // When embedding was last successful
 
@@ -628,7 +670,7 @@ model EmailLabel {
   gmailId      String
   name         String
   type         String // system, user
-  color        Json?  // { textColor, backgroundColor }
+  color        Json? // { textColor, backgroundColor }
   messageCount Int    @default(0)
   unreadCount  Int    @default(0)
 
@@ -660,12 +702,12 @@ model EmailApproval {
   gmailDraftId String? // Gmail's internal draft ID (may differ from draftId)
 
   // Email content snapshot
-  to      String[]
-  cc      String[]
-  bcc     String[]
-  subject String
-  body    String  @db.Text
-  bodyHtml String? @db.Text
+  to       String[]
+  cc       String[]
+  bcc      String[]
+  subject  String
+  body     String   @db.Text
+  bodyHtml String?  @db.Text
 
   // Threading
   threadId  String? // For replies
@@ -675,11 +717,11 @@ model EmailApproval {
   status String @default("pending") // pending, approved, rejected, expired, sent
 
   // Approval metadata
-  requestedAt  DateTime  @default(now())
-  requestedBy  String? // Agent action ID or system
-  expiresAt    DateTime? // Auto-expire approvals
-  decidedAt    DateTime?
-  decidedBy    String? // user, auto_expired
+  requestedAt DateTime  @default(now())
+  requestedBy String? // Agent action ID or system
+  expiresAt   DateTime? // Auto-expire approvals
+  decidedAt   DateTime?
+  decidedBy   String? // user, auto_expired
 
   // Result tracking
   sentMessageId String? // Gmail message ID after sending
@@ -712,15 +754,15 @@ model GmailSyncState {
   userId String @unique
 
   // Sync tracking
-  historyId       String? // Gmail history ID for incremental sync
-  historyIdSetAt  DateTime? // When the history ID was set (for expiration tracking)
-  lastSyncAt      DateTime?
-  lastFullSyncAt  DateTime?
+  historyId      String? // Gmail history ID for incremental sync
+  historyIdSetAt DateTime? // When the history ID was set (for expiration tracking)
+  lastSyncAt     DateTime?
+  lastFullSyncAt DateTime?
 
   // Full sync checkpoint (for resumable sync)
-  fullSyncPageToken   String? // Page token to resume from
-  fullSyncProgress    Int     @default(0) // Emails processed so far
-  fullSyncStartedAt   DateTime? // When full sync started
+  fullSyncPageToken String? // Page token to resume from
+  fullSyncProgress  Int       @default(0) // Emails processed so far
+  fullSyncStartedAt DateTime? // When full sync started
 
   // Status
   syncStatus String  @default("idle") // idle, syncing, error
@@ -737,10 +779,10 @@ model GmailSyncState {
   embeddingsFailed    Int @default(0)
 
   // Sync configuration
-  syncLabels       String[] @default([]) // Labels to sync (empty = all)
-  excludeLabels    String[] @default([]) // Labels to exclude
-  maxEmailAgeDays  Int?     // Only sync emails from last N days
-  syncAttachments  Boolean  @default(false)
+  syncLabels      String[] @default([]) // Labels to sync (empty = all)
+  excludeLabels   String[] @default([]) // Labels to exclude
+  maxEmailAgeDays Int? // Only sync emails from last N days
+  syncAttachments Boolean  @default(false)
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -748,4 +790,138 @@ model GmailSyncState {
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Integration: Calendars
+// ─────────────────────────────────────────────────────────────
+
+model Calendar {
+  id               String @id @default(cuid())
+  userId           String
+  googleCalendarId String // Google Calendar ID
+
+  // Display information
+  name        String // Calendar title/summary
+  description String? // Calendar description
+  timeZone    String? // Calendar timezone (e.g., "America/New_York")
+
+  // Classification
+  isPrimary  Boolean @default(false) // Is this the user's primary calendar?
+  isOwner    Boolean @default(false) // Does the user own this calendar?
+  accessRole String // owner, writer, reader, freeBusyReader
+
+  // Appearance
+  backgroundColor String? // Background color (hex)
+  foregroundColor String? // Foreground/text color (hex)
+
+  // User preferences
+  isSelected Boolean @default(true) // Should events from this calendar be synced?
+  isHidden   Boolean @default(false) // Should this calendar be hidden in UI?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@unique([userId, googleCalendarId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Integration: Sync State
+// ─────────────────────────────────────────────────────────────
+
+model CalendarSyncState {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Sync tokens
+  syncToken      String? // Google Calendar sync token for incremental sync
+  syncTokenSetAt DateTime? // When the sync token was set
+  lastSyncAt     DateTime? // Last successful sync
+  lastFullSyncAt DateTime? // Last full sync
+
+  // Full sync checkpoint (for resumable sync)
+  fullSyncPageToken String? // Page token to resume from
+  fullSyncProgress  Int       @default(0) // Events processed so far
+  fullSyncStartedAt DateTime? // When full sync started
+
+  // Status
+  syncStatus String  @default("idle") // idle, syncing, full_sync, incremental_sync, error, paused
+  syncError  String? // Last sync error message
+
+  // Statistics
+  eventCount    Int @default(0) // Total synced events
+  calendarCount Int @default(0) // Number of calendars
+
+  // Embedding statistics
+  embeddingsPending   Int @default(0)
+  embeddingsCompleted Int @default(0)
+  embeddingsFailed    Int @default(0)
+
+  // Webhook configuration
+  webhookChannelId  String? // Channel ID for push notifications
+  webhookResourceId String? // Resource ID for the watched calendar
+  webhookExpiration DateTime? // When the webhook expires
+
+  // Sync configuration
+  syncCalendarIds    String[] @default([]) // Calendars to sync (empty = all selected)
+  excludeCalendarIds String[] @default([]) // Calendars to exclude
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Integration: Event Approvals
+// ─────────────────────────────────────────────────────────────
+
+model CalendarApproval {
+  id     String @id @default(cuid())
+  userId String
+
+  // Action details
+  actionType String // create, update, delete, respond
+  calendarId String // Target calendar (Google Calendar ID)
+  eventId    String? // Target event ID (for update/delete/respond)
+
+  // Event snapshot (the proposed event data)
+  eventSnapshot Json // Full event data as JSON
+
+  // Approval status
+  status String @default("pending") // pending, approved, rejected, expired, executed, failed
+
+  // Timing
+  requestedAt DateTime  @default(now())
+  requestedBy String? // Agent action ID or identifier
+  expiresAt   DateTime? // Auto-expire time
+  decidedAt   DateTime? // When user decided
+  decidedBy   String? // user, auto_expired, system
+
+  // Result tracking
+  resultEventId String? // Created/updated event ID after execution
+  errorMessage  String? // Error if execution failed
+
+  // Context
+  notes    String? @db.Text // User notes or rejection reason
+  metadata Json    @default("{}") // Additional context
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@index([userId, requestedAt(sort: Desc)])
 }
