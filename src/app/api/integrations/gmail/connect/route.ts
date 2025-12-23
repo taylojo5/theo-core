@@ -5,10 +5,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { checkGmailScopes, generateUpgradeUrl } from "@/lib/auth/scope-upgrade";
-import { ALL_GMAIL_SCOPES } from "@/lib/auth/scopes";
+import { checkGmailScopes } from "@/lib/auth/scope-upgrade";
+import { ALL_GMAIL_SCOPES, formatScopes, BASE_SCOPES } from "@/lib/auth/scopes";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
-import { withCsrfProtection } from "@/lib/csrf";
 import {
   startRecurringSync,
   hasRecurringSync,
@@ -30,7 +29,17 @@ interface ConnectRequest {
 interface ConnectResponse {
   success: boolean;
   alreadyConnected?: boolean;
-  authUrl?: string;
+  /** If true, client should call signIn("google", ...) with authorizationParams */
+  signInRequired?: boolean;
+  /** Authorization params to pass to signIn() */
+  authorizationParams?: {
+    scope: string;
+    prompt: string;
+    access_type: string;
+    include_granted_scopes: string;
+  };
+  /** Callback URL for after OAuth completes */
+  callbackUrl?: string;
   message?: string;
   error?: string;
 }
@@ -75,10 +84,6 @@ export async function POST(
     // Empty body is fine
   }
 
-  // CSRF protection - critical for initiating OAuth connections
-  const csrfError = await withCsrfProtection(request, body, headers);
-  if (csrfError) return csrfError as NextResponse<ConnectResponse>;
-
   // Check current Gmail scope status
   const scopeCheck = await checkGmailScopes(userId);
 
@@ -109,30 +114,29 @@ export async function POST(
     );
   }
 
-  // Generate state parameter for OAuth flow
-  // This encodes the user ID and optional redirect URL
-  const state = Buffer.from(
-    JSON.stringify({
-      userId,
-      redirectUrl: body.redirectUrl || "/settings/integrations/gmail",
-      action: "gmail-connect",
-      timestamp: Date.now(),
-    })
-  ).toString("base64url");
-
-  // Generate OAuth URL with Gmail scopes
-  const authUrl = generateUpgradeUrl(ALL_GMAIL_SCOPES, state);
-
   // Check if user has any Gmail-specific scopes already
   // (not just base scopes like openid, email, profile)
   const hasAnyGmailScopes = scopeCheck.grantedScopes.some((scope) =>
     ALL_GMAIL_SCOPES.includes(scope as (typeof ALL_GMAIL_SCOPES)[number])
   );
 
+  // Build the full scope string including base scopes
+  const allScopes = [...BASE_SCOPES, ...ALL_GMAIL_SCOPES];
+  const scopeString = formatScopes(allScopes);
+
+  // Return info for client to use NextAuth's signIn() function
+  // This ensures proper PKCE handling
   return NextResponse.json(
     {
       success: true,
-      authUrl,
+      signInRequired: true,
+      authorizationParams: {
+        scope: scopeString,
+        prompt: "consent",
+        access_type: "offline",
+        include_granted_scopes: "true",
+      },
+      callbackUrl: body.redirectUrl || "/settings/integrations/gmail",
       message: hasAnyGmailScopes
         ? "Additional permissions required for Gmail"
         : "Authorization required to connect Gmail",
@@ -143,7 +147,7 @@ export async function POST(
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/integrations/gmail/connect
-// Returns connection status and upgrade URL if needed
+// Returns connection status
 // ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest): Promise<
@@ -151,7 +155,6 @@ export async function GET(request: NextRequest): Promise<
     connected: boolean;
     hasRequiredScopes: boolean;
     missingScopes: string[];
-    upgradeUrl?: string;
   }>
 > {
   // Apply rate limiting
@@ -164,7 +167,6 @@ export async function GET(request: NextRequest): Promise<
       connected: boolean;
       hasRequiredScopes: boolean;
       missingScopes: string[];
-      upgradeUrl?: string;
     }>;
 
   const session = await auth();
@@ -187,7 +189,6 @@ export async function GET(request: NextRequest): Promise<
       connected: scopeCheck.hasRequiredScopes,
       hasRequiredScopes: scopeCheck.hasRequiredScopes,
       missingScopes: scopeCheck.missingScopes,
-      upgradeUrl: scopeCheck.upgradeUrl,
     },
     { headers }
   );

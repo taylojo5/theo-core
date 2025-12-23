@@ -33,6 +33,7 @@ vi.mock("bullmq", () => ({
 // Mock Redis
 vi.mock("@/lib/redis", () => ({
   redis: {},
+  bullmqRedis: {},
 }));
 
 // Import after mocking

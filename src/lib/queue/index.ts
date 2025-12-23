@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Queue, Job } from "bullmq";
-import { redis } from "@/lib/redis";
+import { bullmqRedis } from "@/lib/redis";
 
 // Queue registry
 const queues = new Map<string, Queue>();
@@ -33,7 +33,7 @@ export function getQueue(name: QueueName): Queue {
     queues.set(
       name,
       new Queue(name, {
-        connection: redis,
+        connection: bullmqRedis,
         defaultJobOptions: {
           attempts: 3,
           backoff: {

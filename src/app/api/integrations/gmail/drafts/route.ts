@@ -14,7 +14,6 @@ import {
 import { apiLogger } from "@/integrations/gmail";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
-import { withCsrfProtection } from "@/lib/csrf";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -123,18 +122,13 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate body
     const body = await request.json();
-
-    // CSRF protection - critical for creating drafts
-    const csrfError = await withCsrfProtection(request, body, headers);
-    if (csrfError) return csrfError;
-
     const parseResult = CreateDraftSchema.safeParse(body);
 
     if (!parseResult.success) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: parseResult.error.errors,
+          details: parseResult.error.issues,
         },
         { status: 400, headers }
       );

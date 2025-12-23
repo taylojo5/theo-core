@@ -120,7 +120,9 @@ const status = getIntegrationStatus(scopes);
 ### Scope Upgrade Flow
 
 ```typescript
-import { checkGmailScopes, generateUpgradeUrl } from "@/lib/auth/scope-upgrade";
+import { checkGmailScopes } from "@/lib/auth/scope-upgrade";
+import { signIn } from "next-auth/react";
+import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 
 // Check current scope status
 const result = await checkGmailScopes(userId);
@@ -128,14 +130,21 @@ const result = await checkGmailScopes(userId);
 //   hasRequiredScopes: false,
 //   grantedScopes: ["openid", "email", "profile"],
 //   missingScopes: ["gmail.readonly", ...],
-//   upgradeUrl: "https://accounts.google.com/o/oauth2/..."
 // }
 
-// Generate upgrade URL with custom state
-const authUrl = generateUpgradeUrl(
-  ALL_GMAIL_SCOPES,
-  Buffer.from(JSON.stringify({ userId, redirectUrl })).toString("base64url")
-);
+// If scopes are missing, trigger upgrade via NextAuth signIn (handles PKCE properly)
+if (!result.hasRequiredScopes) {
+  const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
+  signIn("google",
+    { callbackUrl: "/settings/integrations/gmail" },
+    {
+      scope: scopeString,
+      prompt: "consent",
+      access_type: "offline",
+      include_granted_scopes: "true",
+    }
+  );
+}
 ```
 
 ---

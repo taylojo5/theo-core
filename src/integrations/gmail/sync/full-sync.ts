@@ -15,7 +15,11 @@ import {
 } from "../mappers";
 import { GmailError, GmailErrorCode } from "../errors";
 import { syncLogger } from "../logger";
-import { FULL_SYNC_MAX_PAGES, MESSAGE_FETCH_CONCURRENCY } from "../constants";
+import {
+  FULL_SYNC_MAX_PAGES,
+  MESSAGE_FETCH_CONCURRENCY,
+  getMaxEmailsLimit,
+} from "../constants";
 import { queueFullSyncEmbeddings } from "./utils";
 import { logAuditEntry } from "@/services/audit";
 import { db } from "@/lib/db";
@@ -31,15 +35,23 @@ import type {
 // Default Options
 // ─────────────────────────────────────────────────────────────
 
-const DEFAULT_OPTIONS: Omit<Required<FullSyncOptions>, "afterDate"> & {
+/**
+ * Get default options for full sync
+ * Uses getMaxEmailsLimit() to respect GMAIL_DEV_MODE feature flag
+ */
+function getDefaultOptions(): Omit<Required<FullSyncOptions>, "afterDate"> & {
   afterDate?: Date;
-} = {
-  maxEmails: 1000,
-  labelIds: [],
-  afterDate: undefined,
-  pageSize: 100,
-  resumeFromCheckpoint: false,
-};
+} {
+  const maxEmails = getMaxEmailsLimit();
+  
+  return {
+    maxEmails,
+    labelIds: [],
+    afterDate: undefined,
+    pageSize: 100,
+    resumeFromCheckpoint: false,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────
 // Full Sync Implementation
@@ -69,7 +81,7 @@ export async function fullSync(
   onProgress?: (progress: FullSyncProgress) => void
 ): Promise<EmailSyncResult> {
   const startTime = Date.now();
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = { ...getDefaultOptions(), ...options };
 
   const result: EmailSyncResult = {
     syncType: "full",

@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
-import { withCsrfProtection } from "@/lib/csrf";
 import { unauthorized, validationError, handleApiError } from "@/lib/api";
 import {
   triggerSync,
@@ -48,10 +47,6 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json().catch(() => ({}));
-
-    // CSRF protection - critical for triggering syncs
-    const csrfError = await withCsrfProtection(req, body, headers);
-    if (csrfError) return csrfError;
     const syncType = body.type as "auto" | "full" | "incremental" | undefined;
     const enableRecurring = body.enableRecurring as boolean | undefined;
 
@@ -139,16 +134,12 @@ export async function PATCH(req: NextRequest) {
     // Parse request body
     const body = await req.json().catch(() => ({}));
 
-    // CSRF protection
-    const csrfError = await withCsrfProtection(req, body, headers);
-    if (csrfError) return csrfError;
-
     // Validate config
     const parseResult = SyncConfigSchema.safeParse(body);
     if (!parseResult.success) {
       return validationError(
         "Invalid sync configuration",
-        parseResult.error.errors,
+        parseResult.error.issues,
         headers
       );
     }
@@ -194,10 +185,6 @@ export async function DELETE(req: NextRequest) {
     RATE_LIMITS.gmailSync
   );
   if (rateLimitResponse) return rateLimitResponse;
-
-  // CSRF protection - critical for cancelling syncs
-  const csrfError = await withCsrfProtection(req, undefined, headers);
-  if (csrfError) return csrfError;
 
   try {
     // Authenticate

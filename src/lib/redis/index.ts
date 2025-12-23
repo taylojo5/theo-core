@@ -8,6 +8,7 @@ import Redis from "ioredis";
 // Prevent multiple instances in development
 declare global {
   var redis: Redis | undefined;
+  var bullmqRedis: Redis | undefined;
 }
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -46,12 +47,46 @@ function createRedisClient(): Redis {
   return client;
 }
 
-// Export singleton instance
+/**
+ * Create Redis client for BullMQ
+ * BullMQ requires maxRetriesPerRequest: null because it handles retries internally
+ */
+function createBullMQRedisClient(): Redis {
+  const client = new Redis(redisUrl, {
+    maxRetriesPerRequest: null, // Required by BullMQ
+    lazyConnect: true,
+    retryStrategy(times) {
+      const delay = Math.min(times * 100, 30000);
+      console.log(`[Redis:BullMQ] Retry attempt ${times}, waiting ${delay}ms`);
+      return delay;
+    },
+    reconnectOnError(err) {
+      const targetErrors = ["READONLY", "ECONNRESET", "ETIMEDOUT"];
+      return targetErrors.some((e) => err.message.includes(e));
+    },
+  });
+
+  client.on("connect", () => {
+    console.log("[Redis:BullMQ] Connected");
+  });
+
+  client.on("error", (err) => {
+    console.error("[Redis:BullMQ] Error:", err.message);
+  });
+
+  return client;
+}
+
+// Export singleton instances
 export const redis = globalThis.redis ?? createRedisClient();
 
-// Preserve instance across hot reloads in development
+/** Redis client configured for BullMQ (maxRetriesPerRequest: null) */
+export const bullmqRedis = globalThis.bullmqRedis ?? createBullMQRedisClient();
+
+// Preserve instances across hot reloads in development
 if (process.env.NODE_ENV !== "production") {
   globalThis.redis = redis;
+  globalThis.bullmqRedis = bullmqRedis;
 }
 
 // ─────────────────────────────────────────────────────────────

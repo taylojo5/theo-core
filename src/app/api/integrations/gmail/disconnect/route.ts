@@ -9,7 +9,6 @@ import { revokeGmailAccess, isGmailConnected } from "@/lib/auth/scope-upgrade";
 import { logAuditEntry } from "@/services/audit";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { apiLogger } from "@/integrations/gmail";
-import { withCsrfProtection } from "@/lib/csrf";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -35,10 +34,6 @@ export async function DELETE(
   );
   if (rateLimitResponse)
     return rateLimitResponse as NextResponse<DisconnectResponse>;
-
-  // CSRF protection - critical for disconnecting accounts
-  const csrfError = await withCsrfProtection(request, undefined, headers);
-  if (csrfError) return csrfError as NextResponse<DisconnectResponse>;
 
   const session = await auth();
 

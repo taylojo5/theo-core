@@ -113,6 +113,41 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
+
+        // Update account scopes in database when user re-authenticates
+        // This is necessary because linkAccount event only fires for NEW accounts,
+        // not when an existing user re-authenticates with additional scopes
+        if (account.scope && user?.id) {
+          try {
+            // Encrypt tokens and update account with new scopes
+            const encryptedAccessToken = await encryptToken(account.access_token);
+            const encryptedRefreshToken = await encryptToken(
+              account.refresh_token
+            );
+            const encryptedIdToken = await encryptToken(account.id_token);
+
+            await db.account.updateMany({
+              where: {
+                userId: user.id,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+              data: {
+                access_token: encryptedAccessToken,
+                refresh_token: encryptedRefreshToken,
+                id_token: encryptedIdToken,
+                scope: account.scope,
+                expires_at: account.expires_at,
+              },
+            });
+
+            console.log(
+              `[Auth] Updated account scopes for user ${user.id}: ${account.scope}`
+            );
+          } catch (error) {
+            console.error("[Auth] Failed to update account scopes:", error);
+          }
+        }
       }
       return token;
     },
@@ -182,25 +217,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // Check if Gmail scopes were granted
+      // Note: We don't trigger sync here to avoid bundling Gmail sync code in Edge runtime.
+      // The sync is triggered via the /api/integrations/gmail/sync endpoint after redirect.
       if (account.provider === "google" && account.scope && user.id) {
         const grantedScopes = parseScopes(account.scope);
         const hasGmailScopes = hasAllScopes(grantedScopes, ALL_GMAIL_SCOPES);
 
         if (hasGmailScopes) {
-          // Dynamically import to avoid bundling issues
-          try {
-            const { startRecurringSync, triggerSync } =
-              await import("@/integrations/gmail");
-            // Start recurring sync for the user
-            await startRecurringSync(user.id);
-            // Trigger an immediate sync
-            await triggerSync(user.id);
-            console.log(
-              `[Auth] Started auto-sync for user ${user.id} after Gmail connect`
-            );
-          } catch (error) {
-            console.error(`[Auth] Failed to start auto-sync:`, error);
-          }
+          console.log(
+            `[Auth] Gmail scopes granted for user ${user.id}. Sync should be triggered via API.`
+          );
         }
       }
     },

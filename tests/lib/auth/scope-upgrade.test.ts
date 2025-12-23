@@ -3,8 +3,6 @@ import {
   getUserGrantedScopes,
   checkUserScopes,
   checkGmailScopes,
-  generateUpgradeUrl,
-  generateScopeSetUpgradeUrl,
   updateUserScopes,
   removeUserScopes,
   isGmailConnected,
@@ -86,10 +84,9 @@ describe("Scope Upgrade Utilities", () => {
 
       expect(result.hasRequiredScopes).toBe(true);
       expect(result.missingScopes).toEqual([]);
-      expect(result.upgradeUrl).toBeUndefined();
     });
 
-    it("should return missing scopes and upgrade URL when scopes missing", async () => {
+    it("should return missing scopes when scopes are missing", async () => {
       vi.mocked(db.account.findFirst).mockResolvedValue({
         scope: GMAIL_SCOPES.READONLY,
       } as never);
@@ -98,8 +95,6 @@ describe("Scope Upgrade Utilities", () => {
 
       expect(result.hasRequiredScopes).toBe(false);
       expect(result.missingScopes).toContain(GMAIL_SCOPES.SEND);
-      expect(result.upgradeUrl).toBeDefined();
-      expect(result.upgradeUrl).toContain("accounts.google.com");
     });
 
     it("should return all scopes as missing for non-existent account", async () => {
@@ -123,66 +118,6 @@ describe("Scope Upgrade Utilities", () => {
 
       expect(result.hasRequiredScopes).toBe(true);
       expect(result.missingScopes).toEqual([]);
-    });
-  });
-
-  describe("generateUpgradeUrl", () => {
-    it("should generate valid Google OAuth URL", () => {
-      const url = generateUpgradeUrl(ALL_GMAIL_SCOPES);
-      const parsedUrl = new URL(url);
-
-      expect(parsedUrl.hostname).toBe("accounts.google.com");
-      expect(parsedUrl.pathname).toBe("/o/oauth2/v2/auth");
-      expect(parsedUrl.searchParams.get("client_id")).toBe("test-client-id");
-      expect(parsedUrl.searchParams.get("access_type")).toBe("offline");
-      expect(parsedUrl.searchParams.get("prompt")).toBe("consent");
-      expect(parsedUrl.searchParams.get("include_granted_scopes")).toBe("true");
-    });
-
-    it("should include all requested scopes", () => {
-      const url = generateUpgradeUrl(ALL_GMAIL_SCOPES);
-      const parsedUrl = new URL(url);
-      const scopes = parsedUrl.searchParams.get("scope")!;
-
-      for (const scope of ALL_GMAIL_SCOPES) {
-        expect(scopes).toContain(scope);
-      }
-    });
-
-    it("should include state parameter when provided", () => {
-      const url = generateUpgradeUrl(ALL_GMAIL_SCOPES, "test-state");
-      const parsedUrl = new URL(url);
-
-      expect(parsedUrl.searchParams.get("state")).toBe("test-state");
-    });
-
-    it("should throw when GOOGLE_CLIENT_ID is not set", () => {
-      vi.stubEnv("GOOGLE_CLIENT_ID", "");
-
-      expect(() => generateUpgradeUrl(ALL_GMAIL_SCOPES)).toThrow(
-        "GOOGLE_CLIENT_ID is not configured"
-      );
-    });
-  });
-
-  describe("generateScopeSetUpgradeUrl", () => {
-    it("should generate URL for basic scope set", () => {
-      const url = generateScopeSetUpgradeUrl("basic");
-      const parsedUrl = new URL(url);
-      const scopes = parsedUrl.searchParams.get("scope")!;
-
-      expect(scopes).toContain("openid");
-      expect(scopes).toContain("email");
-      expect(scopes).toContain("profile");
-    });
-
-    it("should generate URL for gmail-full scope set", () => {
-      const url = generateScopeSetUpgradeUrl("gmailFull");
-      const parsedUrl = new URL(url);
-      const scopes = parsedUrl.searchParams.get("scope")!;
-
-      expect(scopes).toContain(GMAIL_SCOPES.READONLY);
-      expect(scopes).toContain(GMAIL_SCOPES.SEND);
     });
   });
 

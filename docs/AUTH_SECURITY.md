@@ -721,15 +721,27 @@ Theo supports upgrading OAuth scopes without requiring complete re-authenticatio
 ```typescript
 import {
   checkGmailScopes,
-  generateUpgradeUrl,
   isGmailConnected,
 } from "@/lib/auth/scope-upgrade";
+import { signIn } from "next-auth/react";
+import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 
 // Check if user has Gmail scopes
 const { hasRequiredScopes, missingScopes } = await checkGmailScopes(userId);
 
-// Generate OAuth URL for scope upgrade
-const authUrl = generateUpgradeUrl(ALL_GMAIL_SCOPES, state);
+// Trigger scope upgrade using NextAuth signIn (handles PKCE properly)
+if (!hasRequiredScopes) {
+  const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
+  signIn("google",
+    { callbackUrl: "/settings/integrations/gmail" },
+    {
+      scope: scopeString,
+      prompt: "consent",
+      access_type: "offline",
+      include_granted_scopes: "true",
+    }
+  );
+}
 
 // Quick check if Gmail is connected
 const connected = await isGmailConnected(userId);

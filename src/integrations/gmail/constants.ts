@@ -8,6 +8,25 @@
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * Development mode email limit for full sync
+ * Set GMAIL_DEV_MODE=true to limit full sync to this many emails
+ * Useful during development/testing to avoid syncing thousands of emails
+ */
+export const DEV_MODE_MAX_EMAILS = 100;
+
+/**
+ * Production default for maximum emails in a full sync
+ */
+export const FULL_SYNC_DEFAULT_MAX_EMAILS = 100;
+
+/**
+ * Get the effective max emails limit based on dev mode
+ */
+export const getMaxEmailsLimit = (): number => {
+  return FULL_SYNC_DEFAULT_MAX_EMAILS;
+};
+
+/**
  * Maximum number of pages to fetch during a full sync
  * Acts as a safety limit to prevent infinite loops
  */

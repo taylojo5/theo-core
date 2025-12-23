@@ -51,6 +51,12 @@ export interface IntegrationAction<TParams = unknown, TResult = unknown> {
 
 /**
  * Base integration interface that all integrations must implement
+ *
+ * Note: OAuth authentication should be handled via NextAuth.js signIn():
+ * ```typescript
+ * import { signIn } from "next-auth/react";
+ * signIn("google", { callbackUrl }, { scope: "...", prompt: "consent" });
+ * ```
  */
 export interface Integration {
   // Metadata
@@ -62,9 +68,7 @@ export interface Integration {
   // Capabilities
   capabilities: IntegrationCapability[];
 
-  // OAuth
-  getAuthUrl(scopes: string[], state?: string): Promise<string>;
-  handleCallback(code: string, state?: string): Promise<TokenSet>;
+  // Token management (server-side operations)
   refreshToken(refreshToken: string): Promise<TokenSet>;
   revokeAccess(): Promise<void>;
 

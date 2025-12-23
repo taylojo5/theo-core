@@ -419,404 +419,103 @@ export class GmailSyncWorker {
 
 ## Phase 4: Google Calendar Integration (Weeks 11-13)
 
-> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
+> **See**: [PHASE_4_CALENDAR.md](./phase-4/PHASE_4_CALENDAR.md) for full specification
 
 ### Goals
 
 - Google OAuth with Calendar scopes
-- Event sync pipeline
-- Calendar read/write actions
-- Event creation and updates
+- Calendar and event sync pipeline
+- Event read/write actions with approval workflow
+- Bi-directional sync (Theo → Google, Google → Theo)
+- Integration with existing Event/Deadline context entities
 
-### 4.1 OAuth Enhancement
+### 4.1 Core Components
 
-Add Calendar scopes to Google OAuth config:
+- **CalendarClient**: Thin wrapper over Google Calendar API with rate limiting
+- **CalendarRepository**: Database operations for calendar data
+- **CalendarSyncService**: Full sync, incremental sync, webhook handling
+- **CalendarActions**: Agent-facing actions with approval workflow
 
-```typescript
-authorization: {
-  params: {
-    scope: "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar",
-    access_type: "offline",
-    prompt: "consent",
-  },
-}
-```
+### 4.2 Sync Strategy
 
-### 4.2 Calendar Client
+- **Full Sync**: Initial import with resume support
+- **Incremental Sync**: Delta updates using sync tokens
+- **Push Notifications**: Real-time updates via Google webhooks
 
-```typescript
-// src/integrations/calendar/client.ts
-export class CalendarClient {
-  constructor(accessToken: string);
+### 4.3 Agent Integration
 
-  async listCalendars(): Promise<Calendar[]>;
-  async listEvents(
-    calendarId: string,
-    options?: ListOptions
-  ): Promise<CalendarEvent[]>;
-  async getEvent(calendarId: string, eventId: string): Promise<CalendarEvent>;
-  async createEvent(
-    calendarId: string,
-    event: CreateEventInput
-  ): Promise<CalendarEvent>;
-  async updateEvent(
-    calendarId: string,
-    eventId: string,
-    event: UpdateEventInput
-  ): Promise<CalendarEvent>;
-  async deleteEvent(calendarId: string, eventId: string): Promise<void>;
-}
-```
-
-### 4.3 Sync Worker
-
-```typescript
-// src/integrations/calendar/sync/worker.ts
-export class CalendarSyncWorker {
-  async syncEvents(userId: string, options?: SyncOptions): Promise<SyncResult>;
-  async processEvent(event: CalendarEvent): Promise<ProcessedEvent>;
-}
-```
+- Calendar query tools (list events, check availability)
+- Event management tools (create, update, delete with approval)
+- Conflict detection and resolution
+- Context injection for schedule awareness
 
 ### Deliverables
 
-- [ ] Calendar OAuth working
-- [ ] Token refresh implemented
-- [ ] Calendar list working
-- [ ] Event list/read working
-- [ ] Event create/update working
-- [ ] Sync runs on schedule
-- [ ] Events processed into context (Event entities, Deadlines)
+- [ ] Calendar OAuth with scope upgrade flow
+- [ ] CalendarSyncState and Calendar tables
+- [ ] Event model extended with calendar fields
+- [ ] EventApproval table and workflow
+- [ ] Full sync with resume support
+- [ ] Incremental sync with sync tokens
+- [ ] Webhook handler for push notifications
+- [ ] Agent tools for calendar operations
+- [ ] Approval UI components
+- [ ] Events/Deadlines processed into context
 
 ---
 
 ## Phase 5: Agent Engine (Weeks 14-17)
 
+> **See**: [PHASE_5_AGENT_ENGINE.md](./phase-5/PHASE_5_AGENT_ENGINE.md) for full specification  
+> **See also**: [AGENTIC_FRAMEWORK.md](../AGENTIC_FRAMEWORK.md) for architectural concepts
+
 ### Goals
 
-- Intent understanding
-- Context-aware responses
-- Multi-step planning
-- Tool execution
+- Intent understanding from natural language
+- Context-aware response generation
+- Tool execution framework with type-safe definitions
+- Multi-step planning for complex requests
+- Action approval workflow for user control
+- Full audit trail for transparency
 
-### 5.1 Agent Core
+### 5.1 Core Components
 
-```typescript
-// src/lib/agent/engine.ts
-export class AgentEngine {
-  async processMessage(
-    message: string,
-    context: AgentContext
-  ): Promise<AgentResponse>;
-  async executePlan(plan: Plan): Promise<PlanResult>;
-}
-```
+- **Agent Engine**: Main orchestrator for message processing
+- **Intent Analyzer**: Extract intent, entities, and assumptions
+- **Context Retrieval Service**: Multi-source context gathering
+- **Planner**: Goal decomposition and step sequencing
+- **Tool Registry**: Type-safe tool definitions and execution
 
 ### 5.2 Tool System
 
-```typescript
-// src/lib/agent/tools/index.ts
-export const tools = {
-  query_context: queryContextTool,
-  create_task: createTaskTool,
-  send_email: sendEmailTool,
-  search_emails: searchEmailsTool,
-  create_calendar_event: createCalendarEventTool,
-  list_calendar_events: listCalendarEventsTool,
-  send_slack: sendSlackTool,
-  search_products: searchProductsTool,
-  add_to_cart: addToCartTool,
-};
-```
+Core tools across categories:
+- **Query**: `query_context`, `search_emails`, `list_calendar_events`, `check_availability`
+- **Action**: `create_task`, `update_task`, `send_email`, `create_calendar_event`
+- **External**: Integration-specific tools with approval requirements
 
-### 5.3 Planning System
+### 5.3 Approval Workflow
 
-```typescript
-// src/lib/agent/planner.ts
-export class Planner {
-  async createPlan(goal: Goal, context: PlanningContext): Promise<Plan>;
-  async validatePlan(plan: Plan): Promise<ValidationResult>;
-}
-```
+- User-configurable autonomy levels per action type
+- Approval states: `pending`, `approved`, `rejected`, `expired`, `executed`
+- SSE streaming for real-time approval requests
 
 ### Deliverables
 
-- [ ] Intent understanding working
-- [ ] Context retrieval for responses
-- [ ] Tool execution framework
-- [ ] Multi-step planning
-- [ ] Action approval workflow
-- [ ] Full audit trail for agent actions
+- [ ] Agent engine with message processing pipeline
+- [ ] Intent analyzer with entity extraction
+- [ ] Context retrieval from all sources
+- [ ] Tool registry with core tools
+- [ ] Multi-step plan generation and execution
+- [ ] Action approval workflow with UI
+- [ ] Full audit trail with assumption tracking
+- [ ] SSE streaming for responses
+- [ ] Confidence thresholds and safety guardrails
 
 ---
 
-## Phase 6: Slack Integration (Weeks 18-20)
+## Phase 6: Memory System (Weeks 18-20)
 
-> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
-
-### Goals
-
-- Slack OAuth
-- Workspace user import
-- Channel message sync
-- Message send action
-
-### 6.1 Slack OAuth
-
-```typescript
-// src/integrations/slack/auth.ts
-export async function getSlackAuthUrl(userId: string): Promise<string>;
-export async function handleSlackCallback(
-  code: string,
-  userId: string
-): Promise<void>;
-```
-
-### 6.2 Slack Client
-
-```typescript
-// src/integrations/slack/client.ts
-export class SlackClient {
-  constructor(accessToken: string);
-
-  async listUsers(): Promise<SlackUser[]>;
-  async listChannels(): Promise<SlackChannel[]>;
-  async getChannelHistory(
-    channelId: string,
-    options?: HistoryOptions
-  ): Promise<SlackMessage[]>;
-  async sendMessage(params: SendMessageParams): Promise<void>;
-}
-```
-
-### 6.3 Real-time Events (Optional)
-
-Socket Mode for real-time message events.
-
-### Deliverables
-
-- [ ] Slack OAuth working
-- [ ] User import working
-- [ ] Channel list/read working
-- [ ] Message history sync
-- [ ] Message send working
-- [ ] People created from Slack users
-
----
-
-## Phase 7: Kroger Integration (Weeks 21-23)
-
-> **Architecture Note**: Design this integration as a self-contained module with clear boundaries (API contracts, message-based communication patterns) to enable extraction to a standalone microservice in the future.
-
-> **Rate Limit Note**: Kroger API has a limit of 10,000 calls/day. Implement aggressive caching: store product information in the database with a long TTL (7-30 days for stable product data). Always consult the local DB cache before making API calls.
-
-### Goals
-
-- Kroger OAuth authentication
-- Product search and browsing with local caching
-- Shopping list management with DB-first lookups
-- Recipe and preference context for smart ingredient selection
-- Order history access
-
-### 7.1 Kroger OAuth
-
-```typescript
-// src/integrations/kroger/auth.ts
-export async function getKrogerAuthUrl(userId: string): Promise<string>;
-export async function handleKrogerCallback(
-  code: string,
-  userId: string
-): Promise<void>;
-export async function refreshKrogerToken(userId: string): Promise<void>;
-```
-
-### 7.2 Product Cache
-
-```typescript
-// src/integrations/kroger/cache.ts
-export class KrogerProductCache {
-  // TTL: 7-30 days for product data (rarely changes)
-  private readonly PRODUCT_TTL_DAYS = 14;
-
-  async getCachedProduct(productId: string): Promise<KrogerProduct | null>;
-  async getCachedProducts(query: string): Promise<KrogerProduct[] | null>;
-  async cacheProduct(product: KrogerProduct): Promise<void>;
-  async cacheSearchResults(
-    query: string,
-    products: KrogerProduct[]
-  ): Promise<void>;
-  async invalidateProduct(productId: string): Promise<void>;
-}
-```
-
-### 7.3 Kroger Client
-
-```typescript
-// src/integrations/kroger/client.ts
-export class KrogerClient {
-  constructor(accessToken: string, cache: KrogerProductCache);
-
-  // DB-first: checks cache before API call
-  async searchProducts(
-    query: string,
-    options?: SearchOptions
-  ): Promise<KrogerProduct[]>;
-  async getProduct(productId: string): Promise<KrogerProduct>;
-  async getLocations(
-    zipCode: string,
-    options?: LocationOptions
-  ): Promise<KrogerLocation[]>;
-  async getCart(): Promise<CartItem[]>;
-  async addToCart(productId: string, quantity: number): Promise<void>;
-  async removeFromCart(productId: string): Promise<void>;
-}
-```
-
-### 7.4 Recipe & Preference Context
-
-```typescript
-// src/integrations/kroger/context.ts
-
-// User preferences for product selection
-export interface ProductPreferences {
-  preferred: ProductPreference[]; // Brands/products user prefers
-  avoided: ProductPreference[]; // Allergies, dislikes, dietary restrictions
-  substitutions: SubstitutionRule[]; // e.g., "always use oat milk instead of dairy"
-}
-
-export interface ProductPreference {
-  type: "brand" | "product" | "category" | "ingredient";
-  value: string;
-  reason?: string; // "allergy", "taste", "dietary", "budget"
-}
-
-export interface SubstitutionRule {
-  original: string;
-  substitute: string;
-  context?: string; // When to apply: "always", "if_available", "for_recipe:X"
-}
-
-// Recipe context for smart ingredient lists
-export interface Recipe {
-  id: string;
-  userId: string;
-  name: string;
-  source?: string; // URL, cookbook, custom
-  ingredients: RecipeIngredient[];
-  servings: number;
-  notes?: string;
-  preferredProducts?: string[]; // Specific product IDs user prefers for this recipe
-}
-
-export interface RecipeIngredient {
-  name: string;
-  quantity: number;
-  unit: string;
-  notes?: string; // "optional", "to taste", etc.
-  productId?: string; // Cached Kroger product match
-}
-```
-
-### 7.5 Shopping List Integration
-
-```typescript
-// src/integrations/kroger/shopping.ts
-export class KrogerShoppingService {
-  constructor(
-    private cache: KrogerProductCache,
-    private preferences: ProductPreferences
-  );
-
-  async syncShoppingList(userId: string): Promise<SyncResult>;
-
-  async createShoppingListFromTasks(
-    userId: string,
-    taskIds: string[]
-  ): Promise<ShoppingList>;
-
-  // DB-first: consults cache and preferences before API
-  async findProductsForIngredients(
-    ingredients: string[],
-    options?: { applyPreferences?: boolean; recipeId?: string }
-  ): Promise<ProductMatch[]>;
-
-  // Generate ingredient list from recipe with preference-aware product matching
-  async createShoppingListFromRecipe(
-    userId: string,
-    recipeId: string,
-    servingMultiplier?: number
-  ): Promise<ShoppingList>;
-
-  // Apply user preferences to filter/sort product results
-  async applyPreferences(
-    products: KrogerProduct[],
-    userId: string
-  ): Promise<RankedProduct[]>;
-}
-```
-
-### Deliverables
-
-- [ ] Kroger OAuth working
-- [ ] Product cache with long TTL implemented
-- [ ] DB-first product lookups working
-- [ ] Product search working (cache → API fallback)
-- [ ] Location finder working
-- [ ] Cart management working
-- [ ] Recipe context model created
-- [ ] Product preferences (prefer/avoid) working
-- [ ] Substitution rules implemented
-- [ ] Shopping lists synced to context
-- [ ] Agent can search products with preference awareness
-- [ ] Agent can generate shopping lists from recipes
-
----
-
-## Phase 8: Polish & Launch (Weeks 24-26)
-
-### Goals
-
-- UI polish
-- Error handling
-- Performance optimization
-- Documentation
-- Initial deployment
-
-### 8.1 UI Improvements
-
-- Loading states
-- Error boundaries
-- Responsive design
-- Accessibility
-
-### 8.2 Reliability
-
-- Error handling
-- Retry logic
-- Rate limiting
-- Health checks
-
-### 8.3 Deployment
-
-- Vercel/Railway setup
-- Database hosting
-- Redis hosting
-- Monitoring (Sentry)
-
-### Deliverables
-
-- [ ] Polished UI
-- [ ] Comprehensive error handling
-- [ ] Performance optimized
-- [ ] Deployed to production
-- [ ] Monitoring configured
-- [ ] User documentation
-
----
-
-## Phase 9: Memory System (Weeks 27-30)
-
-> **See**: [PHASE_9_MEMORY.md](./PHASE_9_MEMORY.md) for full specification
+> **See**: [PHASE_6_MEMORY.md](./phase-6/PHASE_6_MEMORY.md) for full specification
 
 ### Goals
 
@@ -826,12 +525,12 @@ export class KrogerShoppingService {
 - Memory proposal workflow (agent suggests, user confirms)
 - Full auditability of memory usage
 
-### 9.1 Memory Types
+### 6.1 Memory Types
 
 - **Hard Memory**: Explicit preferences treated as rules (e.g., "no meetings after 4pm")
 - **Soft Memory**: Narrative context for judgment (e.g., "currently planning a wedding")
 
-### 9.2 Core Features
+### 6.2 Core Features
 
 - Memory CRUD with domain categorization
 - Semantic search for soft memory retrieval
@@ -839,7 +538,7 @@ export class KrogerShoppingService {
 - Proposal → Confirmation workflow
 - UI for viewing/editing/deleting memories
 
-### 9.3 Safety & Privacy
+### 6.3 Safety & Privacy
 
 - Sensitive domains (health, finance) require opt-in
 - Proper phrasing enforcement ("You told me..." not "You believe...")
@@ -859,35 +558,367 @@ export class KrogerShoppingService {
 
 ---
 
+## Phase 7: Continuous Learning (Weeks 21-23)
+
+> **See**: [PHASE_7_CONTINUOUS_LEARNING.md](./phase-7/PHASE_7_CONTINUOUS_LEARNING.md) for full specification
+
+### Goals
+
+- Open Questions system for disambiguation and preference discovery
+- Learning from user interactions and corrections
+- Memory reinforcement (promotion and decay)
+- Intelligent question timing and throttling
+
+### 7.1 Core Concepts
+
+- **Open Questions**: Questions Theo generates when uncertain
+- **Learning Detector**: Identifies learning opportunities from interactions
+- **Question Backlog**: Prioritized queue of questions to ask
+- **Memory Reinforcement**: Strengthen or weaken memories based on usage
+
+### 7.2 Question Types
+
+| Type | Description |
+| --- | --- |
+| Disambiguation | Multiple interpretations possible |
+| Preference Proposal | Theo infers a preference, asks to confirm |
+| Reconfirmation | Outdated memory needs refresh |
+| Missing Context | Cannot proceed without information |
+
+### 7.3 UX Patterns
+
+- Micro-confirmations for low-friction learning
+- Smart timing (after successful actions)
+- Throttling (max questions per session)
+- Snooze and dismissal options
+
+### Deliverables
+
+- [ ] OpenQuestion model and Question Backlog
+- [ ] Learning Detector service
+- [ ] Question Orchestrator (timing, throttling)
+- [ ] Answer Interpreter
+- [ ] Memory Reinforcement Engine
+- [ ] Question UI components
+- [ ] Agent integration for question generation
+- [ ] Analytics for learning effectiveness
+
+---
+
+## Phase 8: Slack Integration (Weeks 24-26)
+
+> **See**: [PHASE_8_SLACK.md](./phase-8/PHASE_8_SLACK.md) for full specification
+
+### Goals
+
+- Slack OAuth (user token and/or bot token)
+- Workspace user import to People context
+- Channel and DM message sync (selective, importance-based)
+- Message send action with approval workflow
+- Real-time event handling (optional Socket Mode)
+
+### 8.1 Core Components
+
+- **SlackClient**: Wrapper over Slack Web API with rate limiting
+- **SlackRepository**: Database operations for Slack data
+- **SlackSyncService**: User, channel, and message sync
+- **SlackActions**: Agent-facing actions with approval workflow
+
+### 8.2 Sync Strategy
+
+- **Full Sync**: Import users, channels, recent messages
+- **Selective Message Sync**: Prioritize mentions, replies, reactions
+- **Person Linking**: Match Slack users to existing Person entities
+- **Socket Mode**: Optional real-time event handling
+
+### 8.3 Agent Integration
+
+- Message search and channel listing tools
+- Send message and reply tools (with approval)
+- Context enrichment (mentions, active threads, frequent contacts)
+
+### Deliverables
+
+- [ ] Slack OAuth with user token flow
+- [ ] SlackWorkspace, SlackChannel, SlackMessage, SlackUser tables
+- [ ] SlackMessageApproval table and workflow
+- [ ] Full sync with selective message import
+- [ ] Person entity linking from Slack users
+- [ ] Agent tools for Slack operations
+- [ ] Approval UI components
+- [ ] Socket Mode for real-time events (optional)
+
+---
+
+## Phase 9: Kroger Integration (Weeks 27-29)
+
+> **See**: [PHASE_9_KROGER.md](./phase-9/PHASE_9_KROGER.md) for full specification  
+> **See also**: [Grocery Integration Contract](./ideas/[IDEA]%20-%20grocery-integration-contract.md) for universal constraints
+
+### Core Principle
+
+> **Theo builds the cart. The user places the order.**
+
+Terminal state is always `CART_READY_FOR_REVIEW`. No checkout endpoints are implemented.
+
+### Goals
+
+- Kroger OAuth authentication
+- Product search with aggressive local caching (10K API calls/day limit)
+- Recipe and meal planning context
+- User preferences (brands, dietary restrictions, substitutions)
+- Shopping list generation from recipes
+- Cart building via Kroger API
+
+### 9.1 Core Components
+
+- **KrogerClient**: API wrapper with rate limiting
+- **KrogerProductCache**: DB-first product lookups with 7-30 day TTL
+- **RecipeService**: Recipe and ingredient management
+- **ProductResolutionService**: Ingredient-to-product matching
+- **ShoppingListService**: List generation from recipes
+- **CartBuilderService**: Build Kroger cart with user intervention points
+
+### 9.2 Key Constraints
+
+- **Rate Limit**: 10,000 API calls/day — cache aggressively
+- **No Checkout**: Never place orders, select time slots, or handle payment
+- **Store-Scoped**: Catalog and pricing vary by store location
+- **User Control**: Pause for confirmation on ambiguous matches
+
+### 9.3 Agent Integration
+
+- Product search and resolution tools
+- Recipe creation and shopping list generation
+- Cart building with handoff link
+- Preference-aware product matching
+
+### Deliverables
+
+- [ ] Kroger OAuth with store selection
+- [ ] Product cache with long TTL (7-30 days)
+- [ ] DB-first product lookups
+- [ ] Recipe CRUD and ingredient normalization
+- [ ] Product preferences (prefer/avoid/substitute)
+- [ ] Shopping list generation from recipes
+- [ ] Cart building with ambiguity handling
+- [ ] Strict no-checkout guardrails
+- [ ] Agent tools for grocery operations
+
+---
+
+## Phase 10: Walmart Integration (Weeks 30-32)
+
+> **See**: [PHASE_10_WALMART.md](./phase-10/PHASE_10_WALMART.md) for full specification  
+> **See also**: [Grocery Integration Contract](./ideas/[IDEA]%20-%20grocery-integration-contract.md) for universal constraints
+
+### Core Principle
+
+> **Theo builds the cart. The user places the order.**
+
+Unlike Kroger (API-based), Walmart requires **browser automation** because they do not expose a public API for cart operations.
+
+### Goals
+
+- Browser automation via Playwright (headful)
+- URL-first product resolution
+- Cookie/session-based authentication (no credentials stored)
+- Store/ZIP context management
+- Strict checkout prevention guardrails
+- CAPTCHA and intervention handling
+
+### 10.1 Core Components
+
+- **WalmartSessionManager**: Login flow, cookie management
+- **WalmartCartRunner**: Browser automation for cart ops
+- **WalmartSafetyGuard**: Checkout prevention enforcement
+- **WalmartProductResolver**: URL lookup + on-site search
+
+### 10.2 Safety Guardrails
+
+- **Allowlist**: Only permitted actions (add to cart, quantity, search)
+- **Blocklist**: Halt on checkout-related text
+- **URL Guard**: Stop if navigation enters `/checkout` paths
+
+### 10.3 Key Differences from Kroger
+
+| Aspect | Kroger (Phase 9) | Walmart (Phase 10) |
+| --- | --- | --- |
+| Type | API-based | Browser automation |
+| Auth | OAuth | Cookie/session |
+| Reliability | High | Best-effort |
+| Maintenance | Stable | Selector updates needed |
+
+### Deliverables
+
+- [ ] Headful Playwright session management
+- [ ] Manual login flow (no credential storage)
+- [ ] Cookie encryption and session persistence
+- [ ] Safety guards (allowlist, blocklist, URL path)
+- [ ] WalmartSession, SavedProductLink, WalmartCartRun tables
+- [ ] Cart runner with URL-first navigation
+- [ ] On-site search fallback
+- [ ] CAPTCHA detection and user intervention
+- [ ] Observability (logs, screenshots, DOM hashing)
+- [ ] Agent tools for Walmart operations
+
+---
+
+## Phase 11: SMS Integration (Weeks 33-35)
+
+> **See**: [PHASE_11_SMS.md](./phase-11/PHASE_11_SMS.md) for full specification
+
+### Core Principle
+
+> **Theo should feel like texting a real human assistant.**
+
+Enable users to communicate with Theo via SMS, and allow Theo to proactively reach out when important events happen.
+
+### Goals
+
+- Receive and respond to inbound text messages
+- Send proactive notifications for important events
+- Maintain conversation context across SMS sessions
+- Respect user preferences (quiet hours, throttling)
+- Handle opt-in, opt-out, and phone verification
+
+### 11.1 Core Components
+
+- **SmsGatewayService**: Twilio integration, webhook handling
+- **SmsInboundProcessor**: Parse messages, route to agent
+- **SmsOutboundProcessor**: Queue, format, and send messages
+- **SmsNotificationEngine**: Triggers, quiet hours, throttling
+
+### 11.2 Key Features
+
+| Feature | Description |
+| --- | --- |
+| Inbound SMS | User texts Theo, gets response |
+| Proactive notifications | Calendar reminders, urgent emails, cart ready |
+| Confirmation workflow | YES/NO replies for approvals |
+| Quiet hours | Respect user's do-not-disturb times |
+| System commands | STOP, HELP, YES, NO handling |
+
+### 11.3 Notification Categories
+
+- Calendar reminders
+- Task due dates
+- Urgent emails from VIPs
+- Shopping cart ready
+- Pending approvals
+- Daily briefings (optional)
+
+### 11.4 Compliance
+
+- TCPA compliance (US)
+- Opt-in consent required
+- STOP command support
+- Message identification
+
+### Deliverables
+
+- [ ] Phone number registration and verification
+- [ ] Twilio webhook integration (inbound/outbound)
+- [ ] SmsPhoneNumber, SmsConversation, SmsMessage tables
+- [ ] SmsNotificationPreference, SmsNotificationTrigger tables
+- [ ] System command handling (STOP, HELP, YES, NO)
+- [ ] Agent integration with SMS-optimized responses
+- [ ] Notification engine with triggers and quiet hours
+- [ ] Confirmation workflow for approvals via SMS
+- [ ] Throttling and cost management
+- [ ] Preferences UI for phone and notifications
+
+---
+
+## Phase 12: Polish & Launch (Weeks 36-38)
+
+> **See**: [PHASE_12_POLISH_LAUNCH.md](./phase-12/PHASE_12_POLISH_LAUNCH.md) for full specification
+
+### Goals
+
+- UI polish and accessibility (WCAG 2.1 AA)
+- Comprehensive error handling and recovery
+- Performance optimization (Core Web Vitals)
+- Production deployment infrastructure
+- Monitoring and observability
+
+### 12.1 UI Polish
+
+- Loading states for all async operations
+- Empty states with helpful guidance
+- Responsive design (mobile, tablet, desktop)
+- Accessibility audit and fixes
+
+### 12.2 Reliability & Error Handling
+
+- Error boundaries at app/page/component levels
+- Retry logic with exponential backoff
+- Circuit breakers for external services
+- Graceful degradation when services unavailable
+- Health check endpoints
+
+### 12.3 Performance
+
+- Core Web Vitals targets (LCP <2.5s, CLS <0.1)
+- Code splitting and lazy loading
+- Caching strategy (API, assets, embeddings)
+- Database query optimization
+
+### 12.4 Deployment & Monitoring
+
+- Vercel production deployment
+- Database (Neon/Supabase) and Redis (Upstash) hosting
+- Sentry error tracking
+- Uptime monitoring and alerting
+- Security headers and rate limiting
+
+### Deliverables
+
+- [ ] Loading states, empty states, responsive design
+- [ ] WCAG 2.1 AA accessibility compliance
+- [ ] Error boundaries and retry logic
+- [ ] Circuit breakers and graceful degradation
+- [ ] Health check endpoints
+- [ ] Core Web Vitals targets met
+- [ ] Production deployment with monitoring
+- [ ] Security hardening (headers, rate limits)
+- [ ] User documentation (getting started, integrations)
+
+---
+
 ## Success Criteria
 
-### MVP (End of Phase 8)
+### Core AI MVP (End of Phase 7)
 
 - [ ] User can sign up and authenticate
 - [ ] User can chat with Theo
 - [ ] Gmail connected and syncing
 - [ ] Google Calendar connected and syncing
+- [ ] Agent engine with intent understanding and tool execution
+- [ ] Memory system with proposal workflow
+- [ ] Continuous learning with Open Questions
+- [ ] Full audit trail visible to user
+- [ ] >80% of relevant actions cite memory items
+- [ ] <10% of memories require correction on confirm
+
+### Full Integration MVP (End of Phase 11)
+
 - [ ] Slack connected and syncing
 - [ ] Kroger connected for shopping with product caching
+- [ ] Walmart connected via browser automation
+- [ ] SMS integration for text messaging
 - [ ] Recipe and product preference context working
-- [ ] Context entities created from integrations
-- [ ] Agent can answer questions about context
-- [ ] Agent can perform simple actions (draft email, create task, manage shopping)
-- [ ] Agent can generate preference-aware shopping lists from recipes
-- [ ] Full audit trail visible to user
+- [ ] Context entities created from all integrations
+- [ ] Agent can perform actions across all channels
+- [ ] Memory and learning inform all agent decisions
 
-### Enhanced MVP (End of Phase 9)
+### Production Ready (End of Phase 12)
 
-- [ ] User can view all memories Theo has stored
-- [ ] User can edit or delete any memory
-- [ ] Agent proposes memories, user confirms before saving
-- [ ] Hard preferences are respected in all actions
-- [ ] Soft context improves agent judgment
-- [ ] Memory citations appear in relevant responses
-- [ ] Sensitive domains require explicit opt-in
-- [ ] Memory usage is fully audited
-- [ ] > 80% of relevant actions cite memory items
-- [ ] <10% of memories require correction on confirm
+- [ ] UI polished and accessible (WCAG 2.1 AA)
+- [ ] All error handling comprehensive
+- [ ] Performance targets met
+- [ ] Deployed to production with monitoring
+- [ ] User documentation complete
 
 ---
 

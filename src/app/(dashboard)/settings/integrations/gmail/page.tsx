@@ -7,9 +7,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { DashboardLayout } from "@/components/layout";
 import { Button, toast } from "@/components/ui";
-import { useCsrf } from "@/hooks";
 import {
   ConnectionStatus,
   SyncSettings,
@@ -49,9 +49,6 @@ export default function GmailSettingsPage() {
   const [statsData, setStatsData] = React.useState<
     GmailStatisticsData | undefined
   >();
-
-  // CSRF protection for state-changing requests
-  const { protectedFetch } = useCsrf();
 
   const [loadingStates, setLoadingStates] = React.useState({
     connection: true,
@@ -180,7 +177,7 @@ export default function GmailSettingsPage() {
     fetchConnectionStatus();
   }, [fetchConnectionStatus]);
 
-  // Fetch data when connected
+  // Fetch data when connected and auto-trigger sync if fresh connection
   React.useEffect(() => {
     if (isConnected) {
       fetchSyncStatus();
@@ -205,9 +202,9 @@ export default function GmailSettingsPage() {
 
   const handleConnect = async () => {
     try {
-      // Note: Connect uses regular fetch as it initiates OAuth flow
-      const res = await protectedFetch("/api/integrations/gmail/connect", {
+      const res = await fetch("/api/integrations/gmail/connect", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ redirectUrl: "/settings/integrations/gmail" }),
       });
 
@@ -218,9 +215,13 @@ export default function GmailSettingsPage() {
 
       const data = await res.json();
 
-      if (data.authUrl) {
-        // Redirect to OAuth flow
-        window.location.href = data.authUrl;
+      if (data.signInRequired && data.authorizationParams) {
+        // Use NextAuth's signIn() to properly handle PKCE and OAuth flow
+        await signIn(
+          "google",
+          { callbackUrl: data.callbackUrl || "/settings/integrations/gmail" },
+          data.authorizationParams
+        );
       } else if (data.alreadyConnected) {
         // Already connected, refresh status
         await fetchConnectionStatus();
@@ -244,7 +245,7 @@ export default function GmailSettingsPage() {
 
   const handleDisconnect = async () => {
     try {
-      const res = await protectedFetch("/api/integrations/gmail/disconnect", {
+      const res = await fetch("/api/integrations/gmail/disconnect", {
         method: "DELETE",
       });
 
@@ -270,8 +271,9 @@ export default function GmailSettingsPage() {
 
   const handleTriggerSync = async (type: "auto" | "full" | "incremental") => {
     try {
-      const res = await protectedFetch("/api/integrations/gmail/sync", {
+      const res = await fetch("/api/integrations/gmail/sync", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type }),
       });
 
@@ -301,8 +303,9 @@ export default function GmailSettingsPage() {
 
   const handleToggleRecurring = async (enabled: boolean) => {
     try {
-      const res = await protectedFetch("/api/integrations/gmail/sync", {
+      const res = await fetch("/api/integrations/gmail/sync", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enableRecurring: enabled }),
       });
 
@@ -338,12 +341,9 @@ export default function GmailSettingsPage() {
 
   const handleCancelSync = async () => {
     try {
-      const res = await protectedFetch(
-        "/api/integrations/gmail/sync?stopRecurring=true",
-        {
-          method: "DELETE",
-        }
-      );
+      const res = await fetch("/api/integrations/gmail/sync?stopRecurring=true", {
+        method: "DELETE",
+      });
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
@@ -371,13 +371,11 @@ export default function GmailSettingsPage() {
 
   const handleApproveEmail = async (id: string) => {
     try {
-      const res = await protectedFetch(
-        `/api/integrations/gmail/approvals/${id}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ action: "approve" }),
-        }
-      );
+      const res = await fetch(`/api/integrations/gmail/approvals/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" }),
+      });
 
       if (!res.ok) {
         const error = await res.json();
@@ -395,13 +393,11 @@ export default function GmailSettingsPage() {
 
   const handleRejectEmail = async (id: string, notes?: string) => {
     try {
-      const res = await protectedFetch(
-        `/api/integrations/gmail/approvals/${id}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ action: "reject", notes }),
-        }
-      );
+      const res = await fetch(`/api/integrations/gmail/approvals/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", notes }),
+      });
 
       if (!res.ok) {
         const error = await res.json();
@@ -419,12 +415,9 @@ export default function GmailSettingsPage() {
 
   const handleSyncContacts = async () => {
     try {
-      const res = await protectedFetch(
-        "/api/integrations/gmail/sync/contacts",
-        {
-          method: "POST",
-        }
-      );
+      const res = await fetch("/api/integrations/gmail/sync/contacts", {
+        method: "POST",
+      });
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
@@ -445,8 +438,9 @@ export default function GmailSettingsPage() {
 
   const handleSaveSyncConfig = async (config: Partial<SyncConfigData>) => {
     try {
-      const res = await protectedFetch("/api/integrations/gmail/sync", {
+      const res = await fetch("/api/integrations/gmail/sync", {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
 

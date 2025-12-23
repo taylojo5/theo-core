@@ -10,9 +10,7 @@ import {
   formatScopes,
   hasAllScopes,
   getMissingScopes,
-  SCOPE_SETS,
   ALL_GMAIL_SCOPES,
-  type ScopeSet,
 } from "./scopes";
 
 // ─────────────────────────────────────────────────────────────
@@ -23,7 +21,6 @@ export interface ScopeCheckResult {
   hasRequiredScopes: boolean;
   grantedScopes: string[];
   missingScopes: string[];
-  upgradeUrl?: string;
 }
 
 export interface ScopeUpgradeResult {
@@ -72,7 +69,6 @@ export async function checkUserScopes(
       hasRequiredScopes: false,
       grantedScopes: [],
       missingScopes: [...requiredScopes],
-      upgradeUrl: generateUpgradeUrl(requiredScopes),
     };
   }
 
@@ -83,7 +79,6 @@ export async function checkUserScopes(
     hasRequiredScopes: hasRequired,
     grantedScopes,
     missingScopes: missing,
-    upgradeUrl: hasRequired ? undefined : generateUpgradeUrl(requiredScopes),
   };
 }
 
@@ -94,66 +89,6 @@ export async function checkGmailScopes(
   userId: string
 ): Promise<ScopeCheckResult> {
   return checkUserScopes(userId, ALL_GMAIL_SCOPES);
-}
-
-// ─────────────────────────────────────────────────────────────
-// Upgrade URL Generation
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Generate a Google OAuth URL for requesting additional scopes
- */
-export function generateUpgradeUrl(
-  requestedScopes: readonly string[] | string[],
-  state?: string
-): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = getOAuthCallbackUrl();
-
-  if (!clientId) {
-    throw new Error("GOOGLE_CLIENT_ID is not configured");
-  }
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: "code",
-    scope: formatScopes(requestedScopes),
-    access_type: "offline",
-    prompt: "consent", // Force consent to get refresh token
-    include_granted_scopes: "true", // Keep previously granted scopes
-  });
-
-  if (state) {
-    params.set("state", state);
-  }
-
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-}
-
-/**
- * Generate upgrade URL for a specific scope set
- */
-export function generateScopeSetUpgradeUrl(
-  scopeSet: ScopeSet,
-  state?: string
-): string {
-  const scopes = SCOPE_SETS[scopeSet];
-  return generateUpgradeUrl(scopes, state);
-}
-
-/**
- * Get the OAuth callback URL based on environment
- */
-function getOAuthCallbackUrl(): string {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
-
-  if (!baseUrl) {
-    // Fallback for development
-    return "http://localhost:3000/api/auth/callback/google";
-  }
-
-  return `${baseUrl}/api/auth/callback/google`;
 }
 
 // ─────────────────────────────────────────────────────────────

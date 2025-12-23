@@ -239,16 +239,18 @@ describe("Content Hash Utilities", () => {
       expect(hash1).not.toBe(hash2);
     });
 
-    it("generates 64-character hex string", () => {
+    it("generates 24-character hex string", () => {
       const hash = generateContentHash("test");
-      expect(hash).toMatch(/^[a-f0-9]{64}$/);
+      // Hash format: 8 chars (hash1) + 8 chars (hash2) + 8 chars (length)
+      expect(hash).toMatch(/^[a-f0-9]{24}$/);
     });
   });
 
   describe("generateEntityHash", () => {
     it("combines fields into hash", () => {
       const hash = generateEntityHash(["John", "Doe", "john@example.com"]);
-      expect(hash).toMatch(/^[a-f0-9]{64}$/);
+      // Hash format: 8 chars (hash1) + 8 chars (hash2) + 8 chars (length)
+      expect(hash).toMatch(/^[a-f0-9]{24}$/);
     });
 
     it("filters out null/undefined", () => {

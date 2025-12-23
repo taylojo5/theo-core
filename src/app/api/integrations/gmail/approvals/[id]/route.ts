@@ -13,7 +13,6 @@ import {
 } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
-import { withCsrfProtection } from "@/lib/csrf";
 import {
   unauthorized,
   notFound,
@@ -102,13 +101,8 @@ export async function POST(
 
     userId = session.user.id;
 
-    // Parse body first so we can check CSRF from body
+    // Parse body
     const body = await request.json();
-
-    // CSRF protection - critical for approval/rejection actions
-    const csrfError = await withCsrfProtection(request, body, headers);
-    if (csrfError) return csrfError;
-
     const resolvedParams = await params;
     approvalId = resolvedParams.id;
     const parseResult = ActionSchema.safeParse(body);
@@ -116,7 +110,7 @@ export async function POST(
     if (!parseResult.success) {
       return validationError(
         "Invalid request body",
-        parseResult.error.errors,
+        parseResult.error.issues,
         headers
       );
     }
@@ -194,10 +188,6 @@ export async function DELETE(
     RATE_LIMITS.gmailApprovals
   );
   if (rateLimitResponse) return rateLimitResponse;
-
-  // CSRF protection - critical for cancelling approvals
-  const csrfError = await withCsrfProtection(request, undefined, headers);
-  if (csrfError) return csrfError;
 
   // Capture variables before try block for error logging
   let userId: string | undefined;

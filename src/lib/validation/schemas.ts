@@ -62,7 +62,7 @@ export const createPersonSchema = z
     source: sourceSchema.default("manual"),
     sourceId: z.string().max(255).optional().nullable(),
     tags: z.array(z.string().max(50)).default([]),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -91,7 +91,7 @@ export const updatePersonSchema = z
     bio: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
     tags: z.array(z.string().max(50)).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -134,7 +134,7 @@ export const createPlaceSchema = z
     source: sourceSchema.default("manual"),
     sourceId: z.string().max(255).optional().nullable(),
     tags: z.array(z.string().max(50)).default([]),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -164,7 +164,7 @@ export const updatePlaceSchema = z
     notes: z.string().optional().nullable(),
     importance: z.coerce.number().int().min(1).max(10).optional(),
     tags: z.array(z.string().max(50)).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -216,7 +216,7 @@ export const createEventSchema = z
     source: sourceSchema.default("manual"),
     sourceId: z.string().max(255).optional().nullable(),
     tags: z.array(z.string().max(50)).default([]),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -248,7 +248,7 @@ export const updateEventSchema = z
     notes: z.string().optional().nullable(),
     importance: z.coerce.number().int().min(1).max(10).optional(),
     tags: z.array(z.string().max(50)).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -292,7 +292,7 @@ export const createTaskSchema = z
     source: sourceSchema.default("manual"),
     sourceId: z.string().max(255).optional().nullable(),
     tags: z.array(z.string().max(50)).default([]),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -321,7 +321,7 @@ export const updateTaskSchema = z
     notes: z.string().optional().nullable(),
     assignedToId: z.string().optional().nullable(),
     tags: z.array(z.string().max(50)).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -368,7 +368,7 @@ export const createDeadlineSchema = z
     source: sourceSchema.default("manual"),
     sourceId: z.string().max(255).optional().nullable(),
     tags: z.array(z.string().max(50)).default([]),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -395,7 +395,7 @@ export const updateDeadlineSchema = z
     notes: z.string().optional().nullable(),
     consequences: z.string().optional().nullable(),
     tags: z.array(z.string().max(50)).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -430,7 +430,7 @@ export const createRelationshipSchema = z
     strength: z.coerce.number().int().min(1).max(10).default(5),
     bidirectional: z.boolean().default(false),
     notes: z.string().optional().nullable(),
-    metadata: z.record(z.unknown()).default({}),
+    metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((data) => ({
     ...data,
@@ -443,7 +443,7 @@ export const updateRelationshipSchema = z
     strength: z.coerce.number().int().min(1).max(10).optional(),
     bidirectional: z.boolean().optional(),
     notes: z.string().optional().nullable(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .transform((data) => ({
     ...data,
@@ -478,7 +478,7 @@ export const createMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system", "tool"]).default("user"),
   toolCalls: z.array(z.unknown()).optional(),
   toolCallId: z.string().optional(),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const listMessagesQuerySchema = paginationSchema.extend({

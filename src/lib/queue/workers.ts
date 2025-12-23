@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Worker, Job } from "bullmq";
-import { redis } from "@/lib/redis";
+import { bullmqRedis } from "@/lib/redis";
 import { type QueueName } from "./index";
 
 type JobProcessor<T> = (job: Job<T>) => Promise<void>;
@@ -25,7 +25,7 @@ export function registerWorker<T>(
   }
 
   const worker = new Worker(queueName, processor, {
-    connection: redis,
+    connection: bullmqRedis,
     concurrency: options.concurrency ?? 5,
   });
 

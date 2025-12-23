@@ -14,7 +14,6 @@ import {
 } from "@/integrations/gmail/actions";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
-import { withCsrfProtection } from "@/lib/csrf";
 import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────
@@ -66,17 +65,13 @@ export async function POST(request: NextRequest) {
     // Parse body
     const body = await request.json();
 
-    // CSRF protection - critical for sending emails
-    const csrfError = await withCsrfProtection(request, body, headers);
-    if (csrfError) return csrfError;
-
     // Check if sending a draft or composing new
     if (body.draftId) {
       // Sending an existing draft
       const parseResult = SendDraftSchema.safeParse(body);
       if (!parseResult.success) {
         return NextResponse.json(
-          { error: "Validation failed", details: parseResult.error.errors },
+          { error: "Validation failed", details: parseResult.error.issues },
           { status: 400, headers }
         );
       }
@@ -119,7 +114,7 @@ export async function POST(request: NextRequest) {
     const parseResult = SendEmailSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parseResult.error.errors },
+        { error: "Validation failed", details: parseResult.error.issues },
         { status: 400, headers }
       );
     }

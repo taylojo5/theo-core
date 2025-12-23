@@ -3,7 +3,7 @@
 // Tests for OAuth authentication and token management
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   GMAIL_SCOPES,
   ALL_GMAIL_SCOPES,
@@ -12,7 +12,6 @@ import {
   hasContactsAccess,
   getIntegrationStatus,
 } from "@/lib/auth/scopes";
-import { generateUpgradeUrl } from "@/lib/auth/scope-upgrade";
 import {
   parseGoogleApiError,
   GmailError,
@@ -161,62 +160,6 @@ describe("Scope Check Functions", () => {
       expect(status.gmail.canRead).toBe(true);
       expect(status.gmail.canSend).toBe(false);
       expect(status.contacts.connected).toBe(true);
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────
-// Scope Upgrade URL Generation
-// ─────────────────────────────────────────────────────────────
-
-describe("Scope Upgrade", () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      GOOGLE_CLIENT_ID: "test-client-id",
-      NEXTAUTH_URL: "http://localhost:3000",
-    };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  describe("generateUpgradeUrl", () => {
-    it("should generate a valid Google OAuth URL", () => {
-      const url = generateUpgradeUrl([GMAIL_SCOPES.SEND]);
-
-      expect(url).toContain("accounts.google.com");
-      expect(url).toContain("oauth2");
-      expect(url).toContain("scope=");
-      expect(url).toContain(encodeURIComponent(GMAIL_SCOPES.SEND));
-    });
-
-    it("should include client_id", () => {
-      const url = generateUpgradeUrl([GMAIL_SCOPES.SEND]);
-
-      expect(url).toContain("client_id=test-client-id");
-    });
-
-    it("should set access_type to offline for refresh tokens", () => {
-      const url = generateUpgradeUrl([GMAIL_SCOPES.SEND]);
-
-      expect(url).toContain("access_type=offline");
-    });
-
-    it("should include multiple scopes", () => {
-      const url = generateUpgradeUrl([GMAIL_SCOPES.SEND, GMAIL_SCOPES.LABELS]);
-
-      expect(url).toContain(encodeURIComponent(GMAIL_SCOPES.SEND));
-      expect(url).toContain(encodeURIComponent(GMAIL_SCOPES.LABELS));
-    });
-
-    it("should include custom state parameter", () => {
-      const url = generateUpgradeUrl([GMAIL_SCOPES.SEND], "custom-state");
-
-      expect(url).toContain("state=custom-state");
     });
   });
 });
@@ -482,24 +425,6 @@ describe("Integration Status", () => {
         expect(status.contacts.connected).toBe(expected.contactsConnected);
       });
     });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────
-// OAuth State Parameter
-// ─────────────────────────────────────────────────────────────
-
-describe("OAuth State Parameter", () => {
-  beforeEach(() => {
-    process.env.GOOGLE_CLIENT_ID = "test-client-id";
-    process.env.NEXTAUTH_URL = "http://localhost:3000";
-  });
-
-  it("should include state in upgrade URL when provided", () => {
-    const stateValue = "user123-upgrade-gmail-send";
-    const url = generateUpgradeUrl([GMAIL_SCOPES.SEND], stateValue);
-
-    expect(url).toContain(`state=${encodeURIComponent(stateValue)}`);
   });
 });
 

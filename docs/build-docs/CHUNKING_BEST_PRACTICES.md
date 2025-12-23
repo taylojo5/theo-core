@@ -1,8 +1,8 @@
 # Chunking Best Practices
 
 > **Purpose**: Lessons learned from Phase 3 implementation to improve future planning and execution  
-> **Last Updated**: December 21, 2024  
-> **Based On**: Phase 3-1, Phase 3-2, and Phase 3-3 Completion Analysis
+> **Last Updated**: December 22, 2024  
+> **Based On**: Phase 3-1, Phase 3-2, Phase 3-3 Completion Analysis, and Phase 13 API Documentation
 
 ---
 
@@ -51,6 +51,7 @@ Include a security checklist in every chunk that adds API endpoints:
 - [ ] Sensitive data sanitized before logging
 - [ ] Authentication verified before authorization
 - [ ] Tokens/secrets encrypted before storage
+- [ ] OpenAPI security requirements documented
 ```
 
 ### 1.3 Don't Split Security from Features
@@ -359,6 +360,7 @@ Plan a dedicated testing chunk BEFORE polish:
 
 - [ ] Implement feature X
 - [ ] Add tests for feature X
+- [ ] **Add OpenAPI schemas and paths for new endpoints**
 - [ ] **Update API_REFERENCE.md with new endpoints**
 - [ ] **Update relevant service docs**
 ```
@@ -371,10 +373,94 @@ After each chunk, verify:
 ### Documentation Updates
 
 - [ ] API endpoints documented (request/response format)
+- [ ] OpenAPI schemas added to src/openapi/components/schemas/
+- [ ] OpenAPI paths registered in src/openapi/paths/
 - [ ] Configuration options documented
 - [ ] Error codes and handling documented
 - [ ] Usage examples added
 - [ ] Architecture diagrams updated (if applicable)
+```
+
+### 7.3 OpenAPI Documentation for API Routes _(New from Phase 13)_
+
+**Learning**: API routes were created without corresponding OpenAPI documentation, making the `/docs` page incomplete.
+
+**Best Practice**: Every API route chunk MUST include OpenAPI documentation:
+
+```markdown
+## Chunk N: [Feature] API Routes
+
+### API Documentation Tasks
+
+1. Create Zod schemas in `src/openapi/components/schemas/{feature}.ts`
+2. Register path operations in `src/openapi/paths/{feature}.ts`
+3. Export from `src/openapi/paths/index.ts`
+4. Verify endpoint appears in `/docs` page
+
+### Files to Create/Modify
+
+src/openapi/
+├── components/schemas/{feature}.ts  # NEW: Request/response schemas
+├── paths/{feature}.ts               # NEW: Path operations
+└── paths/index.ts                   # UPDATE: Export new paths
+```
+
+**Example** - Adding a new endpoint:
+
+```typescript
+// 1. Define schemas (src/openapi/components/schemas/widget.ts)
+import { z } from "zod";
+
+export const WidgetSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  createdAt: z.string().datetime(),
+}).openapi("Widget");
+
+export const CreateWidgetSchema = z.object({
+  name: z.string().min(1),
+}).openapi("CreateWidgetInput");
+
+// 2. Register paths (src/openapi/paths/widget.ts)
+import { registry } from "../index";
+import { WidgetSchema, CreateWidgetSchema } from "../components/schemas/widget";
+
+registry.registerPath({
+  method: "post",
+  path: "/api/widgets",
+  tags: ["Widgets"],
+  summary: "Create a widget",
+  request: {
+    body: {
+      content: { "application/json": { schema: CreateWidgetSchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: "Widget created",
+      content: { "application/json": { schema: WidgetSchema } },
+    },
+  },
+});
+
+// 3. Export from paths/index.ts
+export * from "./widget";
+```
+
+### 7.4 OpenAPI Verification Checklist
+
+Before marking any chunk with API routes complete:
+
+```markdown
+### OpenAPI Verification
+
+- [ ] All new routes have corresponding path registrations
+- [ ] Request body schemas match actual validation (Zod schemas)
+- [ ] Response schemas match actual API responses
+- [ ] Error responses (400, 401, 403, 404, 500) are documented
+- [ ] Path parameters and query parameters are defined
+- [ ] Security requirements (auth) are specified
+- [ ] Endpoint is visible and testable at /docs
 ```
 
 ---
@@ -499,6 +585,8 @@ src/
 ### Documentation Updates
 
 - [ ] API reference
+- [ ] OpenAPI schemas and paths (if adding routes)
+- [ ] Verify new endpoints appear in /docs
 - [ ] Architecture docs (if applicable)
 - [ ] README updates (if user-facing)
 
@@ -594,7 +682,41 @@ try {
 }
 ```
 
-### 11.8 "Async Hook State Initialization" _(New from Phase 3-3)_
+### 11.8 "Undocumented API Routes" _(New from Phase 13)_
+
+❌ **Don't**: Create API routes without OpenAPI documentation
+✅ **Do**: Add OpenAPI schemas and paths in the same chunk as route implementation
+
+**Anti-pattern**:
+
+```markdown
+Chunk 5: User Settings API
+
+- Create GET /api/settings endpoint
+- Create PATCH /api/settings endpoint
+- Add validation
+
+Chunk 12: Documentation (Later)
+
+- Document all the API endpoints
+```
+
+**Better approach**:
+
+```markdown
+Chunk 5: User Settings API (with Documentation)
+
+- Create GET /api/settings endpoint
+- Create PATCH /api/settings endpoint
+- Add validation
+- Add OpenAPI schemas for settings
+- Register paths in OpenAPI
+- Verify endpoints appear in /docs
+```
+
+**Why this matters**: Undocumented APIs become invisible technical debt. Consumers can't discover or test them. Treating documentation as a separate phase means it never gets done.
+
+### 11.9 "Async Hook State Initialization" _(New from Phase 3-3)_
 
 ❌ **Don't**: Initialize loading state as `false` when async fetch happens on mount
 ✅ **Do**: Initialize loading state as `true` and set to `false` after fetch completes
@@ -670,6 +792,9 @@ Before marking any chunk as complete:
 **Documentation**
 
 - [ ] API endpoints documented
+- [ ] OpenAPI schemas added (if new routes)
+- [ ] OpenAPI paths registered (if new routes)
+- [ ] New endpoints visible in /docs
 - [ ] Configuration documented
 - [ ] Errors documented
 ```
@@ -822,6 +947,8 @@ Add this verification step to every chunk completion:
 - [ ] All variable references in catch blocks are in scope
 - [ ] All async hook states properly initialize loading
 - [ ] Error response formats are consistent with project standard
+- [ ] All new API routes have OpenAPI documentation
+- [ ] OpenAPI schemas match actual request/response types
 ```
 
 ### 15.2 Quick Grep Verification
@@ -847,13 +974,14 @@ Following these practices will:
 3. **Increase test coverage** by testing behavior, not just types
 4. **Prevent drift** by documenting as you go
 5. **Enable faster remediation** by tracking technical debt explicitly
-6. **Eliminate runtime errors** by verifying interface consistency _(New)_
-7. **Improve UX** by properly handling async loading states _(New)_
+6. **Eliminate runtime errors** by verifying interface consistency
+7. **Improve UX** by properly handling async loading states
+8. **Keep APIs discoverable** by documenting routes with OpenAPI immediately _(New)_
 
 Apply these lessons to all future phase implementations.
 
 ---
 
-_Based on analysis of Phase 3 (Gmail Integration) implementation_  
-_Document Version: 1.1_  
-_Updated: December 21, 2024 (Added lessons from Phase 3-3 analysis)_
+_Based on analysis of Phase 3 (Gmail Integration) and Phase 13 (API Documentation) implementation_  
+_Document Version: 1.2_  
+_Updated: December 22, 2024 (Added OpenAPI documentation requirements from Phase 13)_

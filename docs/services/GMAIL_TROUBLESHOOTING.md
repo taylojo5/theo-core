@@ -77,16 +77,22 @@ console.log("Can read:", status.canRead);
 console.log("Can send:", status.canSend);
 console.log("Can access contacts:", status.canAccessContacts);
 
-// Trigger scope upgrade if needed
-import { generateUpgradeUrl, GMAIL_SCOPES } from "@/integrations/gmail";
+// Trigger scope upgrade if needed using NextAuth signIn
+import { signIn } from "next-auth/react";
+import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 
-const missingScopes = [];
-if (!status.canSend) missingScopes.push(GMAIL_SCOPES.SEND);
-if (!status.canAccessContacts) missingScopes.push(GMAIL_SCOPES.CONTACTS);
-
-if (missingScopes.length > 0) {
-  const upgradeUrl = generateUpgradeUrl(missingScopes);
-  // Redirect user to upgradeUrl
+if (!status.canSend || !status.canAccessContacts) {
+  // Use NextAuth's signIn to properly handle PKCE
+  const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
+  signIn("google",
+    { callbackUrl: "/settings/integrations/gmail" },
+    {
+      scope: scopeString,
+      prompt: "consent",
+      access_type: "offline",
+      include_granted_scopes: "true",
+    }
+  );
 }
 ```
 
@@ -262,21 +268,19 @@ try {
 
 ```typescript
 // Check if user has send permission
-import {
-  hasGmailSendAccess,
-  GMAIL_SCOPES,
-  generateUpgradeUrl,
-} from "@/integrations/gmail";
+import { hasGmailSendAccess } from "@/lib/auth/scopes";
+import { signIn } from "next-auth/react";
+import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 
 const canSend = hasGmailSendAccess(userScopes);
 
 if (!canSend) {
-  // Prompt user to grant send permission
-  const upgradeUrl = generateUpgradeUrl([
-    GMAIL_SCOPES.SEND,
-    GMAIL_SCOPES.MODIFY,
-  ]);
-  // Redirect user
+  // Use NextAuth's signIn to request additional permissions (handles PKCE)
+  const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
+  signIn("google",
+    { callbackUrl: "/settings/integrations/gmail" },
+    { scope: scopeString, prompt: "consent", access_type: "offline", include_granted_scopes: "true" }
+  );
 }
 ```
 
@@ -419,11 +423,17 @@ await db.connectedAccount.delete({
 
 ```typescript
 // Check contacts scope
-import { hasContactsAccess, GMAIL_SCOPES } from "@/integrations/gmail";
+import { hasContactsAccess } from "@/lib/auth/scopes";
+import { signIn } from "next-auth/react";
+import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 
 if (!hasContactsAccess(userScopes)) {
-  const upgradeUrl = generateUpgradeUrl([GMAIL_SCOPES.CONTACTS]);
-  // Redirect user
+  // Use NextAuth's signIn to request contacts permission (handles PKCE)
+  const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
+  signIn("google",
+    { callbackUrl: "/settings/integrations/gmail" },
+    { scope: scopeString, prompt: "consent", access_type: "offline", include_granted_scopes: "true" }
+  );
 }
 
 // Check raw contact count

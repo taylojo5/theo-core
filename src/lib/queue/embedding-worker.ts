@@ -40,26 +40,29 @@ export function initializeEmbeddingWorker() {
   return registerWorker<AnyEmbeddingJobData>(
     QUEUE_NAMES.EMBEDDINGS,
     async (job: Job<AnyEmbeddingJobData>) => {
+      console.log('Embedding worker disabled for now'); return;
+      const data = job.data;
+      
       // Handle bulk email embedding jobs
-      if ("emailIds" in job.data) {
-        await processBulkEmailEmbedding(job.data);
+      if ("emailIds" in data) {
+        await processBulkEmailEmbedding(data as BulkEmailEmbedJobData);
         return;
       }
 
       // Handle single email embedding jobs
-      if ("emailId" in job.data) {
-        await processSingleEmailEmbedding(job.data);
+      if ("emailId" in data) {
+        await processSingleEmailEmbedding(data as EmailEmbeddingJobData);
         return;
       }
 
       // Handle bulk entity embedding jobs
-      if ("entityIds" in job.data) {
-        await processBulkEmbedding(job.data);
+      if ("entityIds" in data) {
+        await processBulkEmbedding(data as BulkEmbedJobData);
         return;
       }
 
       // Handle single entity embedding jobs
-      await processSingleEmbedding(job.data);
+      await processSingleEmbedding(data as EmbeddingJobData);
     },
     { concurrency: 3 }
   );

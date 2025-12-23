@@ -34,7 +34,7 @@ const RequestApprovalSchema = z.object({
   references: z.array(z.string()).optional(),
   requestedBy: z.string().optional(),
   expiresInMinutes: z.number().positive().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: parseResult.error.errors,
+          details: parseResult.error.issues,
         },
         { status: 400, headers }
       );
