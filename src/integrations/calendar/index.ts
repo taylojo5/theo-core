@@ -424,3 +424,72 @@ export type {
   QueueEmbeddingsOptions,
 } from "./sync";
 
+// ─────────────────────────────────────────────────────────────
+// Actions
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Event creation
+  requestEventCreation,
+  executeEventCreation,
+  
+  // Event update
+  requestEventUpdate,
+  executeEventUpdate,
+  
+  // Event deletion
+  requestEventDeletion,
+  executeEventDeletion,
+  
+  // Event response (RSVP)
+  requestEventResponse,
+  executeEventResponse,
+  
+  // Approval workflow
+  approveCalendarAction,
+  rejectCalendarAction,
+  cancelApproval,
+  expireOldApprovals,
+  getPendingApprovals,
+  getApproval,
+  
+  // Conflict detection
+  detectConflicts,
+  hasHighSeverityConflicts,
+  summarizeConflicts,
+  formatConflictForDisplay,
+  shouldBlockAction,
+} from "./actions";
+
+export type {
+  // Request types
+  BaseActionRequest,
+  CreateEventRequest,
+  UpdateEventRequest,
+  DeleteEventRequest,
+  RespondEventRequest,
+  ActionRequest,
+  
+  // Result types
+  ActionRequestResult,
+  ActionExecuteResult,
+  ApprovalDecisionResult,
+  
+  // Conflict types
+  ConflictInfo,
+  ConflictType,
+  ConflictSeverity,
+  ConflictDetectionOptions,
+  
+  // Snapshot types
+  EventSnapshot,
+  
+  // Option types
+  ActionExecuteOptions,
+  ApprovalOptions,
+  
+  // Validation types
+  ValidationResult,
+  ValidationError,
+} from "./actions";
+

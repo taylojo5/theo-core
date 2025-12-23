@@ -85,6 +85,82 @@ export type ApprovalUpdateInput = Partial<
 >;
 
 // ─────────────────────────────────────────────────────────────
+// Utility Functions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Remove undefined values from an object, returning only defined fields.
+ * This prevents undefined optional fields from overwriting existing database values with NULL.
+ */
+function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as Partial<T>;
+}
+
+/**
+ * Build update data object that only includes defined (non-undefined) fields.
+ * Uses dynamic filtering to avoid hardcoding field names.
+ * 
+ * @param input - The input object with potentially undefined fields
+ * @returns An object containing only fields that are explicitly defined
+ */
+function buildEventUpdateData(input: EventDbCreateInput): Prisma.EventUncheckedUpdateInput {
+  // Start with fields that should always be set on update
+  const baseData: Prisma.EventUncheckedUpdateInput = {
+    updatedAt: new Date(),
+    deletedAt: null, // Un-delete if previously soft-deleted
+    sourceSyncedAt: input.sourceSyncedAt ?? new Date(),
+    sequence: input.sequence ?? 0,
+  };
+
+  // Fields that need JSON casting (Prisma requires explicit InputJsonValue type)
+  const jsonFields = [
+    "metadata",
+    "recurrence",
+    "attendees",
+    "organizer",
+    "creator",
+    "conferenceData",
+    "reminders",
+  ] as const;
+
+  // Fields to exclude from automatic copying (handled specially or not updateable)
+  const excludeFields = new Set([
+    "userId",           // Not updateable - event ownership doesn't change
+    "googleEventId",    // Not updateable - this is the unique identifier
+    "id",               // Not in input, but defensive
+    "createdAt",        // Not updateable
+    "updatedAt",        // Handled in baseData
+    "deletedAt",        // Handled in baseData
+    "sourceSyncedAt",   // Handled in baseData with default
+    "sequence",         // Handled in baseData with default
+    ...jsonFields,      // Handled separately with casting
+  ]);
+
+  // Dynamically copy all defined non-excluded fields
+  const dynamicData = omitUndefined(
+    Object.fromEntries(
+      Object.entries(input).filter(([key]) => !excludeFields.has(key))
+    )
+  );
+
+  // Add JSON fields with proper casting (only if defined)
+  const jsonData: Prisma.EventUncheckedUpdateInput = {};
+  for (const field of jsonFields) {
+    if (input[field] !== undefined) {
+      jsonData[field] = input[field] as Prisma.InputJsonValue;
+    }
+  }
+
+  return {
+    ...baseData,
+    ...dynamicData,
+    ...jsonData,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Calendar Sync State Repository
 // ─────────────────────────────────────────────────────────────
 
@@ -649,53 +725,23 @@ export const calendarEventRepository = {
       });
     }
 
-    // Find existing event by googleEventId and userId
+    // Find existing non-deleted event by googleEventId and userId
+    // We explicitly filter deletedAt: null to:
+    // 1. Avoid resurrecting soft-deleted events during sync
+    // 2. Ensure deterministic results if duplicates exist
     const existing = await db.event.findFirst({
       where: {
         userId: input.userId,
         googleEventId: input.googleEventId,
+        deletedAt: null,
       },
     });
 
     if (existing) {
-      // Update existing event
+      // Update existing event - only include defined fields to preserve existing data
       return db.event.update({
         where: { id: existing.id },
-        data: {
-          title: input.title,
-          description: input.description,
-          type: input.type,
-          startsAt: input.startsAt,
-          endsAt: input.endsAt,
-          allDay: input.allDay,
-          timezone: input.timezone,
-          location: input.location,
-          virtualUrl: input.virtualUrl,
-          status: input.status,
-          visibility: input.visibility,
-          // Update source tracking - important for correct event categorization
-          source: input.source,
-          sourceId: input.sourceId,
-          sourceSyncedAt: input.sourceSyncedAt ?? new Date(),
-          metadata: input.metadata as Prisma.InputJsonValue,
-          tags: input.tags,
-          googleCalendarId: input.googleCalendarId,
-          calendarId: input.calendarId,
-          recurringEventId: input.recurringEventId,
-          recurrence: input.recurrence as Prisma.InputJsonValue,
-          attendees: input.attendees as Prisma.InputJsonValue,
-          organizer: input.organizer as Prisma.InputJsonValue,
-          creator: input.creator as Prisma.InputJsonValue,
-          conferenceData: input.conferenceData as Prisma.InputJsonValue,
-          hangoutLink: input.hangoutLink,
-          reminders: input.reminders as Prisma.InputJsonValue,
-          iCalUID: input.iCalUID,
-          sequence: input.sequence ?? 0,
-          etag: input.etag,
-          htmlLink: input.htmlLink,
-          updatedAt: new Date(),
-          deletedAt: null, // Un-delete if previously deleted
-        },
+        data: buildEventUpdateData(input),
       });
     }
 
@@ -722,52 +768,23 @@ export const calendarEventRepository = {
           throw new Error("Cannot upsert event without googleEventId");
         }
 
-        // Find existing event by googleEventId and userId
+        // Find existing non-deleted event by googleEventId and userId
+        // We explicitly filter deletedAt: null to:
+        // 1. Avoid resurrecting soft-deleted events during sync
+        // 2. Ensure deterministic results if duplicates exist
         const existing = await tx.event.findFirst({
           where: {
             userId: input.userId,
             googleEventId: input.googleEventId,
+            deletedAt: null,
           },
         });
 
         if (existing) {
-          // Update existing event
+          // Update existing event - only include defined fields to preserve existing data
           const updated = await tx.event.update({
             where: { id: existing.id },
-            data: {
-              title: input.title,
-              description: input.description,
-              type: input.type,
-              startsAt: input.startsAt,
-              endsAt: input.endsAt,
-              allDay: input.allDay,
-              timezone: input.timezone,
-              location: input.location,
-              virtualUrl: input.virtualUrl,
-              status: input.status,
-              visibility: input.visibility,
-              source: input.source,
-              sourceId: input.sourceId,
-              sourceSyncedAt: input.sourceSyncedAt ?? new Date(),
-              metadata: input.metadata as Prisma.InputJsonValue,
-              tags: input.tags,
-              googleCalendarId: input.googleCalendarId,
-              calendarId: input.calendarId,
-              recurringEventId: input.recurringEventId,
-              recurrence: input.recurrence as Prisma.InputJsonValue,
-              attendees: input.attendees as Prisma.InputJsonValue,
-              organizer: input.organizer as Prisma.InputJsonValue,
-              creator: input.creator as Prisma.InputJsonValue,
-              conferenceData: input.conferenceData as Prisma.InputJsonValue,
-              hangoutLink: input.hangoutLink,
-              reminders: input.reminders as Prisma.InputJsonValue,
-              iCalUID: input.iCalUID,
-              sequence: input.sequence ?? 0,
-              etag: input.etag,
-              htmlLink: input.htmlLink,
-              updatedAt: new Date(),
-              deletedAt: null,
-            },
+            data: buildEventUpdateData(input),
           });
           upserted.push(updated);
         } else {
