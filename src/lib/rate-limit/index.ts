@@ -38,6 +38,7 @@ if (typeof setInterval !== "undefined") {
 
 /**
  * Check rate limit using Redis, with memory fallback
+ * This INCREMENTS the counter on every call (check-and-consume pattern)
  */
 export async function checkRateLimitAsync(
   key: string,
@@ -92,6 +93,62 @@ export async function checkRateLimitAsync(
 }
 
 /**
+ * Peek at rate limit status without incrementing the counter
+ * Use this for polling/waiting loops where you don't want to consume quota
+ */
+export async function peekRateLimitAsync(
+  key: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const now = Date.now();
+  const fullKey = `ratelimit:${config.keyPrefix || "default"}:${key}`;
+
+  // Try Redis first
+  if (isRedisConnected()) {
+    try {
+      await ensureRedisConnection();
+
+      // Use Redis GET + PTTL (read-only, no increment)
+      const multi = redis.multi();
+      multi.get(fullKey);
+      multi.pttl(fullKey);
+
+      const results = await multi.exec();
+
+      if (!results) throw new Error("Redis transaction failed");
+
+      const countStr = results[0][1] as string | null;
+      const count = countStr ? parseInt(countStr, 10) : 0;
+      let ttl = results[1][1] as number;
+
+      // If key doesn't exist or has no TTL, window hasn't started
+      if (ttl === -2 || ttl === -1) {
+        ttl = config.windowMs;
+      }
+
+      const remaining = Math.max(0, config.maxRequests - count);
+      const allowed = count < config.maxRequests;
+      const resetAt = new Date(now + ttl);
+
+      return {
+        allowed,
+        remaining,
+        resetAt,
+        retryAfterMs: allowed ? undefined : ttl,
+      };
+    } catch (error) {
+      console.warn(
+        "[RateLimit] Redis unavailable, using memory fallback:",
+        error
+      );
+    }
+  }
+
+  // Fallback to memory (peek-only version)
+  return peekRateLimitMemory(key, config);
+}
+
+/**
  * Synchronous rate limit check (memory only)
  * Use this when you can't await
  */
@@ -103,7 +160,7 @@ export function checkRateLimit(
 }
 
 /**
- * Memory-based rate limiting
+ * Memory-based rate limiting (increments counter)
  */
 function checkRateLimitMemory(
   key: string,
@@ -127,6 +184,39 @@ function checkRateLimitMemory(
 
   const remaining = Math.max(0, config.maxRequests - entry.count);
   const allowed = entry.count <= config.maxRequests;
+
+  return {
+    allowed,
+    remaining,
+    resetAt: new Date(entry.resetAt),
+    retryAfterMs: allowed ? undefined : entry.resetAt - now,
+  };
+}
+
+/**
+ * Memory-based rate limit peek (read-only, no increment)
+ */
+function peekRateLimitMemory(
+  key: string,
+  config: RateLimitConfig
+): RateLimitResult {
+  const now = Date.now();
+  const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
+
+  const entry = memoryStore.get(fullKey);
+
+  // If no entry or window expired, quota is fully available
+  if (!entry || entry.resetAt < now) {
+    return {
+      allowed: true,
+      remaining: config.maxRequests,
+      resetAt: new Date(now + config.windowMs),
+      retryAfterMs: undefined,
+    };
+  }
+
+  const remaining = Math.max(0, config.maxRequests - entry.count);
+  const allowed = entry.count < config.maxRequests;
 
   return {
     allowed,

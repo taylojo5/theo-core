@@ -50,6 +50,11 @@ export const CALENDAR_READ_SCOPES = [
   CALENDAR_SCOPES.READONLY,
 ] as const;
 
+/** Calendar write scopes (EVENTS scope provides full read/write access) */
+export const CALENDAR_WRITE_SCOPES = [
+  CALENDAR_SCOPES.EVENTS,
+] as const;
+
 /** All Calendar scopes required for full integration */
 export const ALL_CALENDAR_SCOPES = [
   CALENDAR_SCOPES.READONLY,
@@ -185,6 +190,8 @@ export function hasCalendarWriteAccess(grantedScopes: string[]): boolean {
 
 /**
  * Get required Calendar scopes for a specific action
+ * Note: The EVENTS scope provides full read/write access,
+ * so write operations only require EVENTS, not READONLY
  */
 export function getRequiredCalendarScopes(
   action: "read" | "write"
@@ -193,7 +200,8 @@ export function getRequiredCalendarScopes(
     case "read":
       return CALENDAR_READ_SCOPES;
     case "write":
-      return ALL_CALENDAR_SCOPES;
+      // EVENTS scope alone grants full read/write access
+      return CALENDAR_WRITE_SCOPES;
     default:
       return CALENDAR_READ_SCOPES;
   }

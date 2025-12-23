@@ -12,6 +12,7 @@ export {
   CALENDAR_SCOPES,
   ALL_CALENDAR_SCOPES,
   CALENDAR_READ_SCOPES,
+  CALENDAR_WRITE_SCOPES,
   // Scope utilities
   hasCalendarReadScope,
   hasCalendarWriteScope,
@@ -210,4 +211,29 @@ export {
   DEFAULT_REMINDER_MINUTES,
   DEFAULT_REMINDER_METHOD,
 } from "./constants";
+
+// ─────────────────────────────────────────────────────────────
+// Client
+// ─────────────────────────────────────────────────────────────
+
+export {
+  CalendarClient,
+  createCalendarClient,
+} from "./client";
+
+export type { CalendarClientConfig } from "./client";
+
+// ─────────────────────────────────────────────────────────────
+// Rate Limiter
+// ─────────────────────────────────────────────────────────────
+
+export {
+  CalendarRateLimiter,
+  createCalendarRateLimiter,
+  calculateBatchQuota,
+  estimateRemainingOperations,
+  CALENDAR_RATE_LIMITS,
+} from "./rate-limiter";
+
+export type { RateLimitCheckResult } from "./rate-limiter";
 
