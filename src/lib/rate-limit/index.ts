@@ -537,4 +537,50 @@ export const RATE_LIMITS = {
     maxRequests: 30,
     keyPrefix: "gmail-drafts",
   } as RateLimitConfig,
+
+  // ─────────────────────────────────────────────────────────────
+  // Calendar Integration Rate Limits
+  // ─────────────────────────────────────────────────────────────
+
+  /** Calendar sync operations: 10 per minute (expensive operations) */
+  calendarSync: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "calendar-sync",
+  } as RateLimitConfig,
+
+  /** Calendar events list/read: 60 per minute */
+  calendarEvents: {
+    windowMs: 60 * 1000,
+    maxRequests: 60,
+    keyPrefix: "calendar-events",
+  } as RateLimitConfig,
+
+  /** Calendar event actions (create/update/delete): 30 per minute */
+  calendarActions: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "calendar-actions",
+  } as RateLimitConfig,
+
+  /** Calendar approval actions: 30 per minute */
+  calendarApprovals: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "calendar-approvals",
+  } as RateLimitConfig,
+
+  /** Calendar list/settings: 30 per minute */
+  calendarCalendars: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "calendar-calendars",
+  } as RateLimitConfig,
+
+  /** Calendar webhooks: 100 per minute (Google push notifications) */
+  calendarWebhook: {
+    windowMs: 60 * 1000,
+    maxRequests: 100,
+    keyPrefix: "calendar-webhook",
+  } as RateLimitConfig,
 } as const;

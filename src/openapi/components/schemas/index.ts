@@ -11,4 +11,5 @@ export * from "./deadline";
 export * from "./relationship";
 export * from "./chat";
 export * from "./gmail";
+export * from "./calendar";
 export * from "./search";
