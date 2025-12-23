@@ -97,9 +97,11 @@ export function formatEventDateTime(
 ): EventDateTime {
   if (allDay) {
     // Format as YYYY-MM-DD for all-day events
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    // Use UTC methods since all-day events are stored as midnight UTC
+    // (via parseEventDateTime which appends 'Z' to the date string)
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
     return {
       date: `${year}-${month}-${day}`,
       timeZone,
@@ -537,14 +539,30 @@ export function eventInputToUncheckedPrisma(
 export function mapDbEventToGoogleInput(event: Event): EventCreateInput {
   const allDay = event.allDay;
 
+  // Calculate end time/date when not provided
+  let endDateTime: EventDateTime;
+  if (event.endsAt) {
+    endDateTime = formatEventDateTime(event.endsAt, allDay, event.timezone ?? undefined);
+  } else if (allDay) {
+    // For all-day events, Google Calendar expects end date to be the day AFTER the start
+    // (the end date is exclusive). Add one day to startsAt.
+    const endDate = new Date(event.startsAt);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+    endDateTime = formatEventDateTime(endDate, true, event.timezone ?? undefined);
+  } else {
+    // For timed events without an end time, default to 1 hour duration
+    // Use UTC methods for consistency with all-day event handling
+    const endDate = new Date(event.startsAt);
+    endDate.setUTCHours(endDate.getUTCHours() + 1);
+    endDateTime = formatEventDateTime(endDate, false, event.timezone ?? undefined);
+  }
+
   return {
     summary: event.title,
     description: event.description ?? undefined,
     location: event.location ?? undefined,
     start: formatEventDateTime(event.startsAt, allDay, event.timezone ?? undefined),
-    end: event.endsAt
-      ? formatEventDateTime(event.endsAt, allDay, event.timezone ?? undefined)
-      : formatEventDateTime(event.startsAt, allDay, event.timezone ?? undefined),
+    end: endDateTime,
     timeZone: event.timezone ?? undefined,
     visibility: event.visibility as EventCreateInput["visibility"],
     recurrence: (event.recurrence as string[] | null) ?? undefined,
@@ -683,10 +701,12 @@ export function denormalizeAttendee(
     email: attendee.email,
     displayName: attendee.displayName,
     responseStatus: attendee.responseStatus as EventAttendee["responseStatus"],
-    organizer: attendee.isOrganizer || undefined,
-    self: attendee.isSelf || undefined,
-    optional: attendee.isOptional || undefined,
-    resource: attendee.isResource || undefined,
+    // Pass boolean values directly - they're required in NormalizedAttendee
+    // Using || undefined would incorrectly convert false to undefined
+    organizer: attendee.isOrganizer,
+    self: attendee.isSelf,
+    optional: attendee.isOptional,
+    resource: attendee.isResource,
     comment: attendee.comment,
   };
 }

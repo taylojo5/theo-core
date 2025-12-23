@@ -91,7 +91,7 @@ export class CalendarAuthError extends CalendarError {
   constructor(
     message: string,
     public readonly needsReauth: boolean = false,
-    public readonly missingScopeaction?: "read" | "write",
+    public readonly missingScopeAction?: "read" | "write",
     originalError?: Error
   ) {
     super(

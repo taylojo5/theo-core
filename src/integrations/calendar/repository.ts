@@ -1111,10 +1111,17 @@ export const calendarEventRepository = {
 
   /**
    * Find today's events
+   * Uses UTC for consistency since events are stored as UTC Date objects
    */
   findToday: async (userId: string): Promise<Event[]> => {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use UTC methods since events are stored as UTC Date objects
+    const startOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ));
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
     return calendarEventRepository.findInRange(userId, startOfDay, endOfDay);
@@ -1122,16 +1129,20 @@ export const calendarEventRepository = {
 
   /**
    * Find events for this week
+   * Uses UTC for consistency since events are stored as UTC Date objects
    */
   findThisWeek: async (userId: string): Promise<Event[]> => {
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - dayOfWeek);
-    startOfWeek.setHours(0, 0, 0, 0);
+    // Use UTC methods since events are stored as UTC Date objects
+    const dayOfWeek = now.getUTCDay();
+    const startOfWeek = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - dayOfWeek,
+      0, 0, 0, 0
+    ));
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     return calendarEventRepository.findInRange(userId, startOfWeek, endOfWeek);
   },

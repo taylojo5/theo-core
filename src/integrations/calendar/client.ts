@@ -739,16 +739,19 @@ export class CalendarClient {
         const checkResult = await this.rateLimiter.check(operation);
         if (!checkResult.allowed) {
           // Race condition: quota was consumed between wait and check
-          // The first check already consumed quota, so we need to wait and try again
-          // Use peek first to avoid double consumption on retry
+          // IMPORTANT: The first check() already consumed a quota unit (even though it
+          // returned allowed: false). We should NOT call check() again as that would
+          // double-consume. Instead, we wait and use peek-only to verify availability,
+          // then proceed - we've already "paid" with the first check.
           if (checkResult.waitMs) {
             await this.sleep(checkResult.waitMs);
           }
           
-          // Use peek (read-only) to check if quota is now available
+          // Use peek (read-only) to verify quota is now available
           const peekResult = await this.rateLimiter.peek(operation);
           if (!peekResult.allowed) {
-            // Still not available after waiting - throw without consuming more quota
+            // Still not available after waiting - throw error
+            // We've already consumed quota, but we can't proceed without availability
             throw new CalendarError(
               CalendarErrorCode.RATE_LIMITED,
               "Rate limit exceeded after waiting",
@@ -757,17 +760,8 @@ export class CalendarClient {
             );
           }
           
-          // Quota appears available - consume it now
-          const retryResult = await this.rateLimiter.check(operation);
-          if (!retryResult.allowed) {
-            // Another race condition - give up to avoid infinite retry loop
-            throw new CalendarError(
-              CalendarErrorCode.RATE_LIMITED,
-              "Rate limit exceeded after retry",
-              true,
-              retryResult.waitMs || 1000
-            );
-          }
+          // Quota appears available now - proceed without consuming again
+          // We already "paid" with the first check() call above
         }
       } catch (error) {
         // Rate limiter error - re-throw as Calendar error

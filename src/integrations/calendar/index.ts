@@ -338,3 +338,55 @@ export type {
   ApprovalUpdateInput,
 } from "./repository";
 
+// ─────────────────────────────────────────────────────────────
+// Sync Module
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Full sync
+  fullCalendarSync,
+  resumeFullSync,
+  
+  // Job names
+  CALENDAR_JOB_NAMES,
+  
+  // Utilities
+  queueEventEmbeddings,
+  queueFullSyncEmbeddings,
+  queueIncrementalSyncEmbeddings,
+  saveCheckpoint,
+  getCheckpoint,
+  clearCheckpoint,
+  getDefaultSyncTimeRange,
+  formatDateForApi,
+  createSyncError,
+  updateEmbeddingStats,
+} from "./sync";
+
+export type {
+  // Sync types
+  CalendarSyncType,
+  CalendarSyncResult,
+  SyncOperationError,
+  FullCalendarSyncOptions,
+  FullSyncCheckpoint,
+  FullSyncProgress,
+  IncrementalCalendarSyncOptions,
+  IncrementalSyncProgress,
+  EventChange,
+  SyncStatus,
+  SyncState,
+  
+  // Job types
+  CalendarJobName,
+  FullSyncJobData,
+  IncrementalSyncJobData,
+  ProcessWebhookJobData,
+  ExpireApprovalsJobData,
+  BulkEventEmbedJobData,
+  SyncJobResult,
+  WebhookJobResult,
+  EmbeddingJobResult,
+  QueueEmbeddingsOptions,
+} from "./sync";
+
