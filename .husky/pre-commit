@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Load node/npm from common locations for GUI apps (GitHub Desktop, etc.)
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Load nvm if available (common node version manager)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+npm run lint
+npm run type-check
+npm run test
+npm run build

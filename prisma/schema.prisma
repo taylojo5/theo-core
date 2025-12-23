@@ -1,0 +1,751 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Theo Database Schema
+// Prisma ORM schema for PostgreSQL with pgvector
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp"), pgcrypto, vector]
+}
+
+// ─────────────────────────────────────────────────────────────
+// Users & Authentication
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  preferences   Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Auth relations
+  accounts Account[]
+  sessions Session[]
+
+  // App relations
+  conversations     Conversation[]
+  people            Person[]
+  places            Place[]
+  events            Event[]
+  tasks             Task[]
+  deadlines         Deadline[]
+  connectedAccounts ConnectedAccount[]
+  auditLogs         AuditLog[]
+  embeddings        Embedding[]
+
+  // Gmail integration
+  emails         Email[]
+  emailLabels    EmailLabel[]
+  gmailSyncState GmailSyncState?
+  emailApprovals EmailApproval[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Conversations & Messages
+// ─────────────────────────────────────────────────────────────
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // user, assistant, system, tool
+  content        String   @db.Text
+  toolCalls      Json?
+  toolCallId     String?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: People
+// ─────────────────────────────────────────────────────────────
+
+model Person {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  email     String?
+  phone     String?
+  avatarUrl String?
+
+  // Classification
+  type       String @default("contact") // contact, colleague, friend, family, lead
+  importance Int    @default(5) // 1-10
+
+  // Context
+  company  String?
+  title    String?
+  location String?
+  timezone String?
+
+  // Notes
+  bio         String? @db.Text
+  notes       String? @db.Text
+  preferences Json    @default("{}")
+
+  // Source tracking
+  source         String // manual, gmail, slack, calendar
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[] @relation("AssignedTasks")
+
+  @@unique([userId, email])
+  @@unique([userId, source, sourceId])
+  @@index([userId])
+  @@index([email])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Places
+// ─────────────────────────────────────────────────────────────
+
+model Place {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  type   String @default("location") // home, office, restaurant, venue, city
+
+  // Location
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  postalCode String?
+  latitude   Decimal? @db.Decimal(10, 8)
+  longitude  Decimal? @db.Decimal(11, 8)
+  timezone   String?
+
+  // Context
+  notes      String? @db.Text
+  importance Int     @default(5)
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Events
+// ─────────────────────────────────────────────────────────────
+
+model Event {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String? @db.Text
+  type        String  @default("meeting") // meeting, call, travel, deadline, reminder
+
+  // Timing
+  startsAt DateTime
+  endsAt   DateTime?
+  allDay   Boolean   @default(false)
+  timezone String?
+
+  // Location
+  location   String?
+  placeId    String?
+  virtualUrl String?
+
+  // Status
+  status     String @default("confirmed") // tentative, confirmed, cancelled
+  visibility String @default("private") // private, public
+
+  // Context
+  notes      String? @db.Text
+  importance Int     @default(5)
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place     Place?     @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  deadlines Deadline[]
+
+  @@index([userId])
+  @@index([startsAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Tasks
+// ─────────────────────────────────────────────────────────────
+
+model Task {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String? @db.Text
+
+  // Hierarchy
+  parentId String?
+  position Int     @default(0)
+
+  // Status
+  status   String @default("pending") // pending, in_progress, completed, cancelled, deferred
+  priority String @default("medium") // low, medium, high, urgent
+
+  // Timing
+  dueDate     DateTime?
+  startDate   DateTime?
+  completedAt DateTime?
+
+  // Estimation
+  estimatedMinutes Int?
+  actualMinutes    Int?
+
+  // Context
+  notes        String? @db.Text
+  assignedToId String?
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent     Task?      @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subtasks   Task[]     @relation("TaskHierarchy")
+  assignedTo Person?    @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+  deadlines  Deadline[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Deadlines
+// ─────────────────────────────────────────────────────────────
+
+model Deadline {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String? @db.Text
+  type        String  @default("deadline") // deadline, milestone, reminder
+
+  // Timing
+  dueAt      DateTime
+  reminderAt DateTime?
+
+  // Status
+  status     String @default("pending") // pending, completed, missed, extended
+  importance Int    @default(5)
+
+  // Associations
+  taskId  String?
+  eventId String?
+
+  // Context
+  notes        String? @db.Text
+  consequences String? @db.Text
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task  Task?  @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([dueAt])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Entity Relationships
+// ─────────────────────────────────────────────────────────────
+
+model EntityRelationship {
+  id     String @id @default(cuid())
+  userId String
+
+  // Source entity
+  sourceType String
+  sourceId   String
+
+  // Target entity
+  targetType String
+  targetId   String
+
+  // Relationship
+  relationship  String // works_with, manages, attends, located_at, etc.
+  strength      Int     @default(5) // 1-10
+  bidirectional Boolean @default(false)
+
+  // Context
+  notes    String? @db.Text
+  metadata Json    @default("{}")
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([userId, sourceType, sourceId, targetType, targetId, relationship])
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Connected Accounts (Integrations)
+// ─────────────────────────────────────────────────────────────
+
+model ConnectedAccount {
+  id                String @id @default(cuid())
+  userId            String
+  provider          String // google, slack, microsoft
+  providerAccountId String
+
+  // Tokens (encrypted)
+  accessToken  String    @db.Text
+  refreshToken String?   @db.Text
+  tokenExpires DateTime?
+
+  // Scopes
+  scopes String[] @default([])
+
+  // Sync state
+  lastSyncAt  DateTime?
+  syncCursor  Json      @default("{}")
+  syncEnabled Boolean   @default(true)
+
+  // Status
+  status       String  @default("active") // active, expired, revoked, error
+  errorMessage String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audit Log
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id     String @id @default(cuid())
+  userId String
+
+  // Session context
+  sessionId      String?
+  conversationId String?
+
+  // Action details
+  actionType     String // query, create, update, delete, send, analyze
+  actionCategory String // context, integration, agent, user
+
+  // What was affected
+  entityType     String?
+  entityId       String?
+  entitySnapshot Json?
+
+  // Agent reasoning
+  intent     String?  @db.Text
+  reasoning  String?  @db.Text
+  confidence Decimal? @db.Decimal(3, 2)
+
+  // Input/Output
+  inputSummary  String? @db.Text
+  outputSummary String? @db.Text
+
+  // Metadata
+  metadata Json @default("{}")
+
+  // Status
+  status       String  @default("completed") // pending, completed, failed, rolled_back
+  errorMessage String?
+
+  // Timing
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+
+  // Immutable (no updatedAt or deletedAt)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assumptions AgentAssumption[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([actionType])
+  @@index([createdAt])
+}
+
+model AgentAssumption {
+  id         String @id @default(cuid())
+  auditLogId String
+
+  // The assumption
+  assumption String @db.Text
+  category   String // intent, context, preference, inference
+
+  // Evidence
+  evidence   Json
+  confidence Decimal @db.Decimal(3, 2)
+
+  // Verification
+  verified   Boolean?
+  verifiedAt DateTime?
+  verifiedBy String? // user, system, feedback
+  correction String?   @db.Text
+
+  createdAt DateTime @default(now())
+
+  auditLog AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+
+  @@index([auditLogId])
+  @@index([category])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Vector Store (Embeddings)
+// ─────────────────────────────────────────────────────────────
+
+model Embedding {
+  id     String @id @default(cuid())
+  userId String
+
+  // Source reference
+  entityType String // person, event, task, message, email, note
+  entityId   String
+  chunkIndex Int    @default(0) // For long content split into chunks
+
+  // Content
+  content     String @db.Text
+  contentHash String @db.VarChar(64) // SHA256 for deduplication
+
+  // Vector embedding (1536 dimensions for OpenAI ada-002)
+  embedding Unsupported("vector(1536)")?
+
+  // Metadata
+  metadata Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId, chunkIndex])
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Emails
+// ─────────────────────────────────────────────────────────────
+
+model Email {
+  id       String @id @default(cuid())
+  userId   String
+  gmailId  String @unique
+  threadId String
+
+  // History tracking for sync
+  historyId String?
+
+  // Headers
+  subject   String?
+  fromEmail String
+  fromName  String?
+  toEmails  String[]
+  ccEmails  String[]
+  bccEmails String[]
+  replyTo   String?
+
+  // Content
+  snippet  String? @db.Text
+  bodyText String? @db.Text
+  bodyHtml String? @db.Text
+
+  // Metadata
+  labelIds       String[]
+  isRead         Boolean @default(false)
+  isStarred      Boolean @default(false)
+  isImportant    Boolean @default(false)
+  isDraft        Boolean @default(false)
+  hasAttachments Boolean @default(false)
+
+  // Attachment info (stored as JSON)
+  attachments Json @default("[]")
+
+  // Embedding status tracking
+  embeddingStatus   String    @default("pending") // pending, processing, completed, failed
+  embeddingError    String?   // Error message if embedding failed
+  embeddingAttempts Int       @default(0) // Number of embedding attempts
+  embeddedAt        DateTime? // When embedding was last successful
+
+  // Timestamps
+  internalDate DateTime // Gmail's internal date
+  receivedAt   DateTime // When the email was received
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient queries
+  @@index([userId, internalDate(sort: Desc)])
+  @@index([userId, threadId])
+  @@index([userId, fromEmail])
+  @@index([userId, isRead])
+  @@index([gmailId])
+  @@index([userId, embeddingStatus])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Email Labels
+// ─────────────────────────────────────────────────────────────
+
+model EmailLabel {
+  id           String @id @default(cuid())
+  userId       String
+  gmailId      String
+  name         String
+  type         String // system, user
+  color        Json?  // { textColor, backgroundColor }
+  messageCount Int    @default(0)
+  unreadCount  Int    @default(0)
+
+  // Visibility settings
+  messageListVisibility String? // show, hide
+  labelListVisibility   String? // labelShow, labelShowIfUnread, labelHide
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gmailId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Email Approvals
+// ─────────────────────────────────────────────────────────────
+
+model EmailApproval {
+  id     String @id @default(cuid())
+  userId String
+
+  // Draft reference
+  draftId      String // Gmail draft ID
+  gmailDraftId String? // Gmail's internal draft ID (may differ from draftId)
+
+  // Email content snapshot
+  to      String[]
+  cc      String[]
+  bcc     String[]
+  subject String
+  body    String  @db.Text
+  bodyHtml String? @db.Text
+
+  // Threading
+  threadId  String? // For replies
+  inReplyTo String? // Message-Id being replied to
+
+  // Approval status
+  status String @default("pending") // pending, approved, rejected, expired, sent
+
+  // Approval metadata
+  requestedAt  DateTime  @default(now())
+  requestedBy  String? // Agent action ID or system
+  expiresAt    DateTime? // Auto-expire approvals
+  decidedAt    DateTime?
+  decidedBy    String? // user, auto_expired
+
+  // Result tracking
+  sentMessageId String? // Gmail message ID after sending
+  sentAt        DateTime?
+  errorMessage  String?
+
+  // Context
+  notes    String? @db.Text // User notes on rejection
+  metadata Json    @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, draftId])
+  @@index([userId, status])
+  @@index([userId, requestedAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gmail Integration: Sync State
+// ─────────────────────────────────────────────────────────────
+
+model GmailSyncState {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Sync tracking
+  historyId       String? // Gmail history ID for incremental sync
+  historyIdSetAt  DateTime? // When the history ID was set (for expiration tracking)
+  lastSyncAt      DateTime?
+  lastFullSyncAt  DateTime?
+
+  // Full sync checkpoint (for resumable sync)
+  fullSyncPageToken   String? // Page token to resume from
+  fullSyncProgress    Int     @default(0) // Emails processed so far
+  fullSyncStartedAt   DateTime? // When full sync started
+
+  // Status
+  syncStatus String  @default("idle") // idle, syncing, error
+  syncError  String?
+
+  // Statistics
+  emailCount   Int @default(0)
+  labelCount   Int @default(0)
+  contactCount Int @default(0)
+
+  // Embedding statistics
+  embeddingsPending   Int @default(0)
+  embeddingsCompleted Int @default(0)
+  embeddingsFailed    Int @default(0)
+
+  // Sync configuration
+  syncLabels       String[] @default([]) // Labels to sync (empty = all)
+  excludeLabels    String[] @default([]) // Labels to exclude
+  maxEmailAgeDays  Int?     // Only sync emails from last N days
+  syncAttachments  Boolean  @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

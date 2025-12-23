@@ -150,13 +150,15 @@ PostgreSQL-based with logical separation. See [DATABASE_SCHEMA.md](./DATABASE_SC
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
-| Frontend | Next.js 14+ (App Router) | SSR, React Server Components, great DX |
+| Frontend | Next.js 16+ (App Router) | SSR, React Server Components, great DX |
+| UI Components | shadcn/ui + Radix UI | Accessible, Tailwind-native, full code ownership |
+| Styling | Tailwind CSS v4 | Utility-first, great DX, modern features |
 | API | Next.js API Routes → tRPC | Type safety, incremental complexity |
 | Database | PostgreSQL | Robust, relational, excellent JSON support |
 | Cache | Redis | Sessions, rate limiting, job queues |
 | Vector DB | pgvector (extension) | Keep stack simple, PostgreSQL native |
 | Queue | BullMQ (Redis-based) | Background jobs, retries, scheduling |
-| Auth | NextAuth.js | OAuth flows for integrations |
+| Auth | NextAuth.js v5 | OAuth flows, Edge-compatible, JWT sessions |
 | AI/LLM | OpenAI / Anthropic | Primary reasoning engine |
 | Embeddings | OpenAI / Local model | Semantic search and retrieval |
 
@@ -231,4 +233,5 @@ User: "What's my relationship with Sarah Chen?"
 3. Review [INTEGRATIONS.md](./INTEGRATIONS.md) for Gmail/Slack strategy
 4. Review [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) for AWS deployment and local Docker setup
 5. Review [SCAFFOLDING_PLAN.md](./SCAFFOLDING_PLAN.md) for implementation roadmap
+6. Review [BUILD_LOG.md](./BUILD_LOG.md) for implementation history and decisions
 
