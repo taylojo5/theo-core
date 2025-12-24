@@ -28,7 +28,7 @@ Store the chunk plan in the phase folder
 Run this analysis in iteration until risks and drift are acceptable
 
 ```text
-Please do a deep analysis on the phase 4 implementation, and create a doc calls PHASE_4-2_COMPLETION_ANALYSIS.md that outlines all
+Please do a deep analysis on the phase 4 implementation, and create a doc calls PHASE_4-3_COMPLETION_ANALYSIS.md that outlines all
 
 - WET implementation
 - code smells
@@ -37,7 +37,7 @@ Please do a deep analysis on the phase 4 implementation, and create a doc calls 
 - vulnerabilities
 - functionality issues
 
-Then have a chunked plan for remediation for any issues found.
+Then have a chunked plan for remediation for any issues found. If you don't find issues in a category that's fine. Don't make them up.
 
 Also ,please use your analysis and findings to update the @CHUNKING_BEST_PRACTICES.md  file. The idea is to use our analysis findings here to improve planning and execution for future chunk plans
 ```

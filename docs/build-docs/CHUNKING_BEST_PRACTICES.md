@@ -1565,6 +1565,237 @@ Add to Chunk 12 (Polish & Review):
 
 ---
 
+## 26. Repository Result Patterns _(New from Phase 4-3)_
+
+### 26.1 Typed Error Results
+
+**Learning**: Repository methods that return `null` on failure hide the reason for failure (not found vs. constraint violation vs. database error).
+
+**Best Practice**: Use typed result types for methods that can fail:
+
+```typescript
+// src/lib/types/repository.ts
+export type RepositoryResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; code: RepositoryErrorCode };
+
+export type RepositoryErrorCode =
+  | "NOT_FOUND"
+  | "CONSTRAINT_VIOLATION"
+  | "VALIDATION_ERROR"
+  | "DATABASE_ERROR"
+  | "UNKNOWN_ERROR";
+
+// Usage in repository
+updateWithResult: async (id: string, data: UpdateInput): Promise<RepositoryResult<Model>> => {
+  try {
+    const result = await db.model.update({ where: { id }, data });
+    return { success: true, data: result };
+  } catch (error) {
+    const { code, message } = mapPrismaError(error);
+    logger.debug("Update failed", { id, code, error });
+    return { success: false, error: message, code };
+  }
+}
+```
+
+### 26.2 Backward Compatible Migration
+
+**Best Practice**: When adding typed results, deprecate but don't remove existing methods:
+
+```typescript
+/**
+ * @deprecated Use updateWithResult for typed error handling
+ */
+update: async (id: string, data: Data): Promise<Model | null>
+
+/**
+ * Update with typed error result
+ */
+updateWithResult: async (id: string, data: Data): Promise<RepositoryResult<Model>>
+```
+
+### 26.3 Helper Function Extraction
+
+**Learning**: Upsert operations often duplicate update data between `create` and `update` blocks.
+
+**Best Practice**: Extract builder functions:
+
+```typescript
+// Centralized update data builder
+function buildUpdateData(input: CreateInput): Prisma.ModelUpdateInput {
+  return {
+    name: input.name,
+    description: input.description,
+    updatedAt: new Date(),
+  };
+}
+
+// Used in upsert
+upsert: async (input: CreateInput): Promise<Model> => {
+  return db.model.upsert({
+    where: { uniqueField: input.uniqueField },
+    create: createInputToPrisma(input),
+    update: buildUpdateData(input),  // Reusable!
+  });
+}
+```
+
+---
+
+## 27. Multi-Instance Scalability Patterns _(New from Phase 4-3)_
+
+### 27.1 In-Memory State Limitations
+
+**Learning**: In-memory Maps/Sets for debouncing, rate limiting, or caching don't work across multiple server instances.
+
+**Best Practice**: For single-instance deployments, in-memory is acceptable. Document the limitation:
+
+```typescript
+// ⚠️ In-memory debounce - works for single-instance only.
+// For multi-instance: migrate to Redis-based debounce.
+const lastProcessedTime = new Map<string, number>();
+```
+
+### 27.2 Redis-Based Debounce Pattern
+
+**Best Practice**: For multi-instance deployments, use Redis:
+
+```typescript
+import { getRedisClient } from "@/lib/redis";
+
+async function shouldProcess(key: string, debounceMs: number): Promise<boolean> {
+  const redis = getRedisClient();
+  const lockKey = `debounce:${key}`;
+  
+  // SET NX with expiration for atomic debounce
+  const acquired = await redis.set(lockKey, "1", { NX: true, PX: debounceMs });
+  return acquired !== null;
+}
+```
+
+### 27.3 Interval Cleanup Patterns
+
+**Learning**: `setInterval` for cleanup tasks may not be cleaned up on server shutdown.
+
+**Best Practice**: Track intervals for cleanup:
+
+```typescript
+let cleanupInterval: NodeJS.Timeout | null = null;
+
+export function startCleanupScheduler(): void {
+  if (cleanupInterval) return; // Prevent duplicates
+  
+  cleanupInterval = setInterval(() => {
+    cleanupExpiredEntries();
+  }, 60000);
+}
+
+export function stopCleanupScheduler(): void {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+  }
+}
+```
+
+---
+
+## 28. Remediation Tracking Pattern _(New from Phase 4-3)_
+
+### 28.1 Progressive Analysis Documents
+
+**Learning**: Multi-pass analysis (PHASE_X-1, PHASE_X-2, PHASE_X-3) effectively tracks issue resolution.
+
+**Best Practice**: Create sequential analysis documents:
+
+```markdown
+docs/build-docs/phase-N/
+├── PHASE_N_PLAN.md              # Initial plan
+├── PHASE_N_CHUNK_PLAN.md        # Detailed chunks
+├── PHASE_N-1_COMPLETION_ANALYSIS.md  # First analysis
+├── PHASE_N-2_COMPLETION_ANALYSIS.md  # Deep dive after remediation
+└── PHASE_N-3_COMPLETION_ANALYSIS.md  # Final verification
+```
+
+### 28.2 Issue Tracking Format
+
+**Best Practice**: Use consistent severity ratings and status tracking:
+
+```markdown
+| Severity | Count | Previous | Current |
+|----------|-------|----------|---------|
+| 🔴 Critical | 0 | 2 | 0 |
+| 🟠 High | 0 | 3 | 0 |
+| 🟡 Medium | 2 | 5 | 2 |
+| 🟢 Low | 3 | 3 | 3 |
+```
+
+### 28.3 Resolution Verification
+
+**Best Practice**: In follow-up analyses, explicitly verify previous issues:
+
+```markdown
+### 6.1 Previously Critical Issues - RESOLVED ✅
+
+#### Issue: [Brief description]
+**Previous**: [What was wrong]
+**Current**: [How it's fixed, with code reference]
+
+\`\`\`typescript
+// Current implementation showing fix
+\`\`\`
+```
+
+---
+
+## 29. Anti-Patterns from Phase 4-3 _(New)_
+
+### 29.1 "Silent Failure" Repository Methods
+
+❌ **Don't**: Return `null` for all failure cases without logging or error details
+✅ **Do**: Use typed results or at minimum log the failure reason
+
+**What went wrong**:
+```typescript
+update: async (id, data) => {
+  try {
+    return await db.model.update({ where: { id }, data });
+  } catch {
+    return null;  // ❌ Was it not found? Constraint violation? Unknown error?
+  }
+}
+```
+
+**Better approach**:
+```typescript
+updateWithResult: async (id, data) => {
+  try {
+    const result = await db.model.update({ where: { id }, data });
+    return { success: true, data: result };
+  } catch (error) {
+    const { code, message } = mapPrismaError(error);
+    logger.debug("Update failed", { id, code });
+    return { success: false, error: message, code };
+  }
+}
+```
+
+### 29.2 "Undocumented Scalability Limitations"
+
+❌ **Don't**: Use in-memory state without documenting single-instance limitation
+✅ **Do**: Add clear comments about scalability constraints
+
+**Better approach**:
+```typescript
+// ⚠️ SCALABILITY NOTE: This in-memory Map only works for single-instance deployments.
+// For horizontal scaling, implement Redis-based debounce using getRedisClient().
+// See: docs/INFRASTRUCTURE.md for multi-instance patterns
+const debounceMap = new Map<string, number>();
+```
+
+---
+
 ## Conclusion
 
 Following these practices will:
@@ -1583,14 +1814,18 @@ Following these practices will:
 12. **Support future extraction** by keeping integrations self-contained _(Phase 4-2)_
 13. **Document pattern divergence** instead of forcing consistency where semantics differ _(Phase 4-2)_
 14. **Verify test coverage** by explicitly checking test file existence in Polish chunks _(Phase 4-2)_
+15. **Use typed repository results** for better error handling and debugging _(Phase 4-3)_
+16. **Document scalability limitations** for in-memory state _(Phase 4-3)_
+17. **Track remediation progress** with sequential analysis documents _(Phase 4-3)_
 
 Apply these lessons to all future phase implementations.
 
 ---
 
-_Based on analysis of Phase 3 (Gmail), Phase 4 & 4-2 (Calendar), and Phase 13 (API Docs) implementations_  
-_Document Version: 1.5_  
+_Based on analysis of Phase 3 (Gmail), Phase 4, 4-2 & 4-3 (Calendar), and Phase 13 (API Docs) implementations_  
+_Document Version: 1.6_  
 _Updated: December 23, 2024_
+- _v1.6: Added Phase 4-3 learnings - typed repository results, multi-instance scalability patterns, remediation tracking_
 - _v1.5: Added Phase 4-2 deep analysis learnings - extraction-ready architecture, placeholder detection, documentation-focused pattern verification_
 - _v1.4: Added Phase 4 (Calendar) learnings - rate limiting, mappers, schedulers, cross-integration patterns_
 - _v1.3: Clarified CSRF protection handled by Next Auth - removed custom CSRF token patterns_
