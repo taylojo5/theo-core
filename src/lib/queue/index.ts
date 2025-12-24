@@ -16,6 +16,7 @@ const queues = new Map<string, Queue>();
 export const QUEUE_NAMES = {
   EMBEDDINGS: "embeddings",
   EMAIL_SYNC: "email-sync",
+  CALENDAR_SYNC: "calendar-sync",
   NOTIFICATIONS: "notifications",
 } as const;
 

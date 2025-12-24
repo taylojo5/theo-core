@@ -60,16 +60,22 @@ export default function CalendarSettingsPage() {
   const fetchConnectionStatus = React.useCallback(async () => {
     setLoadingStates((s) => ({ ...s, connection: true }));
     try {
-      const res = await fetch("/api/integrations/status");
-      if (res.ok) {
-        const status = await res.json();
+      const [statusRes, connectRes] = await Promise.all([
+        fetch("/api/integrations/status"),
+        fetch("/api/integrations/calendar/connect"),
+      ]);
+
+      if (statusRes.ok && connectRes.ok) {
+        const status = await statusRes.json();
+        const connect = await connectRes.json();
+
         setConnectionData({
-          connected: status.calendar?.connected || false,
+          connected: connect.connected || false,
           email: status.google?.email,
-          hasRequiredScopes: status.calendar?.canRead || false,
-          canRead: status.calendar?.canRead || false,
-          canWrite: status.calendar?.canWrite || false,
-          missingScopes: status.calendar?.missingScopes || [],
+          hasRequiredScopes: connect.hasRequiredScopes || false,
+          canRead: connect.canRead || false,
+          canWrite: connect.canWrite || false,
+          missingScopes: connect.missingScopes || [],
           tokenHealth: status.google?.tokenHealth,
         });
       }
@@ -189,32 +195,69 @@ export default function CalendarSettingsPage() {
 
   const handleConnect = async () => {
     try {
-      await signIn("google", {
-        callbackUrl: "/settings/integrations/calendar",
-        scope: "https://www.googleapis.com/auth/calendar.events",
+      const res = await fetch("/api/integrations/calendar/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirectUrl: "/settings/integrations/calendar" }),
       });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || `Connection failed (${res.status})`);
+      }
+
+      const data = await res.json();
+
+      if (data.signInRequired && data.authorizationParams) {
+        // Use NextAuth's signIn() to properly handle PKCE
+        await signIn(
+          "google",
+          { callbackUrl: data.callbackUrl || "/settings/integrations/calendar" },
+          data.authorizationParams
+        );
+      } else if (data.alreadyConnected) {
+        // Already connected, refresh status
+        await fetchConnectionStatus();
+      }
     } catch (error) {
-      toast.error("Failed to initiate connection");
-      console.error("Failed to connect:", error);
+      const message =
+        error instanceof Error ? error.message : "Connection failed";
+      toast.error(message);
+      console.error("Failed to connect Calendar:", error);
+      // Update connection data to show error state
+      setConnectionData((prev) =>
+        prev
+          ? {
+              ...prev,
+              error: message,
+            }
+          : undefined
+      );
     }
   };
 
   const handleDisconnect = async () => {
     try {
-      const res = await fetch("/api/auth/revoke", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google" }),
+      const res = await fetch("/api/integrations/calendar/disconnect", {
+        method: "DELETE",
       });
+
       if (res.ok) {
-        toast.success("Calendar disconnected");
-        fetchConnectionStatus();
+        toast.success("Calendar disconnected successfully");
+        await fetchConnectionStatus();
+        // Clear other data
+        setCalendarListData(undefined);
+        setSyncData(undefined);
+        setApprovalsData(undefined);
       } else {
-        toast.error("Failed to disconnect");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to disconnect");
       }
     } catch (error) {
-      toast.error("Failed to disconnect");
-      console.error("Failed to disconnect:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to disconnect Calendar";
+      toast.error(message);
+      console.error("Failed to disconnect Calendar:", error);
     }
   };
 

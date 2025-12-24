@@ -803,6 +803,229 @@ CREATE TABLE gmail_sync_state (
 
 ---
 
+## Calendar Integration
+
+### Calendars
+
+```sql
+CREATE TABLE calendars (
+    id                  TEXT PRIMARY KEY,
+    user_id             TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    google_calendar_id  TEXT NOT NULL,
+
+    -- Display information
+    name                TEXT NOT NULL,
+    description         TEXT,
+    time_zone           TEXT,
+
+    -- Classification
+    is_primary          BOOLEAN DEFAULT FALSE,
+    is_owner            BOOLEAN DEFAULT FALSE,
+    access_role         TEXT NOT NULL, -- owner, writer, reader, freeBusyReader
+
+    -- Appearance
+    background_color    TEXT,
+    foreground_color    TEXT,
+
+    -- User preferences
+    is_selected         BOOLEAN DEFAULT TRUE, -- Should events from this calendar be synced?
+    is_hidden           BOOLEAN DEFAULT FALSE, -- Should this calendar be hidden in UI?
+
+    -- Timestamps
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ,
+
+    UNIQUE(user_id, google_calendar_id)
+);
+
+CREATE INDEX idx_calendars_user ON calendars(user_id);
+```
+
+### Calendar Sync State
+
+Tracks synchronization state for incremental syncing using Google Calendar's sync tokens:
+
+```sql
+CREATE TABLE calendar_sync_state (
+    id                    TEXT PRIMARY KEY,
+    user_id               TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Sync tokens
+    sync_token            TEXT,          -- Google Calendar sync token for incremental sync
+    sync_token_set_at     TIMESTAMPTZ,   -- When the sync token was set
+    last_sync_at          TIMESTAMPTZ,
+    last_full_sync_at     TIMESTAMPTZ,
+
+    -- Full sync checkpoint (for resumable sync)
+    full_sync_page_token  TEXT,          -- Page token to resume from
+    full_sync_progress    INTEGER DEFAULT 0, -- Events processed so far
+    full_sync_started_at  TIMESTAMPTZ,   -- When full sync started
+
+    -- Status
+    sync_status           TEXT DEFAULT 'idle', -- idle, syncing, full_sync, incremental_sync, error
+    sync_error            TEXT,
+
+    -- Statistics
+    event_count           INTEGER DEFAULT 0,
+    calendar_count        INTEGER DEFAULT 0,
+
+    -- Embedding statistics
+    embeddings_pending    INTEGER DEFAULT 0,
+    embeddings_completed  INTEGER DEFAULT 0,
+    embeddings_failed     INTEGER DEFAULT 0,
+
+    -- Webhook configuration
+    webhook_channel_id    TEXT,          -- Channel ID for push notifications
+    webhook_resource_id   TEXT,          -- Resource ID for the watched calendar
+    webhook_expiration    TIMESTAMPTZ,   -- When the webhook expires
+
+    -- Sync configuration
+    sync_calendar_ids     TEXT[] DEFAULT '{}', -- Calendars to sync (empty = all selected)
+    exclude_calendar_ids  TEXT[] DEFAULT '{}', -- Calendars to exclude
+
+    -- Timestamps
+    created_at            TIMESTAMPTZ DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ
+);
+```
+
+### Calendar Event Approvals
+
+Stores approval requests for agent-initiated calendar actions:
+
+```sql
+CREATE TABLE calendar_approvals (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Action details
+    action_type     TEXT NOT NULL, -- create, update, delete, respond
+    calendar_id     TEXT NOT NULL, -- Target calendar (Google Calendar ID)
+    event_id        TEXT,          -- Target event ID (for update/delete/respond)
+
+    -- Event snapshot (the proposed event data)
+    event_snapshot  JSONB NOT NULL,
+
+    -- Approval status
+    status          TEXT DEFAULT 'pending', -- pending, approved, rejected, expired, executed, failed
+
+    -- Timing
+    requested_at    TIMESTAMPTZ DEFAULT NOW(),
+    requested_by    TEXT,          -- Agent action ID or identifier
+    expires_at      TIMESTAMPTZ,   -- Auto-expire time
+    decided_at      TIMESTAMPTZ,   -- When user decided
+    decided_by      TEXT,          -- user, auto_expired, system
+
+    -- Result tracking
+    result_event_id TEXT,          -- Created/updated event ID after execution
+    error_message   TEXT,          -- Error if execution failed
+
+    -- Context
+    notes           TEXT,          -- User notes or rejection reason
+    metadata        JSONB DEFAULT '{}'
+);
+
+CREATE INDEX idx_calendar_approvals_user_status ON calendar_approvals(user_id, status);
+CREATE INDEX idx_calendar_approvals_expires ON calendar_approvals(expires_at);
+CREATE INDEX idx_calendar_approvals_user_date ON calendar_approvals(user_id, requested_at DESC);
+```
+
+### Events (Extended for Calendar)
+
+The existing `events` table is extended with Google Calendar-specific fields:
+
+```sql
+-- Additional columns added to events table
+ALTER TABLE events ADD COLUMN google_event_id TEXT;
+ALTER TABLE events ADD COLUMN google_calendar_id TEXT;
+ALTER TABLE events ADD COLUMN calendar_id TEXT REFERENCES calendars(id);
+ALTER TABLE events ADD COLUMN recurring_event_id TEXT;
+
+-- JSON fields for complex structures
+ALTER TABLE events ADD COLUMN recurrence JSONB;
+ALTER TABLE events ADD COLUMN attendees JSONB;
+ALTER TABLE events ADD COLUMN organizer JSONB;
+ALTER TABLE events ADD COLUMN creator JSONB;
+ALTER TABLE events ADD COLUMN conference_data JSONB;
+ALTER TABLE events ADD COLUMN reminders JSONB;
+
+-- Additional metadata
+ALTER TABLE events ADD COLUMN i_cal_uid TEXT;
+ALTER TABLE events ADD COLUMN sequence INTEGER DEFAULT 0;
+ALTER TABLE events ADD COLUMN etag TEXT;
+ALTER TABLE events ADD COLUMN html_link TEXT;
+ALTER TABLE events ADD COLUMN hangout_link TEXT;
+
+CREATE INDEX idx_events_google_id ON events(google_event_id);
+CREATE INDEX idx_events_google_calendar ON events(google_calendar_id);
+```
+
+### Calendar ER Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Calendar Integration                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────┐       ┌───────────────┐       ┌─────────────────┐     │
+│  │     User     │──1:N──│   Calendar    │──1:N──│     Event       │     │
+│  ├──────────────┤       ├───────────────┤       ├─────────────────┤     │
+│  │ id           │       │ id            │       │ id              │     │
+│  │ email        │       │ userId ────────│       │ userId          │     │
+│  │ ...          │       │ googleCalId   │       │ googleEventId   │     │
+│  └──────────────┘       │ name          │       │ calendarId ──────│     │
+│         │               │ isPrimary     │       │ title           │     │
+│         │               │ accessRole    │       │ startsAt        │     │
+│         │               │ isSelected    │       │ attendees       │     │
+│         │               └───────────────┘       │ recurrence      │     │
+│         │                                       └─────────────────┘     │
+│         │                                                               │
+│         │               ┌───────────────────┐                           │
+│         └──────1:1──────│ CalendarSyncState │                           │
+│         │               ├───────────────────┤                           │
+│         │               │ id                │                           │
+│         │               │ userId            │                           │
+│         │               │ syncToken         │                           │
+│         │               │ syncStatus        │                           │
+│         │               │ webhookChannelId  │                           │
+│         │               │ lastSyncAt        │                           │
+│         │               └───────────────────┘                           │
+│         │                                                               │
+│         │               ┌───────────────────┐                           │
+│         └──────1:N──────│ CalendarApproval  │                           │
+│                         ├───────────────────┤                           │
+│                         │ id                │                           │
+│                         │ userId            │                           │
+│                         │ actionType        │                           │
+│                         │ eventSnapshot     │                           │
+│                         │ status            │                           │
+│                         │ expiresAt         │                           │
+│                         └───────────────────┘                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Sync Flow
+
+1. **Full Sync** (initial import):
+   - Fetch all calendars from Google Calendar
+   - For each selected calendar, fetch events with sync token request
+   - Store events and calendars in database
+   - Save sync token for incremental sync
+
+2. **Incremental Sync** (delta updates):
+   - Call Google Calendar API with stored sync token
+   - Process added/updated/deleted events
+   - Update local database
+   - Store new sync token
+
+3. **Webhook Updates** (real-time):
+   - Google pushes notifications when calendar changes
+   - Trigger incremental sync for affected user
+   - Renew webhook before expiration (max 7 days)
+
+---
+
 ## Skills Registry
 
 ### Skills
@@ -869,6 +1092,8 @@ CREATE TABLE user_skill_settings (
 8. Create `connected_accounts`
 9. Create `skills` and `user_skill_settings`
 10. Create Gmail tables: `emails`, `email_labels`, `gmail_sync_state`
+11. Create Calendar tables: `calendars`, `calendar_sync_state`, `calendar_approvals`
+12. Extend `events` table with Calendar fields
 
 ### Indexing Strategy
 

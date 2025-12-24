@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import {
   Prisma,
 } from "@prisma/client";
+import { calendarLogger } from "./logger";
 import type {
   Calendar,
   CalendarSyncState,
@@ -96,6 +97,29 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([_, value]) => value !== undefined)
   ) as Partial<T>;
+}
+
+/**
+ * Build update data for calendar upsert operations.
+ * Centralizes update field mapping to avoid WET code in upsert/upsertMany.
+ * 
+ * @param input - Calendar create input with fields to update
+ * @returns Prisma update data object
+ */
+function buildCalendarUpdateData(input: CalendarCreateInput): Prisma.CalendarUpdateInput {
+  return {
+    name: input.name,
+    description: input.description,
+    timeZone: input.timeZone,
+    isPrimary: input.isPrimary,
+    isOwner: input.isOwner,
+    accessRole: input.accessRole,
+    backgroundColor: input.backgroundColor,
+    foregroundColor: input.foregroundColor,
+    isSelected: input.isSelected ?? true,
+    isHidden: input.isHidden ?? false,
+    updatedAt: new Date(),
+  };
 }
 
 /**
@@ -493,19 +517,7 @@ export const calendarRepository = {
         },
       },
       create: calendarInputToPrisma(input),
-      update: {
-        name: input.name,
-        description: input.description,
-        timeZone: input.timeZone,
-        isPrimary: input.isPrimary,
-        isOwner: input.isOwner,
-        accessRole: input.accessRole,
-        backgroundColor: input.backgroundColor,
-        foregroundColor: input.foregroundColor,
-        isSelected: input.isSelected ?? true,
-        isHidden: input.isHidden ?? false,
-        updatedAt: new Date(),
-      },
+      update: buildCalendarUpdateData(input),
     });
   },
 
@@ -523,19 +535,7 @@ export const calendarRepository = {
             },
           },
           create: calendarInputToPrisma(input),
-          update: {
-            name: input.name,
-            description: input.description,
-            timeZone: input.timeZone,
-            isPrimary: input.isPrimary,
-            isOwner: input.isOwner,
-            accessRole: input.accessRole,
-            backgroundColor: input.backgroundColor,
-            foregroundColor: input.foregroundColor,
-            isSelected: input.isSelected ?? true,
-            isHidden: input.isHidden ?? false,
-            updatedAt: new Date(),
-          },
+          update: buildCalendarUpdateData(input),
         })
       )
     );
@@ -610,7 +610,8 @@ export const calendarRepository = {
         where: { id },
         data,
       });
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to update calendar", { calendarId: id, error });
       return null;
     }
   },
@@ -668,7 +669,8 @@ export const calendarRepository = {
         },
       });
       return true;
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to delete calendar", { userId, calendarId, error });
       return false;
     }
   },
@@ -1054,7 +1056,8 @@ export const calendarEventRepository = {
         where: { id },
         data,
       });
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to update event", { eventId: id, error });
       return null;
     }
   },
@@ -1081,7 +1084,8 @@ export const calendarEventRepository = {
         where: { id: eventId },
       });
       return true;
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to delete event", { eventId, error });
       return false;
     }
   },
@@ -1096,7 +1100,8 @@ export const calendarEventRepository = {
         data: { deletedAt: new Date() },
       });
       return true;
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to soft delete event", { eventId, error });
       return false;
     }
   },
@@ -1349,7 +1354,8 @@ export const calendarApprovalRepository = {
         where: { id },
         data,
       });
-    } catch {
+    } catch (error) {
+      calendarLogger.debug("Failed to update approval", { approvalId: id, error });
       return null;
     }
   },

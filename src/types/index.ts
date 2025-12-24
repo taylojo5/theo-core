@@ -17,6 +17,7 @@ export type EntityType =
   | "email"
   | "conversation"
   | "gmail_connection"
+  | "calendar_connection"
   | "integration"
   | "email_approval"
   | "calendar"

@@ -12,6 +12,7 @@
 export async function register() {
   // Only run on the server (not in Edge runtime or during build)
   if (typeof window === "undefined" && process.env.NEXT_RUNTIME === "nodejs") {
+    // Initialize Gmail sync system
     try {
       // Dynamically import to avoid bundling issues
       const { initializeGmailSync } = await import("@/integrations/gmail");
@@ -24,6 +25,21 @@ export async function register() {
       // Log error but don't crash the server
       console.error(
         "[Instrumentation] Failed to initialize Gmail sync:",
+        error
+      );
+    }
+
+    // Initialize Calendar sync system
+    try {
+      const { initializeCalendarSync } = await import("@/integrations/calendar");
+
+      // Initialize Calendar sync system (webhook renewal + approval expiration schedulers)
+      await initializeCalendarSync();
+
+      console.log("[Instrumentation] Calendar sync system initialized");
+    } catch (error) {
+      console.error(
+        "[Instrumentation] Failed to initialize Calendar sync:",
         error
       );
     }

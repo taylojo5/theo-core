@@ -590,4 +590,11 @@ export const RATE_LIMITS = {
     maxRequests: 100,
     keyPrefix: "calendar-webhook",
   } as RateLimitConfig,
+
+  /** Calendar connection/disconnection: 5 per minute */
+  calendarConnect: {
+    windowMs: 60 * 1000,
+    maxRequests: 5,
+    keyPrefix: "calendar-connect",
+  } as RateLimitConfig,
 } as const;

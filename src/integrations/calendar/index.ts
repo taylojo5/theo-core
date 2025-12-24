@@ -374,6 +374,9 @@ export {
   shutdownSchedulers,
   hasRecurringSyncActive,
   
+  // Initialization
+  initializeCalendarSync,
+  
   // Job names
   CALENDAR_JOB_NAMES,
   

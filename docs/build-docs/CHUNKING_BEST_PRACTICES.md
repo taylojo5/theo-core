@@ -1,15 +1,15 @@
 # Chunking Best Practices
 
-> **Purpose**: Lessons learned from Phase 3 implementation to improve future planning and execution  
-> **Last Updated**: December 22, 2024 (v1.3)  
-> **Based On**: Phase 3-1, Phase 3-2, Phase 3-3 Completion Analysis, and Phase 13 API Documentation  
+> **Purpose**: Lessons learned from Phase 3 and Phase 4 implementation to improve future planning and execution  
+> **Last Updated**: December 23, 2024 (v1.4)  
+> **Based On**: Phase 3-1, Phase 3-2, Phase 3-3, Phase 4-1 Completion Analysis, and Phase 13 API Documentation  
 > **Note**: CSRF protection is handled by Next Auth—do not implement custom CSRF token patterns
 
 ---
 
 ## Overview
 
-This document captures best practices for chunking implementation work, derived from analysis of the Phase 3 (Gmail Integration) implementation. Following these practices will reduce drift from plan, minimize security gaps, and improve code quality.
+This document captures best practices for chunking implementation work, derived from analysis of the Phase 3 (Gmail Integration) and Phase 4 (Google Calendar Integration) implementations. Following these practices will reduce drift from plan, minimize security gaps, and improve code quality.
 
 ---
 
@@ -979,6 +979,403 @@ grep "export const syncStateRepository" src/integrations/gmail/repository.ts
 
 ---
 
+## 16. Rate Limiter Design Patterns _(New from Phase 4)_
+
+### 16.1 Unit-Aware Rate Limiting
+
+**Learning**: Calendar API operations have different quota costs. A naive rate limiter that counts requests equally leads to quota exhaustion.
+
+**Best Practice**: Define quota units per operation type:
+
+```typescript
+// src/integrations/{module}/types.ts
+export const QUOTA_UNITS = {
+  "calendars.list": 1,
+  "calendars.get": 1,
+  "events.list": 1,
+  "events.get": 1,
+  "events.insert": 3,
+  "events.update": 3,
+  "events.delete": 2,
+  "channels.stop": 1,
+} as const;
+```
+
+### 16.2 Atomic Quota Consumption for Multi-Step Operations
+
+**Learning**: Operations like `updateEvent` that require multiple API calls (get + update) need atomic quota checking.
+
+**Best Practice**: Use `additionalUnits` parameter to reserve quota for the entire operation:
+
+```typescript
+// Good: Reserve quota for entire operation atomically
+async updateEvent(params: UpdateEventParams): Promise<Event> {
+  return this.execute(
+    "events.update",
+    async () => {
+      const current = await this.calendar.events.get({ ... });
+      return this.calendar.events.update({ ... });
+    },
+    { additionalUnits: 1 } // Account for the get + update
+  );
+}
+```
+
+### 16.3 Peek-Before-Consume Pattern
+
+**Learning**: Consuming quota tokens before checking availability leads to wasted tokens on concurrent requests.
+
+**Best Practice**: Implement peek + check pattern:
+
+```typescript
+// Wait for quota without consuming
+await rateLimiter.waitForQuotaUnits(userId, totalUnits);
+
+// Peek again immediately before consumption (double-check)
+const canProceed = await rateLimiter.peekUnits(userId, totalUnits);
+if (!canProceed) {
+  throw new Error("Rate limit exceeded");
+}
+
+// Now consume atomically
+const result = await rateLimiter.checkUnits(userId, totalUnits);
+```
+
+---
+
+## 17. Data Mapper Patterns _(New from Phase 4)_
+
+### 17.1 Round-Trip Verification
+
+**Learning**: Mappers that convert between API and DB formats must be verified for round-trip consistency.
+
+**Best Practice**: Add round-trip tests for all bidirectional mappers:
+
+```typescript
+describe("Event Mappers", () => {
+  it("should round-trip event data correctly", () => {
+    const original = createMockGoogleEvent();
+    const dbModel = mapGoogleEventToDb(original);
+    const backToGoogle = mapDbEventToGoogleInput(dbModel);
+    
+    // Core fields should survive round-trip
+    expect(backToGoogle.summary).toBe(original.summary);
+    expect(backToGoogle.start).toEqual(original.start);
+    expect(backToGoogle.end).toEqual(original.end);
+  });
+});
+```
+
+### 17.2 Edge Case Documentation
+
+**Best Practice**: Document edge cases in mapper code with comments:
+
+```typescript
+export function parseEventDateTime(dateTime: EventDateTime): Date {
+  // All-day events: Google sends { date: "2024-01-15" } without timezone
+  // We convert to midnight UTC for consistent storage
+  if (dateTime.date) {
+    return new Date(`${dateTime.date}T00:00:00Z`);
+  }
+  
+  // Timed events: Google sends { dateTime: "...", timeZone: "..." }
+  return new Date(dateTime.dateTime!);
+}
+```
+
+### 17.3 Defensive Null Handling
+
+**Learning**: External APIs return inconsistent data—null, undefined, or missing fields.
+
+**Best Practice**: Use defensive accessors with clear defaults:
+
+```typescript
+// Good: Defensive with meaningful defaults
+const attendees = event.attendees?.map(normalizeAttendee) ?? [];
+const description = event.description ?? "";
+const location = event.location ?? null;
+
+// Bad: Trusting API to always provide data
+const attendees = event.attendees.map(normalizeAttendee); // May throw!
+```
+
+---
+
+## 18. Scheduler Lifecycle Integration _(New from Phase 4)_
+
+### 18.1 Instrumentation File Pattern
+
+**Learning**: Calendar schedulers were created but not connected to application startup in `instrumentation.ts`.
+
+**Best Practice**: Every new integration with background processes MUST update `instrumentation.ts`:
+
+```typescript
+// instrumentation.ts
+export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { initializeGmailSync } = await import("@/integrations/gmail/jobs/scheduler");
+    const { initializeSchedulers: initializeCalendarSchedulers } = await import("@/integrations/calendar/sync/scheduler");
+    const { initializeEmbeddingWorker } = await import("@/lib/embeddings/worker");
+    
+    await Promise.all([
+      initializeGmailSync(),
+      initializeCalendarSchedulers(), // ← Don't forget new integrations!
+      initializeEmbeddingWorker(),
+    ]);
+  }
+}
+```
+
+### 18.2 Scheduler Checklist
+
+Add this to every chunk that creates background jobs:
+
+```markdown
+### Scheduler Integration
+
+- [ ] Scheduler start function created
+- [ ] Scheduler stop function created (for graceful shutdown)
+- [ ] **instrumentation.ts updated to call start function**
+- [ ] Scheduler logs startup and shutdown
+- [ ] Health check endpoint added (optional)
+```
+
+---
+
+## 19. Cross-Integration Code Sharing _(New from Phase 4)_
+
+### 19.1 Identify WET Patterns Early
+
+**Learning**: Gmail and Calendar integrations have nearly identical approval workflow patterns, scopes utilities, and job queue abstractions.
+
+**Best Practice**: Before implementing a similar integration, grep for reusable patterns:
+
+```bash
+# Find approval-related code
+grep -r "approval" src/integrations/gmail/
+grep -r "Approval" src/integrations/gmail/
+
+# If patterns are similar, extract to shared location
+# src/lib/integrations/approval-workflow.ts
+# src/lib/integrations/scope-utils.ts
+```
+
+### 19.2 Shared Integration Utilities
+
+When multiple integrations need similar functionality, create shared utilities:
+
+```typescript
+// src/lib/integrations/approval-workflow.ts
+export interface ApprovalWorkflowConfig<T> {
+  getApproval: (id: string) => Promise<T | null>;
+  updateStatus: (id: string, status: ApprovalStatus) => Promise<T>;
+  executeAction: (approval: T) => Promise<void>;
+  auditLogger: AuditLogger;
+}
+
+export function createApprovalWorkflow<T>(config: ApprovalWorkflowConfig<T>) {
+  return {
+    approve: async (id: string) => { /* shared logic */ },
+    reject: async (id: string) => { /* shared logic */ },
+    expire: async () => { /* shared logic */ },
+  };
+}
+```
+
+### 19.3 Pattern Extraction Trigger
+
+**Heuristic**: If you're copying more than 50 lines from one integration to another, extract to a shared utility.
+
+---
+
+## 20. Database Update Patterns _(New from Phase 4)_
+
+### 20.1 Undefined vs Null Handling
+
+**Learning**: Prisma treats `undefined` as "don't update" and `null` as "set to null". This distinction is critical for partial updates.
+
+**Best Practice**: Use helper functions to strip undefined values:
+
+```typescript
+// src/lib/db/utils.ts
+export function omitUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
+// Usage in repository
+async update(id: string, data: Partial<EventInput>): Promise<Event> {
+  return prisma.event.update({
+    where: { id },
+    data: omitUndefined(data), // Only update defined fields
+  });
+}
+```
+
+### 20.2 Upsert Best Practices
+
+**Best Practice**: Use consistent upsert patterns with explicit conflict handling:
+
+```typescript
+async upsertEvent(googleId: string, data: EventInput): Promise<Event> {
+  return prisma.event.upsert({
+    where: { 
+      googleId,
+      deletedAt: null, // Don't resurrect soft-deleted events
+    },
+    create: { googleId, ...data },
+    update: omitUndefined(data),
+  });
+}
+```
+
+### 20.3 Batch Upsert Transactions
+
+**Best Practice**: Use interactive transactions for batch upserts:
+
+```typescript
+async upsertMany(events: EventInput[]): Promise<Event[]> {
+  return prisma.$transaction(async (tx) => {
+    const results: Event[] = [];
+    for (const event of events) {
+      const result = await tx.event.upsert({ ... });
+      results.push(result);
+    }
+    return results;
+  });
+}
+```
+
+---
+
+## 21. UI State Management Patterns _(New from Phase 4)_
+
+### 21.1 Consolidated Loading States
+
+**Learning**: Managing individual loading states for each data fetch creates boilerplate and inconsistency.
+
+**Best Practice**: Use a consolidated loading state object or custom hook:
+
+```typescript
+// Good: Consolidated loading states
+const [loadingStates, setLoadingStates] = useState({
+  connection: true,
+  calendars: false,
+  sync: false,
+  approvals: false,
+});
+
+const setLoading = (key: keyof typeof loadingStates, value: boolean) => {
+  setLoadingStates((prev) => ({ ...prev, [key]: value }));
+};
+
+// Better: Custom hook abstraction
+function useAsyncData<T>(fetcher: () => Promise<T>) {
+  const [data, setData] = useState<T | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setData(await fetcher());
+    } catch (e) {
+      setError(e as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetcher]);
+
+  return { data, isLoading, error, refresh };
+}
+```
+
+### 21.2 OAuth Connection Pattern Abstraction
+
+**Learning**: OAuth connection logic (signIn with scopes, disconnect) is duplicated across integrations.
+
+**Best Practice**: Create a reusable OAuth connection component:
+
+```typescript
+// src/components/integrations/OAuthConnectionCard.tsx
+interface OAuthConnectionCardProps {
+  provider: "google" | "microsoft" | "slack";
+  scopes: string[];
+  isConnected: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
+
+export function OAuthConnectionCard({ ... }: OAuthConnectionCardProps) {
+  // Shared connection UI and logic
+}
+```
+
+---
+
+## 22. Anti-Patterns from Phase 4 _(New)_
+
+### 22.1 "Scheduler Without Startup"
+
+❌ **Don't**: Create scheduler functions without connecting to application lifecycle
+✅ **Do**: Update `instrumentation.ts` in the same chunk that creates the scheduler
+
+**What went wrong**:
+
+```typescript
+// scheduler.ts created with:
+export async function initializeSchedulers() { ... }
+
+// But instrumentation.ts was never updated to call it!
+// Schedulers never start in production
+```
+
+### 22.2 "Duplicated Approval Logic"
+
+❌ **Don't**: Copy approval workflow logic between integrations
+✅ **Do**: Extract shared approval workflow to a reusable utility
+
+**What went wrong**:
+
+```typescript
+// Gmail approval: ~200 lines
+// Calendar approval: ~200 lines (nearly identical)
+// Should have been: shared approval utility + 50 lines per integration
+```
+
+### 22.3 "Incomplete Mapper Tests"
+
+❌ **Don't**: Test mappers only for happy path
+✅ **Do**: Test round-trip consistency, edge cases, and timezone handling
+
+**What went wrong**:
+
+```typescript
+// Tests only verified one direction:
+it("maps Google event to DB", () => { ... });
+
+// Missing:
+it("maps DB event back to Google format", () => { ... });
+it("handles all-day events correctly", () => { ... });
+it("preserves timezone information", () => { ... });
+```
+
+### 22.4 "Inconsistent Connection Status Endpoints"
+
+❌ **Don't**: Use different patterns for similar endpoints across integrations
+✅ **Do**: Standardize integration status endpoints
+
+**What went wrong**:
+
+```typescript
+// Gmail: GET /api/integrations/gmail/status
+// Calendar: GET /api/integrations/calendar/connection
+// Should be consistent: /api/integrations/{provider}/status
+```
+
+---
+
 ## Conclusion
 
 Following these practices will:
@@ -990,14 +1387,18 @@ Following these practices will:
 5. **Enable faster remediation** by tracking technical debt explicitly
 6. **Eliminate runtime errors** by verifying interface consistency
 7. **Improve UX** by properly handling async loading states
-8. **Keep APIs discoverable** by documenting routes with OpenAPI immediately _(New)_
+8. **Keep APIs discoverable** by documenting routes with OpenAPI immediately
+9. **Prevent quota exhaustion** by using unit-aware rate limiting _(New from Phase 4)_
+10. **Enable code reuse** by extracting shared patterns across integrations _(New from Phase 4)_
+11. **Ensure background processes start** by updating instrumentation.ts _(New from Phase 4)_
 
 Apply these lessons to all future phase implementations.
 
 ---
 
-_Based on analysis of Phase 3 (Gmail Integration) and Phase 13 (API Documentation) implementation_  
-_Document Version: 1.3_  
-_Updated: December 22, 2024_
+_Based on analysis of Phase 3 (Gmail Integration), Phase 4 (Google Calendar Integration), and Phase 13 (API Documentation) implementation_  
+_Document Version: 1.4_  
+_Updated: December 23, 2024_
+- _v1.4: Added Phase 4 (Calendar) learnings - rate limiting, mappers, schedulers, cross-integration patterns_
 - _v1.3: Clarified CSRF protection handled by Next Auth - removed custom CSRF token patterns_
 - _v1.2: Added OpenAPI documentation requirements from Phase 13_

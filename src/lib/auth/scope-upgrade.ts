@@ -11,6 +11,10 @@ import {
   hasAllScopes,
   getMissingScopes,
   ALL_GMAIL_SCOPES,
+  ALL_CALENDAR_SCOPES,
+  hasCalendarReadAccess,
+  hasCalendarWriteAccess,
+  getMissingCalendarScopesForAction,
 } from "./scopes";
 
 // ─────────────────────────────────────────────────────────────
@@ -264,4 +268,128 @@ export async function revokeGmailAccess(
 export async function isGmailConnected(userId: string): Promise<boolean> {
   const result = await checkGmailScopes(userId);
   return result.hasRequiredScopes;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Connection Management
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Calendar-specific scope check result with read/write capabilities
+ */
+export interface CalendarScopeCheckResult extends ScopeCheckResult {
+  canRead: boolean;
+  canWrite: boolean;
+}
+
+/**
+ * Check if a user has Calendar integration scopes
+ */
+export async function checkCalendarScopes(
+  userId: string
+): Promise<CalendarScopeCheckResult> {
+  const grantedScopes = await getUserGrantedScopes(userId);
+
+  if (!grantedScopes) {
+    return {
+      hasRequiredScopes: false,
+      grantedScopes: [],
+      missingScopes: [...ALL_CALENDAR_SCOPES],
+      canRead: false,
+      canWrite: false,
+    };
+  }
+
+  // Calendar has nuanced scope requirements:
+  // - calendar.events provides both read AND write access
+  // - calendar.readonly provides only read access
+  const canRead = hasCalendarReadAccess(grantedScopes);
+  const canWrite = hasCalendarWriteAccess(grantedScopes);
+
+  // For "required scopes", we check if user has write access (full functionality)
+  const hasRequired = canWrite;
+  const missing = getMissingCalendarScopesForAction(grantedScopes, "write");
+
+  return {
+    hasRequiredScopes: hasRequired,
+    grantedScopes,
+    missingScopes: missing,
+    canRead,
+    canWrite,
+  };
+}
+
+/**
+ * Check if Calendar is currently connected for a user
+ * Considers "connected" as having at least read access
+ */
+export async function isCalendarConnected(userId: string): Promise<boolean> {
+  const result = await checkCalendarScopes(userId);
+  return result.canRead;
+}
+
+/**
+ * Revoke Calendar access at Google and update local state
+ */
+export async function revokeCalendarAccess(
+  userId: string
+): Promise<ScopeUpgradeResult> {
+  try {
+    const account = await db.account.findFirst({
+      where: {
+        userId,
+        provider: "google",
+      },
+      select: {
+        id: true,
+        access_token: true,
+        scope: true,
+      },
+    });
+
+    if (!account) {
+      return {
+        success: false,
+        error: "No Google account found for user",
+      };
+    }
+
+    // Note: We can't selectively revoke scopes at Google.
+    // Revoking the token revokes ALL scopes.
+    // Instead, we'll just remove Calendar scopes from our stored scopes
+    // and delete calendar-related sync data.
+    // The user will need to re-authorize if they want Calendar again.
+
+    // Remove Calendar scopes from stored scopes
+    const existingScopes = parseScopes(account.scope);
+    const remainingScopes = existingScopes.filter(
+      (scope) =>
+        !ALL_CALENDAR_SCOPES.includes(
+          scope as (typeof ALL_CALENDAR_SCOPES)[number]
+        )
+    );
+
+    await db.account.update({
+      where: { id: account.id },
+      data: {
+        scope: formatScopes(remainingScopes),
+      },
+    });
+
+    // Clean up Calendar-specific sync data
+    await db.calendarSyncState.deleteMany({
+      where: { userId },
+    });
+
+    // Clean up calendar events (optional - you may want to keep history)
+    // await db.calendarEvent.deleteMany({ where: { userId } });
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to revoke Calendar access",
+    };
+  }
 }

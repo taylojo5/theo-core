@@ -28,10 +28,11 @@ Store the chunk plan in the phase folder
 Run this analysis in iteration until risks and drift are acceptable
 
 ```text
-Please do a deep analysis on the phase X implementation, and create a doc calls PHASE_X-X_COMPLETION_ANALYSIS.md that outlines all
+Please do a deep analysis on the phase 4 implementation, and create a doc calls PHASE_4-1_COMPLETION_ANALYSIS.md that outlines all
 
 - WET implementation
 - code smells
+- misalignment from other codebase patterns
 - drift from plan
 - vulnerabilities
 - functionality issues

@@ -124,6 +124,86 @@ export type {
 } from "./scheduler";
 
 // ─────────────────────────────────────────────────────────────
+// Initialization
+// ─────────────────────────────────────────────────────────────
+
+import { getQueue, QUEUE_NAMES } from "@/lib/queue";
+import { initializeSchedulers, type CalendarJobQueue } from "./scheduler";
+import { schedulerLogger } from "../logger";
+
+/**
+ * Create a queue adapter that wraps the BullMQ queue to match CalendarJobQueue interface
+ */
+function createQueueAdapter(): CalendarJobQueue {
+  const queue = getQueue(QUEUE_NAMES.CALENDAR_SYNC);
+
+  return {
+    async add(name, data, options) {
+      const job = await queue.add(name, data, {
+        delay: options?.delay,
+        attempts: options?.attempts,
+        backoff: options?.backoff,
+        removeOnComplete: options?.removeOnComplete,
+        removeOnFail: options?.removeOnFail,
+        jobId: options?.jobId,
+        repeat: options?.repeat,
+      });
+      return { id: job.id ?? "", name: job.name };
+    },
+
+    async removeRepeatable(name, repeatOpts) {
+      const repeatableJobs = await queue.getRepeatableJobs();
+      const job = repeatableJobs.find(
+        (j) => j.name === name && j.every !== null && String(j.every) === String(repeatOpts.every)
+      );
+      if (job) {
+        await queue.removeRepeatableByKey(job.key);
+        return true;
+      }
+      return false;
+    },
+
+    async getRepeatableJobs() {
+      const jobs = await queue.getRepeatableJobs();
+      return jobs.map((j) => ({ name: j.name, id: j.id ?? undefined }));
+    },
+  };
+}
+
+/**
+ * Initialize the Calendar sync system
+ *
+ * This should be called once on application startup.
+ * It starts the webhook renewal and approval expiration schedulers.
+ *
+ * @example
+ * ```ts
+ * // In your server initialization file
+ * import { initializeCalendarSync } from '@/integrations/calendar';
+ *
+ * await initializeCalendarSync();
+ * ```
+ */
+export async function initializeCalendarSync(): Promise<void> {
+  try {
+    const queue = createQueueAdapter();
+
+    // Initialize schedulers (webhook renewal + approval expiration)
+    await initializeSchedulers({
+      queue,
+      enableRecurringSync: false, // Per-user sync is enabled when user connects calendar
+      enableWebhookRenewal: true,
+      enableApprovalExpiration: true,
+    });
+
+    schedulerLogger.info("Calendar sync system initialized");
+  } catch (error) {
+    schedulerLogger.error("Failed to initialize Calendar sync system", { error });
+    throw error;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Utilities
 // ─────────────────────────────────────────────────────────────
 
