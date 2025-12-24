@@ -457,6 +457,34 @@ if (hasHighSeverityConflicts(conflicts)) {
 
 ## API Endpoints
 
+### Connection
+
+```
+GET /api/integrations/calendar/connect
+```
+
+Get Calendar connection status (connected, scopes granted, etc.).
+
+```
+POST /api/integrations/calendar/connect
+```
+
+Initiate Calendar connection. Returns OAuth parameters for client-side signIn().
+
+Request (optional):
+```json
+{
+  "force": false,
+  "redirectUrl": "/settings/integrations/calendar"
+}
+```
+
+```
+POST /api/integrations/calendar/disconnect
+```
+
+Disconnect Calendar integration. Stops sync, removes webhooks, and clears stored data.
+
 ### Calendars
 
 ```
@@ -905,6 +933,112 @@ npm test -- tests/integrations/calendar/ --coverage
 3. **Sync tokens** - Incremental sync fetches only changes
 4. **Webhook debouncing** - Multiple notifications coalesced
 5. **Rate limit awareness** - Built-in delays to respect quotas
+
+---
+
+## Future Work
+
+The following features are planned for future phases:
+
+### Agent Integration (Deferred to Agent Engine Phase)
+
+When the Agent Engine is implemented, Calendar will integrate via:
+
+- **Calendar Tools**: Agent can query calendar, find free slots, check conflicts
+- **Context Injection**: Upcoming events injected into agent context
+- **Proactive Scheduling**: Agent suggests optimal meeting times
+
+```typescript
+// Future: Agent tool definition
+const calendarTools = {
+  findFreeSlots: {
+    description: "Find available time slots for a meeting",
+    parameters: { duration, participants, dateRange },
+    handler: async (params) => { ... },
+  },
+  checkConflicts: {
+    description: "Check for scheduling conflicts",
+    parameters: { startTime, endTime },
+    handler: async (params) => { ... },
+  },
+};
+```
+
+### Additional Features
+
+| Feature | Description | Priority |
+| ------- | ----------- | -------- |
+| Multi-Calendar Actions | Create events across multiple calendars | Medium |
+| Recurring Event Editing | Edit specific instances or entire series | Medium |
+| Calendar Sharing | Share calendars with other Theo users | Low |
+| External Calendar Sync | Sync non-Google calendars (Outlook, iCal) | Low |
+| Smart Scheduling | AI-powered optimal meeting time suggestions | Future |
+
+---
+
+## Extraction Notes
+
+> **Architectural Goal**: The Calendar integration is designed for eventual extraction into its own microservice/cluster.
+
+### Self-Contained Design
+
+The Calendar integration intentionally avoids shared code dependencies with other integrations (e.g., Gmail). This enables:
+
+1. **Independent Deployment**: Calendar can be deployed as a separate service
+2. **Independent Scaling**: Calendar workloads can scale independently
+3. **Independent Development**: Teams can work on Calendar without affecting Gmail
+
+### What Will Move to the Calendar Cluster
+
+When extracted, the following components move together:
+
+```
+Calendar Cluster (Future)
+├── src/integrations/calendar/     # All Calendar-specific code
+├── src/app/api/integrations/calendar/  # API routes
+├── src/components/integrations/calendar/  # UI components
+├── tests/integrations/calendar/   # Tests
+└── prisma/migrations/calendar_*   # Database migrations
+```
+
+### What Stays in Core
+
+These remain in the core platform (shared infrastructure):
+
+| Component | Reason |
+| --------- | ------ |
+| `src/lib/auth/` | Authentication is a platform concern |
+| `src/lib/rate-limit/` | Rate limiting infrastructure is shared |
+| `src/lib/queue/` | BullMQ queue infrastructure is shared |
+| `src/lib/db/` | Database client (though Calendar may get its own) |
+| `src/services/audit/` | Audit logging is a platform concern |
+| `prisma/schema.prisma` | Core models (User, Account) stay in core |
+
+### Cross-Integration Pattern Differences
+
+Calendar and Gmail have similar patterns but intentionally separate implementations:
+
+| Aspect | Calendar | Gmail | Reason for Difference |
+| ------ | -------- | ----- | -------------------- |
+| Approval Status | `executed` | `sent` | Semantic: Calendar executes actions, Gmail sends messages |
+| Response Shape | `canRead, canWrite` | `hasRequiredScopes` | Calendar has granular scopes |
+| Audit Types | `calendar_action_*` | `create`, `send` | Calendar uses descriptive prefixes |
+
+These differences are **intentional** and should not be normalized.
+
+### Extraction Checklist (Future)
+
+When extracting Calendar to its own cluster:
+
+- [ ] Create separate repository
+- [ ] Move all `calendar/` directories
+- [ ] Set up independent database
+- [ ] Configure OAuth for new service
+- [ ] Set up independent queue (or shared queue with namespacing)
+- [ ] Configure rate limiting for new service
+- [ ] Update core to call Calendar service via HTTP/gRPC
+- [ ] Set up service discovery
+- [ ] Configure monitoring and alerting
 
 ---
 

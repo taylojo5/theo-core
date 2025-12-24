@@ -132,9 +132,20 @@ import { initializeSchedulers, type CalendarJobQueue } from "./scheduler";
 import { schedulerLogger } from "../logger";
 
 /**
- * Create a queue adapter that wraps the BullMQ queue to match CalendarJobQueue interface
+ * Create a queue adapter that wraps the BullMQ queue to match CalendarJobQueue interface.
+ * 
+ * This adapter is exported for use by API routes and other code that needs to
+ * schedule calendar jobs (e.g., webhook handlers, connect endpoints).
+ * 
+ * @example
+ * ```ts
+ * import { getCalendarQueue, scheduleIncrementalSync } from '@/integrations/calendar';
+ * 
+ * const queue = getCalendarQueue();
+ * await scheduleIncrementalSync(queue, userId);
+ * ```
  */
-function createQueueAdapter(): CalendarJobQueue {
+export function getCalendarQueue(): CalendarJobQueue {
   const queue = getQueue(QUEUE_NAMES.CALENDAR_SYNC);
 
   return {
@@ -186,7 +197,7 @@ function createQueueAdapter(): CalendarJobQueue {
  */
 export async function initializeCalendarSync(): Promise<void> {
   try {
-    const queue = createQueueAdapter();
+    const queue = getCalendarQueue();
 
     // Initialize schedulers (webhook renewal + approval expiration)
     await initializeSchedulers({

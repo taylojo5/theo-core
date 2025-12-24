@@ -1,15 +1,15 @@
 # Chunking Best Practices
 
-> **Purpose**: Lessons learned from Phase 3 and Phase 4 implementation to improve future planning and execution  
-> **Last Updated**: December 23, 2024 (v1.4)  
-> **Based On**: Phase 3-1, Phase 3-2, Phase 3-3, Phase 4-1 Completion Analysis, and Phase 13 API Documentation  
+> **Purpose**: Lessons learned from Phase 3, Phase 4, and Phase 4-2 implementation to improve future planning and execution  
+> **Last Updated**: December 23, 2024 (v1.5)  
+> **Based On**: Phase 3-1, Phase 3-2, Phase 3-3, Phase 4-1, Phase 4-2 Completion Analysis, and Phase 13 API Documentation  
 > **Note**: CSRF protection is handled by Next Auth—do not implement custom CSRF token patterns
 
 ---
 
 ## Overview
 
-This document captures best practices for chunking implementation work, derived from analysis of the Phase 3 (Gmail Integration) and Phase 4 (Google Calendar Integration) implementations. Following these practices will reduce drift from plan, minimize security gaps, and improve code quality.
+This document captures best practices for chunking implementation work, derived from analysis of the Phase 3 (Gmail Integration), Phase 4 (Google Calendar Integration), and Phase 4-2 (Calendar Deep Analysis) implementations. Following these practices will reduce drift from plan, minimize security gaps, improve code quality, and ensure cross-integration consistency.
 
 ---
 
@@ -1374,6 +1374,195 @@ it("preserves timezone information", () => { ... });
 // Should be consistent: /api/integrations/{provider}/status
 ```
 
+### 22.5 "Placeholder Implementation in Production Code" _(New from Phase 4-2)_
+
+❌ **Don't**: Leave placeholder implementations that log but don't act
+✅ **Do**: Either implement fully or throw a clear "NotImplemented" error
+
+**What went wrong**:
+
+```typescript
+// This placeholder was deployed and appeared to work:
+const triggerSync = async (_userId: string): Promise<void> => {
+  logger.info("Incremental sync triggered for user", { userId: _userId });
+  // In production: await scheduleIncrementalSync(queue, userId)  ← NOT IMPLEMENTED!
+};
+
+// Webhooks appeared to work but sync never happened
+```
+
+**Better approach**:
+
+```typescript
+// Option 1: Full implementation
+const triggerSync = async (userId: string): Promise<void> => {
+  const queue = getQueue(QUEUE_NAMES.CALENDAR_SYNC);
+  await scheduleIncrementalSync(queue, userId);
+};
+
+// Option 2: Clear failure if not ready
+const triggerSync = async (_userId: string): Promise<void> => {
+  throw new Error("NOT_IMPLEMENTED: triggerSync requires queue adapter");
+};
+```
+
+### 22.6 "Missing Auto-Start Behaviors Between Integrations" _(New from Phase 4-2)_
+
+❌ **Don't**: Implement auto-start behavior in one integration but forget it in another
+✅ **Do**: Create a checklist of "on connect" behaviors that all integrations should implement
+
+**What went wrong**:
+
+```typescript
+// Gmail connect endpoint starts recurring sync for returning users:
+if (scopeCheck.hasRequiredScopes && !body.force) {
+  const hasRecurring = await hasRecurringSync(userId);
+  if (!hasRecurring) {
+    await startRecurringSync(userId);  // ✅ Gmail does this
+    await triggerSync(userId);
+  }
+}
+
+// Calendar connect was missing this entirely!
+if (scopeCheck.hasRequiredScopes && !body.force) {
+  return NextResponse.json({  // ❌ No auto-sync logic
+    success: true,
+    alreadyConnected: true,
+  });
+}
+```
+
+**Best Practice**: Create a "Connect Behavior Checklist" for all integrations:
+
+```markdown
+### On Connect (already authorized) Checklist
+
+- [ ] Check if recurring sync is running
+- [ ] Start recurring sync if not running
+- [ ] Trigger immediate sync for fresh data
+- [ ] Log successful auto-start
+- [ ] Handle errors gracefully (don't fail connect)
+```
+
+---
+
+## 23. Cross-Integration Pattern Verification _(New from Phase 4-2)_
+
+### 23.1 Extraction-Ready vs Shared Code Decision
+
+> **Critical Architectural Decision**: Are integrations designed for future extraction into separate clusters/microservices?
+
+**If YES (extraction-ready)**:
+- **Intentional duplication is correct** - Each integration should be self-contained
+- **Avoid shared utilities between integrations** - This creates extraction-blocking coupling
+- **Pattern consistency via documentation** - Document conventions, don't enforce via imports
+- **Share only infrastructure** - Auth, rate limiting, queue primitives in core
+
+**If NO (monolith)**:
+- Extract shared patterns when implementing similar logic for the second time
+- Create `src/lib/integrations/shared-*.ts` utilities
+
+### 23.2 Integration Comparison Checklist (Documentation-Focused)
+
+After implementing a new integration, compare patterns and **document divergence** (don't necessarily fix it):
+
+```markdown
+### Cross-Integration Pattern Documentation
+
+Compare new integration with existing similar integration(s):
+
+- [ ] Document any intentional differences in connect behavior
+- [ ] Document status value semantics (e.g., "executed" vs "sent")
+- [ ] Verify consistent behaviors are implemented (auto-sync start)
+- [ ] Test file structure follows conventions
+- [ ] OpenAPI paths registered for all endpoints
+
+Note: Pattern differences are acceptable if semantically meaningful.
+Integrations can evolve independently for future extraction.
+```
+
+### 23.3 When to Share Code (Infrastructure Only)
+
+Only share code that would live in cluster infrastructure after extraction:
+
+```typescript
+// ✅ OK to share (infrastructure)
+import { auth } from "@/lib/auth";
+import { applyRateLimit } from "@/lib/rate-limit";
+import { getQueue } from "@/lib/queue";
+import { db } from "@/lib/db";
+import { logAuditEntry } from "@/services/audit";
+
+// ❌ DON'T share (integration-specific)
+import { approvalWorkflow } from "@/lib/integrations/approval-workflow";
+import { connectHandler } from "@/lib/integrations/connect-handler";
+```
+
+---
+
+## 24. Test File Verification _(New from Phase 4-2)_
+
+### 24.1 Test File Checklist
+
+Every chunk plan that mentions testing should include explicit test file verification:
+
+```markdown
+### Test File Verification
+
+Before marking chunk complete, verify these files exist:
+
+- [ ] `tests/integrations/{module}/actions.test.ts`
+- [ ] `tests/integrations/{module}/sync.test.ts`
+- [ ] `tests/integrations/{module}/api.test.ts`  ← Often forgotten!
+- [ ] `tests/integrations/{module}/webhook.test.ts`
+- [ ] `tests/integrations/{module}/mocks/index.ts`
+```
+
+### 24.2 "Polish" Chunk Test Verification
+
+In the final Polish chunk, add this explicit verification step:
+
+```markdown
+### Polish Chunk - Test Verification
+
+- [ ] Compare test file list with chunk plan
+- [ ] Identify any missing test files from plan
+- [ ] Create missing test files or document why they're not needed
+- [ ] Run coverage report and document gaps
+```
+
+---
+
+## 25. OpenAPI Coverage Verification _(New from Phase 4-2)_
+
+### 25.1 Route-to-OpenAPI Mapping
+
+Before marking API route chunks complete, verify every route has OpenAPI documentation:
+
+```bash
+# Find all route files
+find src/app/api -name "route.ts" | sort
+
+# Compare with OpenAPI registrations
+grep -r "registerPath" src/openapi/paths/ | grep "{integration}"
+
+# Any route file not covered by OpenAPI = missing documentation
+```
+
+### 25.2 OpenAPI Polish Checklist
+
+Add to Chunk 12 (Polish & Review):
+
+```markdown
+### OpenAPI Coverage Verification
+
+- [ ] List all route.ts files in src/app/api/integrations/{module}/
+- [ ] Verify each route has corresponding registerPath() call
+- [ ] Check all HTTP methods are documented (GET, POST, PATCH, DELETE)
+- [ ] Visit /docs and manually verify endpoints appear
+- [ ] Test at least one endpoint via Swagger UI
+```
+
 ---
 
 ## Conclusion
@@ -1388,17 +1577,21 @@ Following these practices will:
 6. **Eliminate runtime errors** by verifying interface consistency
 7. **Improve UX** by properly handling async loading states
 8. **Keep APIs discoverable** by documenting routes with OpenAPI immediately
-9. **Prevent quota exhaustion** by using unit-aware rate limiting _(New from Phase 4)_
-10. **Enable code reuse** by extracting shared patterns across integrations _(New from Phase 4)_
-11. **Ensure background processes start** by updating instrumentation.ts _(New from Phase 4)_
+9. **Prevent quota exhaustion** by using unit-aware rate limiting _(Phase 4)_
+10. **Ensure background processes start** by updating instrumentation.ts _(Phase 4)_
+11. **Catch placeholder code** by using explicit errors instead of logging stubs _(Phase 4-2)_
+12. **Support future extraction** by keeping integrations self-contained _(Phase 4-2)_
+13. **Document pattern divergence** instead of forcing consistency where semantics differ _(Phase 4-2)_
+14. **Verify test coverage** by explicitly checking test file existence in Polish chunks _(Phase 4-2)_
 
 Apply these lessons to all future phase implementations.
 
 ---
 
-_Based on analysis of Phase 3 (Gmail Integration), Phase 4 (Google Calendar Integration), and Phase 13 (API Documentation) implementation_  
-_Document Version: 1.4_  
+_Based on analysis of Phase 3 (Gmail), Phase 4 & 4-2 (Calendar), and Phase 13 (API Docs) implementations_  
+_Document Version: 1.5_  
 _Updated: December 23, 2024_
+- _v1.5: Added Phase 4-2 deep analysis learnings - extraction-ready architecture, placeholder detection, documentation-focused pattern verification_
 - _v1.4: Added Phase 4 (Calendar) learnings - rate limiting, mappers, schedulers, cross-integration patterns_
 - _v1.3: Clarified CSRF protection handled by Next Auth - removed custom CSRF token patterns_
 - _v1.2: Added OpenAPI documentation requirements from Phase 13_

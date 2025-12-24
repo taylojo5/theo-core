@@ -282,9 +282,24 @@ export async function processWebhookNotification(
       };
     }
 
-    // Verify token if provided (contains userId)
-    if (token && token !== syncState.userId) {
-      webhookLogger.warn("Token mismatch", {
+    // Verify token (contains userId for webhook verification)
+    // Token is set during webhook registration and MUST match the userId.
+    // All webhooks registered with this codebase include a token.
+    // Webhooks expire after 7 days max, so any legacy tokenless webhooks would have expired.
+    if (!token) {
+      webhookLogger.warn("Webhook notification missing token - rejecting for security", {
+        channelId,
+        userId: syncState.userId,
+      });
+      return {
+        success: false,
+        syncTriggered: false,
+        error: "Missing verification token",
+      };
+    }
+
+    if (token !== syncState.userId) {
+      webhookLogger.warn("Token mismatch - rejecting notification", {
         channelId,
         userId: syncState.userId,
       });

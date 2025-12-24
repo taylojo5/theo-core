@@ -93,7 +93,11 @@ export interface ProcessWebhookJobData {
  * Data for renewing a webhook before expiration
  */
 export interface RenewWebhookJobData {
-  userId: string;
+  /** 
+   * User ID to renew webhook for.
+   * If undefined, the job processes ALL users with expiring webhooks (global scheduler mode).
+   */
+  userId?: string;
   /** Current channel ID to replace */
   oldChannelId?: string;
 }

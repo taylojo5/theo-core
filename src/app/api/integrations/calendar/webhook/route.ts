@@ -8,6 +8,8 @@ import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   parseWebhookHeaders,
   processWebhookNotification,
+  getCalendarQueue,
+  scheduleIncrementalSync,
 } from "@/integrations/calendar/sync";
 import { calendarLogger } from "@/integrations/calendar/logger";
 
@@ -66,12 +68,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200, headers });
     }
 
-    // Process the notification (triggers incremental sync)
-    // Note: The sync trigger function is a placeholder - in production,
-    // this would schedule a job on a BullMQ queue
-    const triggerSync = async (_userId: string): Promise<void> => {
-      logger.info("Incremental sync triggered for user", { userId: _userId });
-      // In production: await scheduleIncrementalSync(queue, userId)
+    // Process the notification (triggers incremental sync via job queue)
+    const triggerSync = async (userId: string): Promise<void> => {
+      try {
+        const queue = getCalendarQueue();
+        const { jobId } = await scheduleIncrementalSync(queue, userId);
+        logger.info("Incremental sync job scheduled", { userId, jobId });
+      } catch (error) {
+        logger.error("Failed to schedule incremental sync", { userId }, error);
+        throw error;
+      }
     };
     const result = await processWebhookNotification(notification, triggerSync);
 

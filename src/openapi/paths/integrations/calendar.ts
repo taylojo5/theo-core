@@ -28,6 +28,144 @@ import { protectedEndpoint } from "../../components/security";
 
 export function registerCalendarPaths(registry: OpenAPIRegistry) {
   // ─────────────────────────────────────────────────────────────
+  // Connection Management
+  // ─────────────────────────────────────────────────────────────
+
+  registry.registerPath({
+    method: "get",
+    path: "/api/integrations/calendar/connect",
+    tags: ["Calendar"],
+    summary: "Get Calendar connection status",
+    description:
+      "Check if the user has connected their Google Calendar and what permissions are granted.",
+    security: protectedEndpoint,
+    responses: {
+      200: {
+        description: "Connection status",
+        headers: rateLimitHeaders,
+        content: {
+          "application/json": {
+            schema: z.object({
+              connected: z.boolean().openapi({
+                description: "Whether Calendar is connected (has read access)",
+              }),
+              hasRequiredScopes: z.boolean().openapi({
+                description: "Whether all required scopes are granted",
+              }),
+              canRead: z.boolean().openapi({
+                description: "Whether read access is granted",
+              }),
+              canWrite: z.boolean().openapi({
+                description: "Whether write access is granted",
+              }),
+              missingScopes: z.array(z.string()).openapi({
+                description: "List of scopes that are not yet granted",
+              }),
+            }),
+          },
+        },
+      },
+      401: { $ref: "#/components/responses/Unauthorized" },
+      429: { $ref: "#/components/responses/RateLimited" },
+    },
+  });
+
+  registry.registerPath({
+    method: "post",
+    path: "/api/integrations/calendar/connect",
+    tags: ["Calendar"],
+    summary: "Initiate Calendar connection",
+    description:
+      "Start the OAuth flow to connect Google Calendar. Returns authorization parameters for the client to use with NextAuth signIn().",
+    security: protectedEndpoint,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              force: z.boolean().optional().openapi({
+                description: "Force re-consent even if already connected",
+              }),
+              redirectUrl: z.string().optional().openapi({
+                description: "URL to redirect to after successful connection",
+              }),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Connection initiated or already connected",
+        headers: rateLimitHeaders,
+        content: {
+          "application/json": {
+            schema: z.object({
+              success: z.boolean(),
+              alreadyConnected: z.boolean().optional().openapi({
+                description: "True if already connected with required scopes",
+              }),
+              signInRequired: z.boolean().optional().openapi({
+                description: "True if client should initiate OAuth flow",
+              }),
+              authorizationParams: z
+                .object({
+                  scope: z.string(),
+                  prompt: z.string(),
+                  access_type: z.string(),
+                  include_granted_scopes: z.string(),
+                })
+                .optional()
+                .openapi({
+                  description: "Parameters to pass to signIn() if signInRequired",
+                }),
+              callbackUrl: z.string().optional().openapi({
+                description: "URL for after OAuth completes",
+              }),
+              message: z.string().optional(),
+              error: z.string().optional(),
+            }),
+          },
+        },
+      },
+      401: { $ref: "#/components/responses/Unauthorized" },
+      429: { $ref: "#/components/responses/RateLimited" },
+    },
+  });
+
+  registry.registerPath({
+    method: "post",
+    path: "/api/integrations/calendar/disconnect",
+    tags: ["Calendar"],
+    summary: "Disconnect Calendar integration",
+    description:
+      "Disconnect the user's Google Calendar. Stops sync, removes webhooks, and clears stored calendar data.",
+    security: protectedEndpoint,
+    responses: {
+      200: {
+        description: "Calendar disconnected",
+        headers: rateLimitHeaders,
+        content: {
+          "application/json": {
+            schema: z.object({
+              success: z.boolean(),
+              message: z.string().optional(),
+              calendarsRemoved: z.number().optional().openapi({
+                description: "Number of calendars removed from database",
+              }),
+              eventsRemoved: z.number().optional().openapi({
+                description: "Number of events removed from database",
+              }),
+            }),
+          },
+        },
+      },
+      401: { $ref: "#/components/responses/Unauthorized" },
+      429: { $ref: "#/components/responses/RateLimited" },
+    },
+  });
+
+  // ─────────────────────────────────────────────────────────────
   // Calendars
   // ─────────────────────────────────────────────────────────────
 

@@ -267,7 +267,8 @@ export async function stopRecurringSync(
 export async function startWebhookRenewalScheduler(
   queue: CalendarJobQueue
 ): Promise<void> {
-  const jobData: RenewWebhookJobData = { userId: "" }; // Empty userId = process all
+  // No userId = global scheduler that processes all users with expiring webhooks
+  const jobData: RenewWebhookJobData = {};
 
   await queue.add(CALENDAR_JOB_NAMES.RENEW_WEBHOOK, jobData, {
     repeat: {

@@ -86,6 +86,67 @@ export type ApprovalUpdateInput = Partial<
 >;
 
 // ─────────────────────────────────────────────────────────────
+// Result Types for Error Handling
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Typed result for repository operations that can fail.
+ * Provides explicit success/failure states with error details.
+ * 
+ * @example
+ * ```typescript
+ * const result = await calendarRepository.updateWithResult(id, data);
+ * if (result.success) {
+ *   console.log("Updated:", result.data.name);
+ * } else {
+ *   console.error("Failed:", result.error, result.code);
+ * }
+ * ```
+ */
+export type RepositoryResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; code: RepositoryErrorCode };
+
+/**
+ * Error codes for repository operations.
+ * Helps callers handle specific error types appropriately.
+ */
+export type RepositoryErrorCode =
+  | "NOT_FOUND"
+  | "CONSTRAINT_VIOLATION"
+  | "VALIDATION_ERROR"
+  | "DATABASE_ERROR"
+  | "UNKNOWN_ERROR";
+
+/**
+ * Map Prisma error to repository error code
+ */
+function mapPrismaError(error: unknown): { code: RepositoryErrorCode; message: string } {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
+      case "P2025": // Record not found
+        return { code: "NOT_FOUND", message: "Record not found" };
+      case "P2002": // Unique constraint violation
+        return { code: "CONSTRAINT_VIOLATION", message: "Record already exists" };
+      case "P2003": // Foreign key constraint
+        return { code: "CONSTRAINT_VIOLATION", message: "Related record not found" };
+      default:
+        return { code: "DATABASE_ERROR", message: error.message };
+    }
+  }
+  
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return { code: "VALIDATION_ERROR", message: "Invalid data provided" };
+  }
+  
+  if (error instanceof Error) {
+    return { code: "UNKNOWN_ERROR", message: error.message };
+  }
+  
+  return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Utility Functions
 // ─────────────────────────────────────────────────────────────
 
@@ -119,6 +180,47 @@ function buildCalendarUpdateData(input: CalendarCreateInput): Prisma.CalendarUpd
     isSelected: input.isSelected ?? true,
     isHidden: input.isHidden ?? false,
     updatedAt: new Date(),
+  };
+}
+
+/**
+ * Build create data for CalendarSyncState from update input.
+ * Centralizes the mapping from CalendarSyncStateUpdate to create fields,
+ * avoiding duplication in the upsert method.
+ * 
+ * @param userId - The user ID to connect
+ * @param data - The update input data
+ * @returns Prisma create data object for CalendarSyncState
+ */
+function buildSyncStateCreateData(
+  userId: string,
+  data: CalendarSyncStateUpdate
+): Prisma.CalendarSyncStateCreateInput {
+  return {
+    user: { connect: { id: userId } },
+    syncStatus: (data.syncStatus as string) || "idle",
+    syncToken: data.syncToken as string | undefined,
+    syncTokenSetAt: data.syncTokenSetAt as Date | undefined,
+    lastSyncAt: data.lastSyncAt as Date | undefined,
+    lastFullSyncAt: data.lastFullSyncAt as Date | undefined,
+    syncError: data.syncError as string | undefined,
+    eventCount: (data.eventCount as number) || 0,
+    calendarCount: (data.calendarCount as number) || 0,
+    fullSyncPageToken: data.fullSyncPageToken as string | undefined,
+    fullSyncProgress: (data.fullSyncProgress as number) || 0,
+    fullSyncStartedAt: data.fullSyncStartedAt as Date | undefined,
+    embeddingsPending: (data.embeddingsPending as number) || 0,
+    embeddingsCompleted: (data.embeddingsCompleted as number) || 0,
+    embeddingsFailed: (data.embeddingsFailed as number) || 0,
+    webhookChannelId: data.webhookChannelId as string | undefined,
+    webhookResourceId: data.webhookResourceId as string | undefined,
+    webhookExpiration: data.webhookExpiration as Date | undefined,
+    ...(data.syncCalendarIds !== undefined && {
+      syncCalendarIds: data.syncCalendarIds as string[],
+    }),
+    ...(data.excludeCalendarIds !== undefined && {
+      excludeCalendarIds: data.excludeCalendarIds as string[],
+    }),
   };
 }
 
@@ -220,32 +322,7 @@ export const calendarSyncStateRepository = {
   ): Promise<CalendarSyncState> => {
     return db.calendarSyncState.upsert({
       where: { userId },
-      create: {
-        user: { connect: { id: userId } },
-        syncStatus: (data.syncStatus as string) || "idle",
-        syncToken: data.syncToken as string | undefined,
-        syncTokenSetAt: data.syncTokenSetAt as Date | undefined,
-        lastSyncAt: data.lastSyncAt as Date | undefined,
-        lastFullSyncAt: data.lastFullSyncAt as Date | undefined,
-        syncError: data.syncError as string | undefined,
-        eventCount: (data.eventCount as number) || 0,
-        calendarCount: (data.calendarCount as number) || 0,
-        fullSyncPageToken: data.fullSyncPageToken as string | undefined,
-        fullSyncProgress: (data.fullSyncProgress as number) || 0,
-        fullSyncStartedAt: data.fullSyncStartedAt as Date | undefined,
-        embeddingsPending: (data.embeddingsPending as number) || 0,
-        embeddingsCompleted: (data.embeddingsCompleted as number) || 0,
-        embeddingsFailed: (data.embeddingsFailed as number) || 0,
-        webhookChannelId: data.webhookChannelId as string | undefined,
-        webhookResourceId: data.webhookResourceId as string | undefined,
-        webhookExpiration: data.webhookExpiration as Date | undefined,
-        ...(data.syncCalendarIds !== undefined && {
-          syncCalendarIds: data.syncCalendarIds as string[],
-        }),
-        ...(data.excludeCalendarIds !== undefined && {
-          excludeCalendarIds: data.excludeCalendarIds as string[],
-        }),
-      },
+      create: buildSyncStateCreateData(userId, data),
       update: data,
     });
   },
@@ -600,6 +677,7 @@ export const calendarRepository = {
 
   /**
    * Update a calendar
+   * @deprecated Use updateWithResult for typed error handling
    */
   update: async (
     id: string,
@@ -613,6 +691,26 @@ export const calendarRepository = {
     } catch (error) {
       calendarLogger.debug("Failed to update calendar", { calendarId: id, error });
       return null;
+    }
+  },
+
+  /**
+   * Update a calendar with typed error result
+   */
+  updateWithResult: async (
+    id: string,
+    data: CalendarUpdateInput
+  ): Promise<RepositoryResult<Calendar>> => {
+    try {
+      const calendar = await db.calendar.update({
+        where: { id },
+        data,
+      });
+      return { success: true, data: calendar };
+    } catch (error) {
+      const { code, message } = mapPrismaError(error);
+      calendarLogger.debug("Failed to update calendar", { calendarId: id, code, error });
+      return { success: false, error: message, code };
     }
   },
 
@@ -1046,6 +1144,7 @@ export const calendarEventRepository = {
 
   /**
    * Update an event
+   * @deprecated Use updateWithResult for typed error handling
    */
   update: async (
     id: string,
@@ -1059,6 +1158,26 @@ export const calendarEventRepository = {
     } catch (error) {
       calendarLogger.debug("Failed to update event", { eventId: id, error });
       return null;
+    }
+  },
+
+  /**
+   * Update an event with typed error result
+   */
+  updateWithResult: async (
+    id: string,
+    data: EventUpdateInput
+  ): Promise<RepositoryResult<Event>> => {
+    try {
+      const event = await db.event.update({
+        where: { id },
+        data,
+      });
+      return { success: true, data: event };
+    } catch (error) {
+      const { code, message } = mapPrismaError(error);
+      calendarLogger.debug("Failed to update event", { eventId: id, code, error });
+      return { success: false, error: message, code };
     }
   },
 
@@ -1344,6 +1463,7 @@ export const calendarApprovalRepository = {
 
   /**
    * Update an approval
+   * @deprecated Use updateWithResult for typed error handling
    */
   update: async (
     id: string,
@@ -1357,6 +1477,26 @@ export const calendarApprovalRepository = {
     } catch (error) {
       calendarLogger.debug("Failed to update approval", { approvalId: id, error });
       return null;
+    }
+  },
+
+  /**
+   * Update an approval with typed error result
+   */
+  updateWithResult: async (
+    id: string,
+    data: ApprovalUpdateInput
+  ): Promise<RepositoryResult<CalendarApproval>> => {
+    try {
+      const approval = await db.calendarApproval.update({
+        where: { id },
+        data,
+      });
+      return { success: true, data: approval };
+    } catch (error) {
+      const { code, message } = mapPrismaError(error);
+      calendarLogger.debug("Failed to update approval", { approvalId: id, code, error });
+      return { success: false, error: message, code };
     }
   },
 

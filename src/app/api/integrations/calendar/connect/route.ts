@@ -9,6 +9,12 @@ import { checkCalendarScopes } from "@/lib/auth/scope-upgrade";
 import { ALL_CALENDAR_SCOPES, formatScopes, BASE_SCOPES } from "@/lib/auth/scopes";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { calendarLogger } from "@/integrations/calendar/logger";
+import {
+  getCalendarQueue,
+  startRecurringSync,
+  scheduleIncrementalSync,
+  hasRecurringSyncActive,
+} from "@/integrations/calendar/sync";
 
 const logger = calendarLogger.child("api.connect");
 
@@ -84,8 +90,25 @@ export async function POST(
   // Check current Calendar scope status
   const scopeCheck = await checkCalendarScopes(userId);
 
-  // If already connected with write access and not forcing, return success
+  // If already connected with write access and not forcing, ensure sync is running
   if (scopeCheck.hasRequiredScopes && !body.force) {
+    // Ensure recurring sync is running for this user
+    try {
+      const queue = getCalendarQueue();
+      const hasRecurring = await hasRecurringSyncActive(queue, userId);
+      
+      if (!hasRecurring) {
+        // Start recurring sync for this user
+        await startRecurringSync(queue, userId);
+        // Trigger an immediate sync to get the latest events
+        await scheduleIncrementalSync(queue, userId);
+        logger.info("Started auto-sync for returning user", { userId });
+      }
+    } catch (error) {
+      // Log but don't fail the request if sync scheduling fails
+      logger.error("Failed to start auto-sync", { userId }, error);
+    }
+
     logger.info("Calendar already connected", { userId });
 
     return NextResponse.json(

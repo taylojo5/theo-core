@@ -374,6 +374,9 @@ export {
   shutdownSchedulers,
   hasRecurringSyncActive,
   
+  // Queue adapter (for use by API routes)
+  getCalendarQueue,
+  
   // Initialization
   initializeCalendarSync,
   
