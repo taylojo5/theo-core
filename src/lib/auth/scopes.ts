@@ -194,7 +194,10 @@ export function hasCalendarWriteAccess(grantedScopes: string[]): boolean {
 /**
  * Get required Calendar scopes for a specific action
  * Note: The EVENTS scope provides full read/write access,
- * so write operations only require EVENTS, not READONLY
+ * so write operations only require EVENTS, not READONLY.
+ * 
+ * For "read" action, returns READONLY but note that EVENTS also satisfies
+ * read requirements. Use hasMissingCalendarScopes() to properly check.
  */
 export function getRequiredCalendarScopes(
   action: "read" | "write"
@@ -207,6 +210,59 @@ export function getRequiredCalendarScopes(
       return CALENDAR_WRITE_SCOPES;
     default:
       return CALENDAR_READ_SCOPES;
+  }
+}
+
+/**
+ * Check if scopes are missing for a Calendar action, considering alternative scopes
+ * 
+ * Unlike getMissingScopes(), this properly handles cases where:
+ * - EVENTS scope satisfies read requirements (READONLY not needed)
+ * - Either READONLY or EVENTS satisfies read access
+ */
+export function hasMissingCalendarScopes(
+  grantedScopes: string[],
+  action: "read" | "write"
+): boolean {
+  switch (action) {
+    case "read":
+      // Either READONLY or EVENTS grants read access
+      return !hasCalendarReadAccess(grantedScopes);
+    case "write":
+      // Only EVENTS grants write access
+      return !hasCalendarWriteAccess(grantedScopes);
+    default:
+      return !hasCalendarReadAccess(grantedScopes);
+  }
+}
+
+/**
+ * Get missing Calendar scopes for a specific action, considering alternative scopes
+ * 
+ * Returns empty array if:
+ * - For "read": user has READONLY or EVENTS (either satisfies read)
+ * - For "write": user has EVENTS
+ */
+export function getMissingCalendarScopesForAction(
+  grantedScopes: string[],
+  action: "read" | "write"
+): string[] {
+  switch (action) {
+    case "read":
+      // If user has either scope, no missing scopes for read
+      if (hasCalendarReadAccess(grantedScopes)) {
+        return [];
+      }
+      // Suggest READONLY as the minimal scope for read access
+      return [CALENDAR_SCOPES.READONLY];
+    case "write":
+      // EVENTS is required for write
+      if (hasCalendarWriteAccess(grantedScopes)) {
+        return [];
+      }
+      return [CALENDAR_SCOPES.EVENTS];
+    default:
+      return hasCalendarReadAccess(grantedScopes) ? [] : [CALENDAR_SCOPES.READONLY];
   }
 }
 
@@ -277,7 +333,13 @@ export function getIntegrationStatus(
 
   // Calculate missing scopes per integration
   const missingGmailScopes = getMissingScopes(grantedScopes, ALL_GMAIL_SCOPES);
-  const missingCalendarScopes = getMissingScopes(grantedScopes, ALL_CALENDAR_SCOPES);
+  
+  // For Calendar, use capability-aware missing scope calculation:
+  // - If user has write access (EVENTS), no scopes are missing
+  // - If user has read-only access (READONLY), report EVENTS as missing for full access
+  // - If user has no access, report EVENTS (which provides both read and write)
+  // Note: We don't report READONLY as missing since EVENTS supersedes it
+  const missingCalendarScopes = getMissingCalendarScopesForAction(grantedScopes, "write");
 
   return {
     gmail: {

@@ -89,16 +89,21 @@ export async function checkRateLimitAsyncWithUnits(
           -- Allowed: increment the counter
           redis.call('INCRBY', key, units)
           allowed = 1
-          -- Set expiry if not already set
-          local ttl = redis.call('PTTL', key)
-          if ttl == -1 or ttl == -2 then
-            redis.call('PEXPIRE', key, windowMs)
+        else
+          -- Rejected: ensure key exists with current value to track the window
+          -- This prevents subsequent requests from seeing an empty counter
+          if current == 0 then
+            -- Key doesn't exist, create it with value 0 to mark window start
+            redis.call('SET', key, '0')
           end
         end
         
+        -- Always set expiry if not already set (for both allowed and rejected)
         local ttl = redis.call('PTTL', key)
-        if ttl == -2 then ttl = windowMs end
-        if ttl == -1 then ttl = windowMs end
+        if ttl == -1 or ttl == -2 then
+          redis.call('PEXPIRE', key, windowMs)
+          ttl = windowMs
+        end
         
         -- Return the count AFTER the operation (if allowed) or current (if not)
         local finalCount = allowed == 1 and newCount or current

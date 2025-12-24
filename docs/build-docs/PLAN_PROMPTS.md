@@ -30,6 +30,7 @@ Run this analysis in iteration until risks and drift are acceptable
 ```text
 Please do a deep analysis on the phase X implementation, and create a doc calls PHASE_X-X_COMPLETION_ANALYSIS.md that outlines all
 
+- WET implementation
 - code smells
 - drift from plan
 - vulnerabilities
