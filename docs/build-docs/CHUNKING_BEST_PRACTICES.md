@@ -1374,12 +1374,19 @@ it("preserves timezone information", () => { ... });
 // Should be consistent: /api/integrations/{provider}/status
 ```
 
-### 22.5 "Placeholder Implementation in Production Code" _(New from Phase 4-2)_
+### 22.5 "Placeholder Implementation in Production Code" _(New from Phase 4-2, reinforced in Phase 4-3)_
 
 ❌ **Don't**: Leave placeholder implementations that log but don't act
 ✅ **Do**: Either implement fully or throw a clear "NotImplemented" error
 
-**What went wrong**:
+> ⚠️ **This pattern has been found THREE times in Calendar integration:**
+> 1. Webhook handler (Phase 4-2)
+> 2. Connect endpoint auto-sync (Phase 4-2)
+> 3. Sync API route job scheduling (Phase 4-3)
+>
+> **Detection tip**: Search for comments like "TODO", "In production:", "will be handled by" and verify the actual implementation exists.
+
+**What went wrong (Example 1 - Webhook)**:
 
 ```typescript
 // This placeholder was deployed and appeared to work:
@@ -1387,24 +1394,37 @@ const triggerSync = async (_userId: string): Promise<void> => {
   logger.info("Incremental sync triggered for user", { userId: _userId });
   // In production: await scheduleIncrementalSync(queue, userId)  ← NOT IMPLEMENTED!
 };
+```
 
-// Webhooks appeared to work but sync never happened
+**What went wrong (Example 2 - Sync API)**:
+
+```typescript
+// POST /api/integrations/calendar/sync
+// Updates status to "syncing" but never queues a job!
+await calendarSyncStateRepository.update(userId, {
+  syncStatus: syncType === "full" ? "full_sync" : "incremental_sync",
+});
+// Note: Full sync scheduling requires BullMQ queue...
+// The actual sync will be handled by a background worker.  ← NEVER QUEUED!
+return NextResponse.json({ success: true, message: "Sync initiated" });
 ```
 
 **Better approach**:
 
 ```typescript
 // Option 1: Full implementation
-const triggerSync = async (userId: string): Promise<void> => {
-  const queue = getQueue(QUEUE_NAMES.CALENDAR_SYNC);
-  await scheduleIncrementalSync(queue, userId);
-};
+const queue = getCalendarQueue();
+const { jobId } = await scheduleFullSync(queue, userId);
+return NextResponse.json({ success: true, jobId });
 
 // Option 2: Clear failure if not ready
-const triggerSync = async (_userId: string): Promise<void> => {
-  throw new Error("NOT_IMPLEMENTED: triggerSync requires queue adapter");
-};
+throw new Error("NOT_IMPLEMENTED: Sync scheduling requires queue adapter");
 ```
+
+**Verification checklist for API routes**:
+- [ ] Does `POST` to a sync/action endpoint actually queue a job?
+- [ ] Search for "TODO", "Note:", "In production" comments
+- [ ] Trace the code path from request to job queue
 
 ### 22.6 "Missing Auto-Start Behaviors Between Integrations" _(New from Phase 4-2)_
 
@@ -1794,6 +1814,66 @@ updateWithResult: async (id, data) => {
 const debounceMap = new Map<string, number>();
 ```
 
+### 29.3 "Scheduler Without Worker" (CRITICAL) 🚨
+
+❌ **Don't**: Create job schedulers without creating the corresponding worker
+✅ **Do**: Always verify the complete job processing pipeline exists
+
+**What went wrong**:
+The Calendar integration had:
+- ✅ Job type definitions (`jobs.ts`) with proper interfaces
+- ✅ Scheduler functions (`scheduler.ts`) that queued jobs correctly
+- ✅ API routes that called the scheduler functions
+- ❌ **NO WORKER FILE** to process the queued jobs
+
+Jobs would be scheduled successfully and the API would return success, but nothing would ever happen because there was no BullMQ worker listening on the queue.
+
+**The insidious nature of this bug**: 
+- Code compiles without errors
+- TypeScript is happy
+- API calls return success
+- Jobs appear in Redis queue
+- But nothing processes them - they sit there forever
+
+**Prevention checklist for job queue chunks**:
+```markdown
+[ ] Job type definitions created (jobs.ts)
+[ ] Scheduler functions created (scheduler.ts)  
+[ ] **Worker created** (worker.ts) ← EASILY MISSED!
+[ ] Worker registration exported from module
+[ ] Worker registered in initializeXSync()
+[ ] initializeXSync() called in instrumentation.ts
+```
+
+**Correct pattern** (from Gmail):
+```typescript
+// sync/worker.ts - MUST EXIST!
+export function registerGmailSyncWorker() {
+  return registerWorker(
+    QUEUE_NAMES.EMAIL_SYNC,
+    processGmailSyncJob,
+    { concurrency: 3 }
+  );
+}
+
+// sync/index.ts - Must call worker registration!
+export async function initializeGmailSync(): Promise<void> {
+  registerGmailSyncWorker();  // ← Critical!
+  await startApprovalExpirationScheduler();
+}
+
+// instrumentation.ts - Must call initialization!
+await initializeGmailSync();  // ← Critical!
+```
+
+**Chunk plan template update**:
+Any chunk that involves job scheduling MUST include explicit subtasks:
+1. Create job types
+2. Create scheduler functions
+3. **Create worker file**
+4. **Export and register worker in initialization**
+5. **Verify worker appears in `registerWorker()` calls at startup**
+
 ---
 
 ## Conclusion
@@ -1817,6 +1897,7 @@ Following these practices will:
 15. **Use typed repository results** for better error handling and debugging _(Phase 4-3)_
 16. **Document scalability limitations** for in-memory state _(Phase 4-3)_
 17. **Track remediation progress** with sequential analysis documents _(Phase 4-3)_
+18. **🚨 Always verify the complete job processing pipeline**: scheduler + worker + initialization _(Phase 4-3)_
 
 Apply these lessons to all future phase implementations.
 

@@ -4,8 +4,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { addJob, QUEUE_NAMES } from "@/lib/queue";
+import { EMBEDDING_JOB_TYPES, type BulkCalendarEventEmbedJobData } from "@/lib/queue/jobs";
 import { syncLogger } from "../logger";
-import { CALENDAR_JOB_NAMES } from "./jobs";
 import {
   FULL_SYNC_EMBEDDING_BATCH_SIZE,
   INCREMENTAL_SYNC_EMBEDDING_BATCH_SIZE,
@@ -73,10 +73,17 @@ export async function queueEventEmbeddings(
   for (let i = 0; i < eventIds.length; i += batchSize) {
     const batch = eventIds.slice(i, i + batchSize);
 
+    // Use typed job data with discriminant for proper routing
+    const jobData: BulkCalendarEventEmbedJobData = {
+      type: EMBEDDING_JOB_TYPES.CALENDAR_EVENT_BULK,
+      userId,
+      eventIds: batch,
+    };
+
     await addJob(
       QUEUE_NAMES.EMBEDDINGS,
-      CALENDAR_JOB_NAMES.BULK_EVENT_EMBED,
-      { userId, eventIds: batch },
+      "calendar-bulk-event-embed",
+      jobData,
       { priority }
     );
   }

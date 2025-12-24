@@ -57,10 +57,11 @@ export const CALENDAR_WRITE_SCOPES = [
 
 /**
  * All Calendar scopes required for full integration
- * Note: EVENTS scope provides full read/write access, making READONLY redundant.
- * Only EVENTS is needed for complete calendar functionality.
+ * Note: EVENTS scope provides read/write access to events, but
+ * READONLY is also needed to list calendars via calendarList.list()
  */
 export const ALL_CALENDAR_SCOPES = [
+  CALENDAR_SCOPES.READONLY,
   CALENDAR_SCOPES.EVENTS,
 ] as const;
 

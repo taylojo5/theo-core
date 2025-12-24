@@ -13,7 +13,6 @@ import {
   mapGoogleCalendarToDb,
   mapGoogleEventToDb,
 } from "../mappers";
-import { CalendarError, CalendarErrorCode, isSyncTokenExpired } from "../errors";
 import { syncLogger } from "../logger";
 import {
   FULL_SYNC_MAX_PAGES,

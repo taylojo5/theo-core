@@ -9,11 +9,13 @@
 
 ## Executive Summary
 
-The Phase 4 Google Calendar integration has reached **production-ready status** following remediation from previous analyses. Critical issues identified in PHASE_4-1 and PHASE_4-2 have been addressed:
+The Phase 4 Google Calendar integration has reached **production-ready status** following remediation from previous analyses. Critical issues identified in PHASE_4-1 and PHASE_4-2 have been addressed, plus **TWO ADDITIONAL CRITICAL ISSUES** discovered and fixed during this analysis:
 
 - ✅ **Lifecycle Integration**: Calendar sync now properly initialized in `instrumentation.ts`
 - ✅ **Webhook Functionality**: Webhooks now trigger actual incremental sync via job queue
 - ✅ **Auto-Sync for Returning Users**: Connect endpoint now starts recurring sync
+- ✅ **Sync API Route**: POST endpoint now actually queues sync jobs (fixed in 4-3)
+- ✅ **🚨 CALENDAR WORKER**: Worker file was completely missing! Jobs were scheduled but never processed (fixed in 4-3)
 - ✅ **Queue Adapter Exported**: `getCalendarQueue()` available for external use
 - ✅ **Repository Improvements**: Typed error results and helper functions added
 - ✅ **Token Verification**: Webhook notifications now verify tokens
@@ -267,6 +269,70 @@ if (token !== syncState.userId) {
 ## 6. Functionality Issues
 
 ### 6.1 Previously Critical Issues - RESOLVED ✅
+
+#### 🚨 Calendar Sync Worker Was Completely Missing
+**Previous**: NO WORKER FILE EXISTED! The Calendar integration had:
+- ✅ Job type definitions (`jobs.ts`)
+- ✅ Scheduler functions to queue jobs (`scheduler.ts`)
+- ❌ **NO WORKER to process jobs** (`worker.ts` did not exist!)
+
+This meant all scheduled calendar sync jobs would sit in Redis forever with nothing to process them.
+
+**Discovered During**: Phase 4-3 analysis (this document)
+
+**Current**: Full worker implementation created:
+
+```typescript
+// src/integrations/calendar/sync/worker.ts - NEW FILE
+export function registerCalendarSyncWorker() {
+  return registerWorker(
+    QUEUE_NAMES.CALENDAR_SYNC,
+    processCalendarSyncJob,
+    { concurrency: 3 }
+  );
+}
+
+// Processes: FULL_SYNC, INCREMENTAL_SYNC, EXPIRE_APPROVALS, RENEW_WEBHOOK, BULK_EVENT_EMBED
+```
+
+The worker is now registered during `initializeCalendarSync()`:
+
+```typescript
+// sync/index.ts - initializeCalendarSync()
+export async function initializeCalendarSync(): Promise<void> {
+  // Register the worker to process sync jobs
+  registerCalendarSyncWorker();
+  schedulerLogger.info("Calendar sync worker registered");
+  
+  // Initialize schedulers...
+}
+```
+
+**Lesson Learned**: This is the most critical anti-pattern discovered. The scheduler code looked complete, the API routes queued jobs correctly, but without a worker, nothing would ever happen. Added to CHUNKING_BEST_PRACTICES.md as a new anti-pattern.
+
+---
+
+#### Sync API Route Now Actually Queues Jobs
+**Previous**: POST `/api/integrations/calendar/sync` only updated status, never queued actual sync jobs
+**Discovered During**: Phase 4-3 analysis
+**Current**: Properly schedules sync jobs via job queue:
+
+```typescript
+// sync/route.ts - Now queues actual jobs
+switch (syncType) {
+  case "full":
+    const fullJob = await scheduleFullSync(queue, userId);
+    jobId = fullJob.jobId;
+    break;
+  case "incremental":
+    const incJob = await scheduleIncrementalSync(queue, userId);
+    jobId = incJob.jobId;
+    break;
+  case "auto":
+    // Uses incremental if sync token exists, otherwise full
+    break;
+}
+```
 
 #### Webhook Now Triggers Real Sync
 **Previous**: Placeholder function that only logged

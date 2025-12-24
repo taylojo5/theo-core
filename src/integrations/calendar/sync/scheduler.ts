@@ -99,7 +99,7 @@ export async function scheduleFullSync(
     backoff: { type: "exponential", delay: FULL_SYNC_BACKOFF_DELAY_MS },
     removeOnComplete: FULL_SYNC_JOBS_RETAIN_COMPLETED,
     removeOnFail: FULL_SYNC_JOBS_RETAIN_FAILED,
-    jobId: `full-sync-${userId}`,
+    jobId: `full-sync-${userId}-${Date.now()}`,
   });
 
   schedulerLogger.info("Scheduled full sync job", {

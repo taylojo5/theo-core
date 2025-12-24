@@ -124,11 +124,18 @@ export type {
 } from "./scheduler";
 
 // ─────────────────────────────────────────────────────────────
+// Worker
+// ─────────────────────────────────────────────────────────────
+
+export { registerCalendarSyncWorker } from "./worker";
+
+// ─────────────────────────────────────────────────────────────
 // Initialization
 // ─────────────────────────────────────────────────────────────
 
 import { getQueue, QUEUE_NAMES } from "@/lib/queue";
 import { initializeSchedulers, type CalendarJobQueue } from "./scheduler";
+import { registerCalendarSyncWorker } from "./worker";
 import { schedulerLogger } from "../logger";
 
 /**
@@ -185,7 +192,8 @@ export function getCalendarQueue(): CalendarJobQueue {
  * Initialize the Calendar sync system
  *
  * This should be called once on application startup.
- * It starts the webhook renewal and approval expiration schedulers.
+ * It registers the BullMQ worker and starts the webhook renewal
+ * and approval expiration schedulers.
  *
  * @example
  * ```ts
@@ -197,6 +205,10 @@ export function getCalendarQueue(): CalendarJobQueue {
  */
 export async function initializeCalendarSync(): Promise<void> {
   try {
+    // Register the worker to process sync jobs
+    registerCalendarSyncWorker();
+    schedulerLogger.info("Calendar sync worker registered");
+
     const queue = getCalendarQueue();
 
     // Initialize schedulers (webhook renewal + approval expiration)

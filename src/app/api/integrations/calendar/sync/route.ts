@@ -8,6 +8,14 @@ import { auth } from "@/lib/auth";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { calendarSyncStateRepository } from "@/integrations/calendar/repository";
 import { calendarLogger } from "@/integrations/calendar/logger";
+import {
+  getCalendarQueue,
+  scheduleFullSync,
+  scheduleIncrementalSync,
+  startRecurringSync,
+  stopRecurringSync,
+  hasRecurringSyncActive,
+} from "@/integrations/calendar/sync";
 import { z } from "zod";
 
 const logger = calendarLogger.child("api.sync");
@@ -48,13 +56,17 @@ export async function GET(request: NextRequest) {
     // Get sync state
     const syncState = await calendarSyncStateRepository.getOrCreate(userId);
 
+    // Check if recurring sync is active
+    const queue = getCalendarQueue();
+    const isRecurring = await hasRecurringSyncActive(queue, userId);
+
     return NextResponse.json(
       {
         status: syncState.syncStatus,
         lastSyncAt: syncState.lastSyncAt,
         lastFullSyncAt: syncState.lastFullSyncAt,
         syncToken: syncState.syncToken ? "present" : null,
-        recurring: false, // TODO: Implement recurring sync status check
+        recurring: isRecurring,
         stats: {
           eventCount: syncState.eventCount,
           calendarCount: syncState.calendarCount,
@@ -120,30 +132,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type: syncType } = parseResult.data;
+    const { type: syncType, enableRecurring } = parseResult.data;
 
-    // Update sync status to indicate sync is starting
-    await calendarSyncStateRepository.update(userId, {
-      syncStatus: syncType === "full" ? "full_sync" : "incremental_sync",
-    });
+    // Get queue adapter
+    const queue = getCalendarQueue();
 
-    // Get updated sync state
-    const syncState = await calendarSyncStateRepository.get(userId);
+    // Handle recurring sync toggle
+    if (enableRecurring !== undefined) {
+      if (enableRecurring) {
+        await startRecurringSync(queue, userId);
+        logger.info("Started recurring sync", { userId });
+      } else {
+        await stopRecurringSync(queue, userId);
+        logger.info("Stopped recurring sync", { userId });
+      }
+    }
 
-    logger.info("Sync triggered via API", { userId, syncType });
+    // Schedule the appropriate sync type (only if explicitly requested)
+    let jobId: string | undefined;
+    if (syncType) {
+      switch (syncType) {
+        case "full":
+          const fullJob = await scheduleFullSync(queue, userId);
+          jobId = fullJob.jobId;
+          break;
+        case "incremental":
+          const incJob = await scheduleIncrementalSync(queue, userId);
+          jobId = incJob.jobId;
+          break;
+        case "auto":
+          // Auto mode: use incremental if we have a sync token, otherwise full
+          const syncState = await calendarSyncStateRepository.get(userId);
+          if (syncState?.syncToken) {
+            const autoIncJob = await scheduleIncrementalSync(queue, userId);
+            jobId = autoIncJob.jobId;
+          } else {
+            const autoFullJob = await scheduleFullSync(queue, userId);
+            jobId = autoFullJob.jobId;
+          }
+          break;
+      }
+    }
 
-    // Note: Full sync scheduling requires BullMQ queue which should be
-    // initialized by the application. For now, we just update the status.
-    // The actual sync will be handled by a background worker.
+    // Get current sync state
+    const currentSyncState = await calendarSyncStateRepository.get(userId);
+    const isRecurring = await hasRecurringSyncActive(queue, userId);
+
+    logger.info("Sync triggered via API", { userId, syncType, jobId });
 
     return NextResponse.json(
       {
         success: true,
-        message: syncType
-          ? `${syncType} sync initiated`
-          : "Sync status checked",
+        message: jobId ? "Sync scheduled" : "Recurring sync updated",
+        jobId,
         syncType: syncType || null,
-        currentStatus: syncState?.syncStatus || "idle",
+        recurring: isRecurring,
+        currentStatus: currentSyncState?.syncStatus || "idle",
       },
       { headers }
     );
@@ -183,6 +227,19 @@ export async function DELETE(request: NextRequest) {
 
     userId = session.user.id;
 
+    // Parse query params
+    const stopRecurring =
+      request.nextUrl.searchParams.get("stopRecurring") === "true";
+
+    // Get queue adapter
+    const queue = getCalendarQueue();
+
+    // Stop recurring sync if requested
+    if (stopRecurring) {
+      await stopRecurringSync(queue, userId);
+      logger.info("Stopped recurring sync", { userId });
+    }
+
     // Clear sync error state and reset to idle
     await calendarSyncStateRepository.update(userId, {
       syncStatus: "idle",
@@ -192,7 +249,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Sync stopped",
+        message: stopRecurring ? "Sync stopped and recurring disabled" : "Sync stopped",
+        recurringStopped: stopRecurring,
       },
       { headers }
     );

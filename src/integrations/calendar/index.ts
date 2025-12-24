@@ -383,6 +383,9 @@ export {
   // Job names
   CALENDAR_JOB_NAMES,
   
+  // Worker
+  registerCalendarSyncWorker,
+  
   // Utilities
   queueEventEmbeddings,
   queueFullSyncEmbeddings,

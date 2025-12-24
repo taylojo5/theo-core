@@ -47,17 +47,45 @@ export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
 // ─────────────────────────────────────────────────────────────
 // Embedding Jobs
+// Uses discriminated unions with 'type' field for explicit routing
 // ─────────────────────────────────────────────────────────────
 
-export interface EmbeddingJobData {
+/** Embedding job types - used as discriminant for routing */
+export const EMBEDDING_JOB_TYPES = {
+  /** Single entity embedding (person, place, event, task, deadline) */
+  ENTITY: "entity",
+  /** Bulk entity embedding */
+  ENTITY_BULK: "entity-bulk",
+  /** Single email embedding */
+  EMAIL: "email",
+  /** Bulk email embedding */
+  EMAIL_BULK: "email-bulk",
+  /** Single calendar event embedding */
+  CALENDAR_EVENT: "calendar-event",
+  /** Bulk calendar event embedding */
+  CALENDAR_EVENT_BULK: "calendar-event-bulk",
+} as const;
+
+export type EmbeddingJobType =
+  (typeof EMBEDDING_JOB_TYPES)[keyof typeof EMBEDDING_JOB_TYPES];
+
+/** Base interface for all embedding jobs */
+interface BaseEmbeddingJobData {
+  type: EmbeddingJobType;
   userId: string;
+}
+
+/** Single entity embedding job */
+export interface EntityEmbeddingJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.ENTITY;
   entityType: EntityType;
   entityId: string;
   operation: "create" | "update" | "delete";
 }
 
-export interface BulkEmbedJobData {
-  userId: string;
+/** Bulk entity embedding job */
+export interface BulkEntityEmbedJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.ENTITY_BULK;
   entityType: EntityType;
   entityIds: string[];
 }
@@ -93,14 +121,16 @@ export interface ProcessEmailJobData {
 // Email Embedding Jobs (Phase 3)
 // ─────────────────────────────────────────────────────────────
 
-export interface EmailEmbeddingJobData {
-  userId: string;
+/** Single email embedding job */
+export interface EmailEmbeddingJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.EMAIL;
   emailId: string;
   operation: "create" | "update" | "delete";
 }
 
-export interface BulkEmailEmbedJobData {
-  userId: string;
+/** Bulk email embedding job */
+export interface BulkEmailEmbedJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.EMAIL_BULK;
   emailIds: string[];
 }
 
@@ -109,6 +139,36 @@ export interface RetryFailedEmbeddingsJobData {
   maxRetries?: number;
   batchSize?: number;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Event Embedding Jobs
+// ─────────────────────────────────────────────────────────────
+
+/** Single calendar event embedding job */
+export interface CalendarEventEmbeddingJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.CALENDAR_EVENT;
+  eventId: string;
+  operation: "create" | "update" | "delete";
+}
+
+/** Bulk calendar event embedding job */
+export interface BulkCalendarEventEmbedJobData extends BaseEmbeddingJobData {
+  type: typeof EMBEDDING_JOB_TYPES.CALENDAR_EVENT_BULK;
+  eventIds: string[];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Union Type for All Embedding Jobs
+// ─────────────────────────────────────────────────────────────
+
+/** All embedding job data (discriminated union) */
+export type AnyEmbeddingJobData =
+  | EntityEmbeddingJobData
+  | BulkEntityEmbedJobData
+  | EmailEmbeddingJobData
+  | BulkEmailEmbedJobData
+  | CalendarEventEmbeddingJobData
+  | BulkCalendarEventEmbedJobData;
 
 // ─────────────────────────────────────────────────────────────
 // Notification Jobs
