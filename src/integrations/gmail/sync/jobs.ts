@@ -15,6 +15,7 @@ export const GMAIL_JOB_NAMES = {
   SYNC_LABELS: "gmail-sync-labels",
   EXPIRE_APPROVALS: "gmail-expire-approvals",
   SYNC_CONTACTS: "gmail-sync-contacts",
+  SYNC_METADATA: "gmail-sync-metadata",
 } as const;
 
 export type GmailJobName =
@@ -102,6 +103,14 @@ export interface ContactSyncJobData {
   userId: string;
 }
 
+/**
+ * Data for syncing metadata (labels + contacts)
+ * Used during initial connection before email sync is configured
+ */
+export interface MetadataSyncJobData {
+  userId: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Job Options
 // ─────────────────────────────────────────────────────────────
@@ -147,6 +156,15 @@ export const GMAIL_JOB_OPTIONS = {
     removeOnFail: 50,
   },
   CONTACT_SYNC: {
+    attempts: 3,
+    backoff: {
+      type: "exponential" as const,
+      delay: 3000,
+    },
+    removeOnComplete: 20,
+    removeOnFail: 50,
+  },
+  METADATA_SYNC: {
     attempts: 3,
     backoff: {
       type: "exponential" as const,

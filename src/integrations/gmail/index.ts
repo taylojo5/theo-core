@@ -276,6 +276,12 @@ export {
   resumeFullSync,
   incrementalSync,
 
+  // Metadata sync (labels + contacts, no emails)
+  syncMetadata,
+  hasMetadataSynced,
+  isSyncConfigured,
+  getAvailableLabels,
+
   // Scheduler
   scheduleFullSync,
   triggerFullSync,
@@ -300,6 +306,10 @@ export {
   // Contact sync scheduling
   scheduleContactSync,
   triggerContactSync,
+
+  // Metadata sync scheduling
+  scheduleMetadataSync,
+  triggerMetadataSync,
 
   // Worker registration
   registerGmailSyncWorker,
@@ -327,6 +337,10 @@ export type {
   FullSyncOptions,
   IncrementalSyncOptions,
 
+  // Metadata sync types
+  MetadataSyncResult,
+  MetadataSyncProgress,
+
   // Sync status types
   SyncStatus,
   SyncState,
@@ -346,6 +360,7 @@ export type {
   LabelSyncJobData,
   ExpireApprovalsJobData,
   ContactSyncJobData,
+  MetadataSyncJobData,
 } from "./sync";
 
 // ─────────────────────────────────────────────────────────────

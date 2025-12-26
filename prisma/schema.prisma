@@ -778,11 +778,13 @@ model GmailSyncState {
   embeddingsCompleted Int @default(0)
   embeddingsFailed    Int @default(0)
 
-  // Sync configuration
-  syncLabels      String[] @default([]) // Labels to sync (empty = all)
-  excludeLabels   String[] @default([]) // Labels to exclude
-  maxEmailAgeDays Int? // Only sync emails from last N days
-  syncAttachments Boolean  @default(false)
+  // Sync configuration (opt-in model)
+  syncConfigured   Boolean  @default(false) // Whether user has configured sync settings
+  recurringEnabled Boolean  @default(false) // Whether automatic recurring sync is enabled
+  syncLabels       String[] @default([]) // Labels opted-in for sync (empty = no emails synced)
+  excludeLabels    String[] @default([]) // Labels to exclude from sync
+  maxEmailAgeDays  Int? // Only sync emails from last N days (null = no limit)
+  syncAttachments  Boolean  @default(false)
 
   // Timestamps
   createdAt DateTime @default(now())

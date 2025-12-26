@@ -27,7 +27,9 @@ import {
   type LabelSyncJobData,
   type ExpireApprovalsJobData,
   type ContactSyncJobData,
+  type MetadataSyncJobData,
 } from "./jobs";
+import { syncMetadata } from "./metadata-sync";
 
 // ─────────────────────────────────────────────────────────────
 // Worker Registration
@@ -63,6 +65,7 @@ async function processGmailSyncJob(
     | LabelSyncJobData
     | ExpireApprovalsJobData
     | ContactSyncJobData
+    | MetadataSyncJobData
   >
 ): Promise<void> {
   const jobName = job.name;
@@ -90,6 +93,10 @@ async function processGmailSyncJob(
 
       case GMAIL_JOB_NAMES.SYNC_CONTACTS:
         await processContactSync(job as Job<ContactSyncJobData>);
+        break;
+
+      case GMAIL_JOB_NAMES.SYNC_METADATA:
+        await processMetadataSync(job as Job<MetadataSyncJobData>);
         break;
 
       default:
@@ -354,5 +361,54 @@ async function processContactSync(job: Job<ContactSyncJobData>): Promise<void> {
     created: result.created,
     updated: result.updated,
     total: result.total,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Metadata Sync Processing
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Process a metadata sync job
+ * Syncs labels and contacts without syncing emails
+ */
+async function processMetadataSync(job: Job<MetadataSyncJobData>): Promise<void> {
+  const { userId } = job.data;
+
+  workerLogger.info("Syncing metadata (labels + contacts)", { userId });
+
+  // Get access token
+  const accessToken = await getAccessTokenForUser(userId);
+  if (!accessToken) {
+    throw new GmailError(
+      GmailErrorCode.UNAUTHORIZED,
+      "No valid access token found for user",
+      false
+    );
+  }
+
+  // Progress callback
+  const onProgress = async (progress: { phase: string; labelsCount?: number; contactsProcessed?: number }) => {
+    await job.updateProgress({
+      phase: progress.phase,
+      labelsCount: progress.labelsCount,
+      contactsProcessed: progress.contactsProcessed,
+    });
+  };
+
+  const result = await syncMetadata(userId, accessToken, onProgress);
+
+  workerLogger.info("Metadata sync completed", {
+    userId,
+    labels: result.labels.count,
+    contacts: result.contacts.total,
+    durationMs: result.durationMs,
+  });
+
+  await job.updateProgress({
+    phase: "complete",
+    labels: result.labels.count,
+    contactsCreated: result.contacts.created,
+    contactsUpdated: result.contacts.updated,
   });
 }

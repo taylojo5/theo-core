@@ -141,8 +141,27 @@ export async function fullSync(
       });
     }
 
-    // Step 3: Load sync configuration and build query for message fetching
+    // Step 3: Load sync configuration and verify labels are configured
     const syncState = await syncStateRepository.get(userId);
+    
+    // Verify sync is configured (opt-in model - labels must be selected)
+    if (!syncState.syncConfigured) {
+      throw new GmailError(
+        GmailErrorCode.INVALID_REQUEST,
+        "Sync not configured. Please select labels to sync before starting email sync.",
+        false
+      );
+    }
+    
+    // Verify at least one label is selected for sync
+    if (!syncState.syncLabels || syncState.syncLabels.length === 0) {
+      throw new GmailError(
+        GmailErrorCode.INVALID_REQUEST,
+        "No labels selected for sync. Please select at least one label to sync.",
+        false
+      );
+    }
+    
     const syncConfig: SyncConfig = {
       syncLabels: syncState.syncLabels,
       excludeLabels: syncState.excludeLabels,

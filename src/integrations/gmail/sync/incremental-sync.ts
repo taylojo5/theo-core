@@ -91,6 +91,29 @@ export async function incrementalSync(
       );
     }
 
+    // Verify sync is configured (opt-in model - labels must be selected)
+    if (!syncState.syncConfigured) {
+      syncLogger.info("Skipping incremental sync - sync not configured", {
+        userId,
+      });
+      
+      // Return empty result - no emails should sync
+      result.durationMs = Date.now() - startTime;
+      result.unchanged = 1;
+      return result;
+    }
+
+    // If no labels are selected, skip syncing new emails
+    if (!syncState.syncLabels || syncState.syncLabels.length === 0) {
+      syncLogger.info("Skipping incremental sync - no labels selected", {
+        userId,
+      });
+      
+      result.durationMs = Date.now() - startTime;
+      result.unchanged = 1;
+      return result;
+    }
+
     // Build sync config from sync state
     const syncConfig: SyncConfig = {
       syncLabels: syncState.syncLabels,

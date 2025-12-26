@@ -50,10 +50,30 @@ export default function GmailSettingsPage() {
     GmailStatisticsData | undefined
   >();
 
+  // Config state (separate from sync for the new config endpoint)
+  const [configData, setConfigData] = React.useState<{
+    syncConfigured: boolean;
+    syncLabels: string[];
+    excludeLabels: string[];
+    maxEmailAgeDays: number | null;
+    syncAttachments: boolean;
+  } | undefined>();
+  const [availableLabels, setAvailableLabels] = React.useState<Array<{
+    id: string;
+    gmailId: string;
+    name: string;
+    type: string;
+    messageCount: number;
+    unreadCount: number;
+  }>>([]);
+  const [metadataSynced, setMetadataSynced] = React.useState(false);
+  const [metadataSyncing, setMetadataSyncing] = React.useState(false);
+
   const [loadingStates, setLoadingStates] = React.useState({
     connection: true,
     sync: true,
     approvals: true,
+    config: true,
   });
 
   const isConnected =
@@ -172,18 +192,45 @@ export default function GmailSettingsPage() {
     }
   }, [isConnected]);
 
+  const fetchSyncConfig = React.useCallback(async () => {
+    if (!isConnected) {
+      setLoadingStates((s) => ({ ...s, config: false }));
+      return;
+    }
+
+    setLoadingStates((s) => ({ ...s, config: true }));
+    try {
+      const res = await fetch("/api/integrations/gmail/sync/config");
+      if (res.ok) {
+        const data = await res.json();
+        setConfigData(data.config);
+        setAvailableLabels(data.availableLabels || []);
+        // Labels available means metadata has synced
+        const hasLabels = (data.availableLabels?.length || 0) > 0;
+        setMetadataSynced(hasLabels);
+        // Track if metadata sync is in progress
+        setMetadataSyncing(data.metadataSyncing === true && !hasLabels);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sync config:", error);
+    } finally {
+      setLoadingStates((s) => ({ ...s, config: false }));
+    }
+  }, [isConnected]);
+
   // Initial fetch
   React.useEffect(() => {
     fetchConnectionStatus();
   }, [fetchConnectionStatus]);
 
-  // Fetch data when connected and auto-trigger sync if fresh connection
+  // Fetch data when connected
   React.useEffect(() => {
     if (isConnected) {
       fetchSyncStatus();
       fetchApprovals();
+      fetchSyncConfig();
     }
-  }, [isConnected, fetchSyncStatus, fetchApprovals]);
+  }, [isConnected, fetchSyncStatus, fetchApprovals, fetchSyncConfig]);
 
   // Poll for updates when syncing
   React.useEffect(() => {
@@ -195,6 +242,17 @@ export default function GmailSettingsPage() {
 
     return () => clearInterval(interval);
   }, [isConnected, syncData?.hasActiveSyncs, fetchSyncStatus]);
+
+  // Poll for config updates when metadata is syncing
+  React.useEffect(() => {
+    if (!isConnected || !metadataSyncing) return;
+
+    const interval = setInterval(() => {
+      fetchSyncConfig();
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [isConnected, metadataSyncing, fetchSyncConfig]);
 
   // ───────────────────────────────────────────────────────────
   // Handlers
@@ -438,8 +496,8 @@ export default function GmailSettingsPage() {
 
   const handleSaveSyncConfig = async (config: Partial<SyncConfigData>) => {
     try {
-      const res = await fetch("/api/integrations/gmail/sync", {
-        method: "PATCH",
+      const res = await fetch("/api/integrations/gmail/sync/config", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
@@ -447,13 +505,20 @@ export default function GmailSettingsPage() {
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
         throw new Error(
-          error.error?.message || `Failed to save config (${res.status})`
+          error.error || `Failed to save config (${res.status})`
         );
       }
 
-      toast.success("Sync configuration saved");
-      // Refresh the sync status to get updated config
-      await fetchSyncStatus();
+      const data = await res.json();
+      
+      if (data.syncStarted) {
+        toast.success("Email sync started! Your emails are being imported.");
+      } else {
+        toast.success("Sync configuration saved");
+      }
+      
+      // Refresh both config and sync status
+      await Promise.all([fetchSyncConfig(), fetchSyncStatus()]);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to save sync config";
@@ -500,50 +565,71 @@ export default function GmailSettingsPage() {
               onRefresh={fetchConnectionStatus}
             />
 
-            {/* Two Column Layout for Sync */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <SyncSettings
-                data={syncData}
-                isLoading={loadingStates.sync}
+            {/* Sync Configuration - Show FIRST if not configured (setup wizard) */}
+            {isConnected && !configData?.syncConfigured && (
+              <SyncConfigPanel
+                config={configData}
+                labels={availableLabels}
+                isLoading={loadingStates.config}
                 isConnected={isConnected}
-                onTriggerSync={handleTriggerSync}
-                onToggleRecurring={handleToggleRecurring}
-                onCancelSync={handleCancelSync}
+                metadataSynced={metadataSynced}
+                onSave={handleSaveSyncConfig}
               />
+            )}
 
-              <SyncHistory
-                data={historyData}
-                isLoading={loadingStates.sync}
-                isConnected={isConnected}
-              />
-            </div>
+            {/* Show remaining UI only after sync is configured OR when not connected */}
+            {/* Don't show while loading config - wait until we know the configuration status */}
+            {(!isConnected || (configData?.syncConfigured && !loadingStates.config)) && (
+              <>
+                {/* Two Column Layout for Sync */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <SyncSettings
+                    data={syncData}
+                    isLoading={loadingStates.sync}
+                    isConnected={isConnected}
+                    onTriggerSync={handleTriggerSync}
+                    onToggleRecurring={handleToggleRecurring}
+                    onCancelSync={handleCancelSync}
+                  />
 
-            {/* Sync Configuration */}
-            <SyncConfigPanel
-              config={syncData?.config}
-              labels={syncData?.labels}
-              isLoading={loadingStates.sync}
-              isConnected={isConnected}
-              onSave={handleSaveSyncConfig}
-            />
+                  <SyncHistory
+                    data={historyData}
+                    isLoading={loadingStates.sync}
+                    isConnected={isConnected}
+                  />
+                </div>
 
-            {/* Statistics */}
-            <Statistics
-              data={statsData}
-              isLoading={loadingStates.sync}
-              isConnected={isConnected}
-              onSyncContacts={handleSyncContacts}
-            />
+                {/* Sync Configuration - Show in normal position once configured */}
+                {configData?.syncConfigured && (
+                  <SyncConfigPanel
+                    config={configData}
+                    labels={availableLabels}
+                    isLoading={loadingStates.config}
+                    isConnected={isConnected}
+                    metadataSynced={metadataSynced}
+                    onSave={handleSaveSyncConfig}
+                  />
+                )}
 
-            {/* Pending Approvals */}
-            <PendingApprovals
-              data={approvalsData}
-              isLoading={loadingStates.approvals}
-              isConnected={isConnected}
-              onApprove={handleApproveEmail}
-              onReject={handleRejectEmail}
-              onRefresh={fetchApprovals}
-            />
+                {/* Statistics */}
+                <Statistics
+                  data={statsData}
+                  isLoading={loadingStates.sync}
+                  isConnected={isConnected}
+                  onSyncContacts={handleSyncContacts}
+                />
+
+                {/* Pending Approvals */}
+                <PendingApprovals
+                  data={approvalsData}
+                  isLoading={loadingStates.approvals}
+                  isConnected={isConnected}
+                  onApprove={handleApproveEmail}
+                  onReject={handleRejectEmail}
+                  onRefresh={fetchApprovals}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

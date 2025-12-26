@@ -11,6 +11,9 @@ import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import {
   startRecurringSync,
   hasRecurringSync,
+  triggerMetadataSync,
+  isSyncConfigured,
+  hasMetadataSynced,
   triggerSync,
   apiLogger,
 } from "@/integrations/gmail";
@@ -29,6 +32,10 @@ interface ConnectRequest {
 interface ConnectResponse {
   success: boolean;
   alreadyConnected?: boolean;
+  /** Whether sync has been configured (labels selected) */
+  syncConfigured?: boolean;
+  /** If true, metadata has been synced (labels + contacts) */
+  metadataSynced?: boolean;
   /** If true, client should call signIn("google", ...) with authorizationParams */
   signInRequired?: boolean;
   /** Authorization params to pass to signIn() */
@@ -87,28 +94,46 @@ export async function POST(
   // Check current Gmail scope status
   const scopeCheck = await checkGmailScopes(userId);
 
-  // If already connected and not forcing, ensure recurring sync is running and return
+  // If already connected and not forcing, check sync configuration status
   if (scopeCheck.hasRequiredScopes && !body.force) {
-    // Ensure recurring sync is running when Gmail is connected
+    // Check if sync is configured (user has selected labels)
+    const syncIsConfigured = await isSyncConfigured(userId);
+    // Check if metadata (labels + contacts) has been synced
+    const metadataIsSynced = await hasMetadataSynced(userId);
+    
     try {
-      const hasRecurring = await hasRecurringSync(userId);
-      if (!hasRecurring) {
-        // Start recurring sync for this user (runs every 5 min)
-        await startRecurringSync(userId);
-        // Also trigger an immediate sync to get the latest emails
-        await triggerSync(userId);
-        apiLogger.info("Started auto-sync for user", { userId });
+      if (syncIsConfigured) {
+        // Sync is configured - ensure recurring sync is running
+        const hasRecurring = await hasRecurringSync(userId);
+        if (!hasRecurring) {
+          // Start recurring sync for this user (runs every 5 min)
+          await startRecurringSync(userId);
+          // Trigger an immediate sync to get the latest emails
+          await triggerSync(userId);
+          apiLogger.info("Started auto-sync for configured user", { userId });
+        }
+      } else if (!metadataIsSynced) {
+        // Sync not configured and metadata not synced - trigger metadata sync
+        // This lets the user configure which labels to sync
+        await triggerMetadataSync(userId);
+        apiLogger.info("Triggered metadata sync for new connection", { userId });
       }
     } catch (error) {
       // Log but don't fail the request if sync scheduling fails
-      apiLogger.error("Failed to start auto-sync", { userId }, error);
+      apiLogger.error("Failed to setup sync", { userId }, error);
     }
 
     return NextResponse.json(
       {
         success: true,
         alreadyConnected: true,
-        message: "Gmail is already connected with all required permissions",
+        syncConfigured: syncIsConfigured,
+        metadataSynced: metadataIsSynced,
+        message: syncIsConfigured
+          ? "Gmail is connected and syncing"
+          : metadataIsSynced
+            ? "Gmail connected. Please configure which labels to sync."
+            : "Gmail connected. Syncing labels and contacts...",
       },
       { headers }
     );

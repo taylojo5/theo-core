@@ -16,6 +16,7 @@ import {
   type LabelSyncJobData,
   type ExpireApprovalsJobData,
   type ContactSyncJobData,
+  type MetadataSyncJobData,
 } from "./jobs";
 
 // ─────────────────────────────────────────────────────────────
@@ -111,26 +112,49 @@ export async function startRecurringSync(userId: string): Promise<void> {
   const jobId = getRecurringSyncJobId(userId);
   const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
 
+  schedulerLogger.info("Starting recurring sync", { userId, jobId });
+
   // Remove existing recurring job if any
-  const existingJob = await queue.getRepeatableJobs();
-  const existing = existingJob.find((j) => j.id === jobId);
+  const existingJobs = await queue.getRepeatableJobs();
+  schedulerLogger.debug("Existing repeatable jobs before add", {
+    userId,
+    jobs: existingJobs.map((j) => ({ id: j.id, key: j.key, name: j.name })),
+  });
+  
+  const existing = existingJobs.find((j) => j.id === jobId);
   if (existing) {
     await queue.removeRepeatableByKey(existing.key);
+    schedulerLogger.info("Removed existing recurring job", { userId, key: existing.key });
   }
+
+  // Update database first to track recurring sync is enabled
+  // This ensures hasRecurringSync() returns true even if job creation fails
+  await syncStateRepository.update(userId, { recurringEnabled: true });
 
   // Create new repeatable job
   const jobData: IncrementalSyncJobData = { userId };
 
-  await queue.add(GMAIL_JOB_NAMES.INCREMENTAL_SYNC, jobData, {
-    repeat: {
-      every: INCREMENTAL_SYNC_REPEAT.every,
-      immediately: INCREMENTAL_SYNC_REPEAT.immediately,
-    },
-    jobId,
-    ...GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC,
-  });
+  try {
+    const job = await queue.add(GMAIL_JOB_NAMES.INCREMENTAL_SYNC, jobData, {
+      repeat: {
+        every: INCREMENTAL_SYNC_REPEAT.every,
+        immediately: INCREMENTAL_SYNC_REPEAT.immediately,
+      },
+      jobId,
+      ...GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC,
+    });
 
-  schedulerLogger.info("Started recurring sync", { userId });
+    schedulerLogger.info("Started recurring sync", { 
+      userId, 
+      jobId,
+      createdJobId: job.id,
+    });
+  } catch (error) {
+    // Rollback database state if job creation fails
+    await syncStateRepository.update(userId, { recurringEnabled: false });
+    schedulerLogger.error("Failed to create recurring job, rolled back", { userId }, error);
+    throw error;
+  }
 }
 
 /**
@@ -142,25 +166,39 @@ export async function stopRecurringSync(userId: string): Promise<void> {
   const jobId = getRecurringSyncJobId(userId);
   const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
 
-  // Find and remove the repeatable job
-  const repeatableJobs = await queue.getRepeatableJobs();
-  const job = repeatableJobs.find((j) => j.id === jobId);
+  // Use removeRepeatable with the exact same parameters used to create the job
+  // Both `every` and `immediately` must match the creation parameters
+  const removed = await queue.removeRepeatable(
+    GMAIL_JOB_NAMES.INCREMENTAL_SYNC,
+    {
+      every: INCREMENTAL_SYNC_REPEAT.every,
+      immediately: INCREMENTAL_SYNC_REPEAT.immediately,
+    },
+    jobId
+  );
 
-  if (job) {
-    await queue.removeRepeatableByKey(job.key);
-    schedulerLogger.info("Stopped recurring sync", { userId });
+  if (removed) {
+    schedulerLogger.info("Removed repeatable job", { userId, jobId });
+  } else {
+    schedulerLogger.warn("No repeatable job found to remove", { userId, jobId });
   }
+
+  // Update database to track recurring sync is disabled
+  // We update even if no job was found (job may have been removed manually or never existed)
+  await syncStateRepository.update(userId, { recurringEnabled: false });
+  
+  schedulerLogger.info("Stopped recurring sync", { userId });
 }
 
 /**
  * Check if a user has recurring sync enabled
+ * 
+ * Uses the database field for reliability since BullMQ's getRepeatableJobs()
+ * doesn't reliably return the jobId we passed.
  */
 export async function hasRecurringSync(userId: string): Promise<boolean> {
-  const jobId = getRecurringSyncJobId(userId);
-  const queue = getQueue(QUEUE_NAMES.EMAIL_SYNC);
-
-  const repeatableJobs = await queue.getRepeatableJobs();
-  return repeatableJobs.some((j) => j.id === jobId);
+  const syncState = await syncStateRepository.get(userId);
+  return syncState.recurringEnabled;
 }
 
 /**
@@ -171,19 +209,73 @@ function getRecurringSyncJobId(userId: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Schedule Metadata Sync (Labels + Contacts)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Schedule a metadata sync for a user (labels + contacts only)
+ *
+ * This is used during initial connection to sync metadata
+ * before the user configures their email sync preferences.
+ *
+ * @param userId - The user ID to sync
+ * @param options - Job options
+ * @returns The created job
+ */
+export async function scheduleMetadataSync(
+  userId: string,
+  options?: {
+    delay?: number;
+    priority?: number;
+  }
+) {
+  const jobData: MetadataSyncJobData = { userId };
+
+  return addJob(
+    QUEUE_NAMES.EMAIL_SYNC,
+    GMAIL_JOB_NAMES.SYNC_METADATA,
+    jobData,
+    {
+      delay: options?.delay,
+      priority: options?.priority,
+      ...GMAIL_JOB_OPTIONS.METADATA_SYNC,
+    }
+  );
+}
+
+/**
+ * Trigger metadata sync immediately (high priority)
+ */
+export async function triggerMetadataSync(userId: string) {
+  return scheduleMetadataSync(userId, { priority: 1 });
+}
+
+// ─────────────────────────────────────────────────────────────
 // Smart Sync (Auto-detect sync type)
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Schedule the appropriate sync type for a user
  *
- * If the user has never synced, schedules a full sync.
- * Otherwise, schedules an incremental sync.
+ * - If sync not configured, schedules metadata sync only
+ * - If user has never synced emails, schedules a full sync
+ * - Otherwise, schedules an incremental sync
  *
  * @param userId - The user ID to sync
  * @returns The created job
  */
 export async function scheduleSyncAuto(userId: string) {
+  const syncState = await syncStateRepository.get(userId);
+
+  // If sync not configured (no labels selected), sync metadata only
+  if (!syncState.syncConfigured || syncState.syncLabels.length === 0) {
+    schedulerLogger.info("Sync not configured, scheduling metadata sync", {
+      userId,
+    });
+    return scheduleMetadataSync(userId);
+  }
+
+  // If user has synced emails before, do incremental; otherwise full
   const hasEverSynced = await syncStateRepository.hasEverSynced(userId);
 
   if (hasEverSynced) {
@@ -195,8 +287,23 @@ export async function scheduleSyncAuto(userId: string) {
 
 /**
  * Trigger immediate sync (auto-detect type)
+ *
+ * - If sync not configured, triggers metadata sync only
+ * - If user has never synced emails, triggers full sync
+ * - Otherwise, triggers incremental sync
  */
 export async function triggerSync(userId: string) {
+  const syncState = await syncStateRepository.get(userId);
+
+  // If sync not configured (no labels selected), sync metadata only
+  if (!syncState.syncConfigured || syncState.syncLabels.length === 0) {
+    schedulerLogger.info("Sync not configured, triggering metadata sync", {
+      userId,
+    });
+    return triggerMetadataSync(userId);
+  }
+
+  // If user has synced emails before, do incremental; otherwise full
   const hasEverSynced = await syncStateRepository.hasEverSynced(userId);
 
   if (hasEverSynced) {

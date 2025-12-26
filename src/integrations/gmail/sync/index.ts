@@ -34,6 +34,19 @@ export {
 } from "./incremental-sync";
 
 // ─────────────────────────────────────────────────────────────
+// Metadata Sync (Labels + Contacts)
+// ─────────────────────────────────────────────────────────────
+
+export {
+  syncMetadata,
+  hasMetadataSynced,
+  isSyncConfigured,
+  getAvailableLabels,
+  type MetadataSyncResult,
+  type MetadataSyncProgress,
+} from "./metadata-sync";
+
+// ─────────────────────────────────────────────────────────────
 // Scheduler
 // ─────────────────────────────────────────────────────────────
 
@@ -74,6 +87,10 @@ export {
   // Contact sync scheduling
   scheduleContactSync,
   triggerContactSync,
+
+  // Metadata sync scheduling (labels + contacts, no emails)
+  scheduleMetadataSync,
+  triggerMetadataSync,
 } from "./scheduler";
 
 // ─────────────────────────────────────────────────────────────
@@ -139,6 +156,7 @@ export {
   type LabelSyncJobData,
   type ExpireApprovalsJobData,
   type ContactSyncJobData,
+  type MetadataSyncJobData,
   type FullSyncProgress as FullSyncJobProgress,
   type IncrementalSyncProgress as IncrementalSyncJobProgress,
 } from "./jobs";

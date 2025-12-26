@@ -50,12 +50,17 @@ export async function POST(req: NextRequest) {
     const syncType = body.type as "auto" | "full" | "incremental" | undefined;
     const enableRecurring = body.enableRecurring as boolean | undefined;
 
+    apiLogger.info("Sync API called", { userId, syncType, enableRecurring, body });
+
     // Handle recurring sync toggle
     if (enableRecurring !== undefined) {
+      apiLogger.info("Toggling recurring sync", { userId, enableRecurring });
       if (enableRecurring) {
         await startRecurringSync(userId);
+        apiLogger.info("Recurring sync started", { userId });
       } else {
         await stopRecurringSync(userId);
+        apiLogger.info("Recurring sync stopped", { userId });
       }
     }
 
