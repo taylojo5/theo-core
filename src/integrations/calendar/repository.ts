@@ -164,6 +164,9 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
  * Build update data for calendar upsert operations.
  * Centralizes update field mapping to avoid WET code in upsert/upsertMany.
  * 
+ * Note: isSelected is NOT updated here - it's a user preference that should
+ * only be changed explicitly by the user, not during sync operations.
+ * 
  * @param input - Calendar create input with fields to update
  * @returns Prisma update data object
  */
@@ -177,7 +180,8 @@ function buildCalendarUpdateData(input: CalendarCreateInput): Prisma.CalendarUpd
     accessRole: input.accessRole,
     backgroundColor: input.backgroundColor,
     foregroundColor: input.foregroundColor,
-    isSelected: input.isSelected ?? true,
+    // Note: isSelected is intentionally NOT updated here
+    // It's a user preference that should persist across sync operations
     isHidden: input.isHidden ?? false,
     updatedAt: new Date(),
   };
@@ -215,6 +219,13 @@ function buildSyncStateCreateData(
     webhookChannelId: data.webhookChannelId as string | undefined,
     webhookResourceId: data.webhookResourceId as string | undefined,
     webhookExpiration: data.webhookExpiration as Date | undefined,
+    // Sync configuration fields
+    ...(data.syncConfigured !== undefined && {
+      syncConfigured: data.syncConfigured as boolean,
+    }),
+    ...(data.recurringEnabled !== undefined && {
+      recurringEnabled: data.recurringEnabled as boolean,
+    }),
     ...(data.syncCalendarIds !== undefined && {
       syncCalendarIds: data.syncCalendarIds as string[],
     }),

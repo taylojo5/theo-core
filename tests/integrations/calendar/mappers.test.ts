@@ -240,7 +240,7 @@ describe("Calendar Mappers", () => {
       expect(result.timeZone).toBe("America/New_York");
       expect(result.accessRole).toBe("owner");
       expect(result.isPrimary).toBe(true);
-      expect(result.isSelected).toBe(true);
+      expect(result.isSelected).toBe(false); // Defaults to false - user must opt-in
       expect(result.isHidden).toBe(false);
     });
 

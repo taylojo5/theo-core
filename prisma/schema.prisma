@@ -285,6 +285,12 @@ model Event {
   etag     String? // ETag for conflict detection
   htmlLink String? // Link to event in Google Calendar UI
 
+  // Embedding status tracking
+  embeddingStatus   String    @default("pending") // pending, processing, completed, failed
+  embeddingError    String? // Error message if embedding failed
+  embeddingAttempts Int       @default(0) // Number of embedding attempts
+  embeddedAt        DateTime? // When embedding was last successful
+
   // Timestamps
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -302,6 +308,7 @@ model Event {
   @@index([googleEventId])
   @@index([googleCalendarId])
   @@index([userId, googleCalendarId])
+  @@index([userId, embeddingStatus])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -818,7 +825,7 @@ model Calendar {
   foregroundColor String? // Foreground/text color (hex)
 
   // User preferences
-  isSelected Boolean @default(true) // Should events from this calendar be synced?
+  isSelected Boolean @default(false) // Should events from this calendar be synced? User must opt-in
   isHidden   Boolean @default(false) // Should this calendar be hidden in UI?
 
   // Timestamps
@@ -871,6 +878,8 @@ model CalendarSyncState {
   webhookExpiration DateTime? // When the webhook expires
 
   // Sync configuration
+  syncConfigured     Boolean  @default(false) // Whether user has configured calendar sync
+  recurringEnabled   Boolean  @default(false) // Whether recurring sync is enabled
   syncCalendarIds    String[] @default([]) // Calendars to sync (empty = all selected)
   excludeCalendarIds String[] @default([]) // Calendars to exclude
 

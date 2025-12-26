@@ -60,12 +60,18 @@ vi.mock("@/lib/auth/scopes", () => ({
 const mockCalendarRepository = {
   findByUser: vi.fn(),
 };
+const mockCalendarSyncStateRepository = {
+  get: vi.fn(),
+};
 vi.mock("@/integrations/calendar/repository", () => ({
   calendarRepository: {
     findByUser: () => mockCalendarRepository.findByUser(),
   },
   calendarApprovalRepository: {
     findByStatus: vi.fn(),
+  },
+  calendarSyncStateRepository: {
+    get: () => mockCalendarSyncStateRepository.get(),
   },
 }));
 
@@ -88,11 +94,19 @@ const mockGetCalendarQueue = vi.fn();
 const mockStartRecurringSync = vi.fn();
 const mockScheduleIncrementalSync = vi.fn();
 const mockHasRecurringSyncActive = vi.fn();
+const mockSyncCalendarMetadata = vi.fn();
 vi.mock("@/integrations/calendar/sync", () => ({
   getCalendarQueue: () => mockGetCalendarQueue(),
   startRecurringSync: (...args: unknown[]) => mockStartRecurringSync(...args),
   scheduleIncrementalSync: (...args: unknown[]) => mockScheduleIncrementalSync(...args),
   hasRecurringSyncActive: (...args: unknown[]) => mockHasRecurringSyncActive(...args),
+  syncCalendarMetadata: (...args: unknown[]) => mockSyncCalendarMetadata(...args),
+}));
+
+// Mock token refresh
+const mockGetValidAccessToken = vi.fn();
+vi.mock("@/lib/auth/token-refresh", () => ({
+  getValidAccessToken: (...args: unknown[]) => mockGetValidAccessToken(...args),
 }));
 
 // Mock audit logging
@@ -168,6 +182,18 @@ function setupDefaultMocks() {
   mockHasRecurringSyncActive.mockResolvedValue(true);
   mockStartRecurringSync.mockResolvedValue({ jobId: "job-1" });
   mockScheduleIncrementalSync.mockResolvedValue({ jobId: "job-2" });
+
+  // Default: sync state exists with calendars
+  mockCalendarSyncStateRepository.get.mockResolvedValue({
+    userId: "test-user-id",
+    calendarCount: 2,
+    syncConfigured: true,
+    recurringEnabled: true,
+  });
+
+  // Default: access token available for metadata sync
+  mockGetValidAccessToken.mockResolvedValue("mock-access-token");
+  mockSyncCalendarMetadata.mockResolvedValue({ calendarsProcessed: 2 });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -796,13 +822,13 @@ describe("Calendar API Routes", () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Auto-Sync on Connect Tests
+  // Connect Behavior Tests (Opt-in sync model)
   // ═══════════════════════════════════════════════════════════
 
-  describe("Auto-Sync on Connect", () => {
-    it("should start recurring sync for returning connected user", async () => {
-      mockHasRecurringSyncActive.mockResolvedValue(false);
-
+  describe("Connect Behavior", () => {
+    it("should NOT auto-start recurring sync (opt-in model)", async () => {
+      // With opt-in model, recurring sync is not auto-started
+      // User must configure sync preferences first
       const { POST } = await import(
         "@/app/api/integrations/calendar/connect/route"
       );
@@ -812,28 +838,18 @@ describe("Calendar API Routes", () => {
       );
       await POST(request);
 
-      expect(mockStartRecurringSync).toHaveBeenCalled();
-      expect(mockScheduleIncrementalSync).toHaveBeenCalled();
-    });
-
-    it("should not start recurring sync if already active", async () => {
-      mockHasRecurringSyncActive.mockResolvedValue(true);
-
-      const { POST } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
-      const request = createMockRequest(
-        "POST",
-        "/api/integrations/calendar/connect"
-      );
-      await POST(request);
-
+      // Recurring sync should NOT be started automatically
       expect(mockStartRecurringSync).not.toHaveBeenCalled();
       expect(mockScheduleIncrementalSync).not.toHaveBeenCalled();
     });
 
-    it("should not fail if sync scheduling fails", async () => {
-      mockHasRecurringSyncActive.mockRejectedValue(new Error("Queue error"));
+    it("should return alreadyConnected when calendars exist", async () => {
+      mockCalendarSyncStateRepository.get.mockResolvedValue({
+        userId: "test-user-id",
+        calendarCount: 5,
+        syncConfigured: false,
+        recurringEnabled: false,
+      });
 
       const { POST } = await import(
         "@/app/api/integrations/calendar/connect/route"
@@ -845,7 +861,25 @@ describe("Calendar API Routes", () => {
       const response = await POST(request);
       const data = await response.json();
 
-      // Should still return success
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.alreadyConnected).toBe(true);
+    });
+
+    it("should return null sync state if not yet configured", async () => {
+      mockCalendarSyncStateRepository.get.mockResolvedValue(null);
+
+      const { POST } = await import(
+        "@/app/api/integrations/calendar/connect/route"
+      );
+      const request = createMockRequest(
+        "POST",
+        "/api/integrations/calendar/connect"
+      );
+      const response = await POST(request);
+      const data = await response.json();
+
+      // Should still return success - new connections have no sync state yet
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.alreadyConnected).toBe(true);

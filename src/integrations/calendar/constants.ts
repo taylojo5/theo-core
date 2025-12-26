@@ -80,6 +80,25 @@ export const EMBEDDING_BATCH_DELAY_MS = 1500;
 export const MIN_CONTENT_LENGTH_FOR_EMBEDDING = 10;
 
 // ─────────────────────────────────────────────────────────────
+// Embedding Retry Constants
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Maximum number of embedding retry attempts before marking as permanently failed
+ */
+export const MAX_EMBEDDING_RETRY_ATTEMPTS = 3;
+
+/**
+ * Batch size for embedding retry processing
+ */
+export const EMBEDDING_RETRY_BATCH_SIZE = 50;
+
+/**
+ * Delay between embedding retry batches in milliseconds
+ */
+export const EMBEDDING_RETRY_DELAY_MS = 1000;
+
+// ─────────────────────────────────────────────────────────────
 // Rate Limiting Constants
 // ─────────────────────────────────────────────────────────────
 

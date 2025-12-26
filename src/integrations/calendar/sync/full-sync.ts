@@ -360,6 +360,9 @@ export async function resumeFullSync(
 
 /**
  * Sync all calendars for a user
+ * 
+ * This syncs the calendar list from Google, then returns only calendars
+ * that have isSelected = true (user opted-in to sync events).
  */
 async function syncCalendars(
   client: CalendarClient,
@@ -390,25 +393,39 @@ async function syncCalendars(
   // Filter out hidden/deleted calendars
   filteredCalendars = filteredCalendars.filter(cal => !cal.deleted && !cal.hidden);
 
-  // Upsert calendars to database
-  const calendars: Array<{ id: string; googleCalendarId: string; name: string }> = [];
+  // Upsert calendars to database (updates metadata but preserves isSelected)
+  const allCalendars: Array<{ id: string; googleCalendarId: string; name: string; isSelected: boolean }> = [];
 
   for (const googleCal of filteredCalendars) {
     const input = mapGoogleCalendarToDb(googleCal, userId);
     const calendar = await calendarRepository.upsert(input);
-    calendars.push({
+    allCalendars.push({
       id: calendar.id,
       googleCalendarId: calendar.googleCalendarId,
       name: calendar.name,
+      isSelected: calendar.isSelected,
     });
   }
 
   // Update calendar count in sync state
   await calendarSyncStateRepository.update(userId, {
-    calendarCount: calendars.length,
+    calendarCount: allCalendars.length,
   });
 
-  return calendars;
+  // Only return calendars that user has opted-in to sync (isSelected = true)
+  const selectedCalendars = allCalendars.filter(cal => cal.isSelected);
+  
+  syncLogger.info("Filtered calendars for event sync", {
+    userId,
+    totalCalendars: allCalendars.length,
+    selectedCalendars: selectedCalendars.length,
+  });
+
+  return selectedCalendars.map(cal => ({
+    id: cal.id,
+    googleCalendarId: cal.googleCalendarId,
+    name: cal.name,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────

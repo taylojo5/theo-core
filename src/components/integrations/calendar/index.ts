@@ -24,6 +24,13 @@ export {
 } from "./sync-status";
 
 export {
+  CalendarSyncConfigPanel,
+  type CalendarOption,
+  type CalendarSyncConfigData,
+  type CalendarSyncConfigProps,
+} from "./sync-config";
+
+export {
   CalendarPendingApprovals,
   type CalendarActionType,
   type CalendarApprovalData,

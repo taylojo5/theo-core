@@ -103,6 +103,11 @@ const mockEvent: Event = {
   sequence: 0,
   etag: null,
   htmlLink: null,
+  // Embedding status tracking
+  embeddingStatus: "pending",
+  embeddingError: null,
+  embeddingAttempts: 0,
+  embeddedAt: null,
 };
 
 const mockCreateInput: CreateEventInput = {

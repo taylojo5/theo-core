@@ -55,6 +55,25 @@ export type {
 } from "./jobs";
 
 // ─────────────────────────────────────────────────────────────
+// Metadata Sync (calendars only, no events)
+// ─────────────────────────────────────────────────────────────
+
+export {
+  syncCalendarMetadata,
+  getCalendarsWithSyncEligibility,
+  enableCalendarSync,
+  disableCalendarSync,
+  countEnabledCalendars,
+  canSyncEventDetails,
+  SYNCABLE_ACCESS_ROLES,
+} from "./metadata-sync";
+
+export type {
+  CalendarMetadataSyncResult,
+  CalendarMetadataInfo,
+} from "./metadata-sync";
+
+// ─────────────────────────────────────────────────────────────
 // Full Sync
 // ─────────────────────────────────────────────────────────────
 
@@ -225,6 +244,30 @@ export async function initializeCalendarSync(): Promise<void> {
     throw error;
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Embedding Status Tracking
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Status management
+  markEventEmbeddingProcessing,
+  markEventEmbeddingCompleted,
+  markEventEmbeddingFailed,
+  
+  // Stats retrieval
+  getEventEmbeddingStats,
+  updateCalendarEmbeddingStatsInSyncState,
+  
+  // Retry utilities
+  resetFailedEventEmbeddings,
+  getEventsNeedingEmbedding,
+} from "./embedding-status";
+
+export type {
+  EmbeddingStatus,
+  EmbeddingStats,
+} from "./embedding-status";
 
 // ─────────────────────────────────────────────────────────────
 // Utilities

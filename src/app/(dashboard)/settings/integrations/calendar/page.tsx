@@ -14,10 +14,13 @@ import {
   CalendarConnectionStatus,
   CalendarList,
   CalendarSyncStatus,
+  CalendarSyncConfigPanel,
   CalendarPendingApprovals,
   type CalendarConnectionStatusData,
   type CalendarListData,
   type CalendarSyncStatusData,
+  type CalendarSyncConfigData,
+  type CalendarOption,
   type CalendarPendingApprovalsData,
 } from "@/components/integrations/calendar";
 
@@ -43,11 +46,18 @@ export default function CalendarSettingsPage() {
     CalendarPendingApprovalsData | undefined
   >();
 
+  // Config state for the sync configuration panel
+  const [configData, setConfigData] = React.useState<CalendarSyncConfigData | undefined>();
+  const [availableCalendars, setAvailableCalendars] = React.useState<CalendarOption[]>([]);
+  const [metadataSynced, setMetadataSynced] = React.useState(false);
+
   const [loadingStates, setLoadingStates] = React.useState({
     connection: true,
     calendars: true,
     sync: true,
     approvals: true,
+    config: true,
+    metadataSync: false,
   });
 
   const isConnected =
@@ -175,6 +185,30 @@ export default function CalendarSettingsPage() {
     }
   }, [isConnected]);
 
+  const fetchSyncConfig = React.useCallback(async () => {
+    if (!isConnected) {
+      setLoadingStates((s) => ({ ...s, config: false }));
+      return;
+    }
+
+    setLoadingStates((s) => ({ ...s, config: true }));
+    try {
+      const res = await fetch("/api/integrations/calendar/sync/config");
+      if (res.ok) {
+        const data = await res.json();
+        setConfigData(data.config);
+        setAvailableCalendars(data.availableCalendars || []);
+        // Calendars available means metadata has synced
+        const hasCalendars = (data.availableCalendars?.length || 0) > 0;
+        setMetadataSynced(hasCalendars);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sync config:", error);
+    } finally {
+      setLoadingStates((s) => ({ ...s, config: false }));
+    }
+  }, [isConnected]);
+
   // Initial load
   React.useEffect(() => {
     fetchConnectionStatus();
@@ -186,8 +220,9 @@ export default function CalendarSettingsPage() {
       fetchCalendars();
       fetchSyncStatus();
       fetchApprovals();
+      fetchSyncConfig();
     }
-  }, [isConnected, fetchCalendars, fetchSyncStatus, fetchApprovals]);
+  }, [isConnected, fetchCalendars, fetchSyncStatus, fetchApprovals, fetchSyncConfig]);
 
   // ───────────────────────────────────────────────────────────
   // Handlers
@@ -261,27 +296,6 @@ export default function CalendarSettingsPage() {
     }
   };
 
-  const handleToggleCalendarSelection = async (
-    calendarId: string,
-    isSelected: boolean
-  ) => {
-    try {
-      const res = await fetch(`/api/integrations/calendar/calendars/${calendarId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isSelected }),
-      });
-      if (res.ok) {
-        fetchCalendars();
-      } else {
-        toast.error("Failed to update calendar");
-      }
-    } catch (error) {
-      toast.error("Failed to update calendar");
-      console.error("Failed to update calendar:", error);
-    }
-  };
-
   const handleToggleCalendarHidden = async (
     calendarId: string,
     isHidden: boolean
@@ -343,20 +357,54 @@ export default function CalendarSettingsPage() {
 
   const handleToggleRecurring = async (enabled: boolean) => {
     try {
-      const res = await fetch("/api/integrations/calendar/sync", {
-        method: "POST",
+      const res = await fetch("/api/integrations/calendar/sync/config", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enableRecurring: enabled }),
       });
       if (res.ok) {
         toast.success(enabled ? "Auto sync enabled" : "Auto sync disabled");
-        fetchSyncStatus();
+        await Promise.all([fetchSyncStatus(), fetchSyncConfig()]);
       } else {
         toast.error("Failed to update sync settings");
       }
     } catch (error) {
       toast.error("Failed to update sync settings");
       console.error("Failed to update sync settings:", error);
+    }
+  };
+
+  const handleSaveSyncConfig = async (config: { enabledCalendarIds?: string[]; enableRecurring?: boolean }) => {
+    try {
+      const res = await fetch("/api/integrations/calendar/sync/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(
+          error.error || `Failed to save config (${res.status})`
+        );
+      }
+
+      const data = await res.json();
+      
+      if (data.syncStarted) {
+        toast.success("Calendar sync started! Your events are being imported.");
+      } else {
+        toast.success("Sync configuration saved");
+      }
+      
+      // Refresh both config and sync status
+      await Promise.all([fetchSyncConfig(), fetchSyncStatus(), fetchCalendars()]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save sync config";
+      toast.error(message);
+      console.error("Failed to save sync config:", error);
+      throw error;
     }
   };
 
@@ -397,6 +445,34 @@ export default function CalendarSettingsPage() {
     } catch (error) {
       toast.error("Failed to reject action");
       console.error("Failed to reject action:", error);
+    }
+  };
+
+  const handleRefreshCalendars = async () => {
+    setLoadingStates((s) => ({ ...s, metadataSync: true }));
+    try {
+      const res = await fetch("/api/integrations/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "metadata" }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || "Calendar list refreshed");
+        // Refresh the calendars list and config
+        await Promise.all([fetchCalendars(), fetchSyncConfig()]);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to refresh calendars");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to refresh calendars";
+      toast.error(message);
+      console.error("Failed to refresh calendars:", error);
+    } finally {
+      setLoadingStates((s) => ({ ...s, metadataSync: false }));
     }
   };
 
@@ -444,36 +520,67 @@ export default function CalendarSettingsPage() {
               onRefresh={fetchConnectionStatus}
             />
 
-            {/* Sync Status */}
-            <CalendarSyncStatus
-              data={syncData}
-              isLoading={loadingStates.sync}
-              isConnected={isConnected}
-              onTriggerFullSync={handleTriggerFullSync}
-              onTriggerIncrementalSync={handleTriggerIncrementalSync}
-              onToggleRecurring={handleToggleRecurring}
-              onRefresh={fetchSyncStatus}
-            />
+            {/* Sync Configuration - Show FIRST if not configured (setup wizard) */}
+            {isConnected && !configData?.syncConfigured && (
+              <CalendarSyncConfigPanel
+                config={configData}
+                calendars={availableCalendars}
+                isLoading={loadingStates.config}
+                isConnected={isConnected}
+                metadataSynced={metadataSynced}
+                onSave={handleSaveSyncConfig}
+              />
+            )}
 
-            {/* Calendar List */}
-            <CalendarList
-              data={calendarListData}
-              isLoading={loadingStates.calendars}
-              isConnected={isConnected}
-              onToggleSelection={handleToggleCalendarSelection}
-              onToggleHidden={handleToggleCalendarHidden}
-              onRefresh={fetchCalendars}
-            />
+            {/* Show remaining UI only after sync is configured OR when not connected */}
+            {/* Don't show while loading config - wait until we know the configuration status */}
+            {(!isConnected || (configData?.syncConfigured && !loadingStates.config)) && (
+              <>
+                {/* Sync Status */}
+                <CalendarSyncStatus
+                  data={syncData}
+                  isLoading={loadingStates.sync}
+                  isConnected={isConnected}
+                  onTriggerFullSync={handleTriggerFullSync}
+                  onTriggerIncrementalSync={handleTriggerIncrementalSync}
+                  onToggleRecurring={handleToggleRecurring}
+                  onRefresh={fetchSyncStatus}
+                />
 
-            {/* Pending Approvals */}
-            <CalendarPendingApprovals
-              data={approvalsData}
-              isLoading={loadingStates.approvals}
-              isConnected={isConnected}
-              onApprove={handleApproveAction}
-              onReject={handleRejectAction}
-              onRefresh={fetchApprovals}
-            />
+                {/* Sync Configuration - Show in normal position once configured */}
+                {configData?.syncConfigured && (
+                  <CalendarSyncConfigPanel
+                    config={configData}
+                    calendars={availableCalendars}
+                    isLoading={loadingStates.config}
+                    isConnected={isConnected}
+                    metadataSynced={metadataSynced}
+                    onSave={handleSaveSyncConfig}
+                  />
+                )}
+
+                {/* Calendar List - for hiding/showing calendars in UI */}
+                <CalendarList
+                  data={calendarListData}
+                  isLoading={loadingStates.calendars}
+                  isConnected={isConnected}
+                  isSyncingMetadata={loadingStates.metadataSync}
+                  onToggleHidden={handleToggleCalendarHidden}
+                  onRefresh={fetchCalendars}
+                  onRefreshCalendars={handleRefreshCalendars}
+                />
+
+                {/* Pending Approvals */}
+                <CalendarPendingApprovals
+                  data={approvalsData}
+                  isLoading={loadingStates.approvals}
+                  isConnected={isConnected}
+                  onApprove={handleApproveAction}
+                  onReject={handleRejectAction}
+                  onRefresh={fetchApprovals}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

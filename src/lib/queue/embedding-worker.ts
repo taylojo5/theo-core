@@ -29,6 +29,12 @@ import {
   deleteEmailEmbedding,
   generateEmailEmbeddings,
 } from "@/integrations/gmail/embeddings";
+import {
+  markEventEmbeddingProcessing,
+  markEventEmbeddingCompleted,
+  markEventEmbeddingFailed,
+  updateCalendarEmbeddingStatsInSyncState,
+} from "@/integrations/calendar/sync";
 
 /** Delay between embedding API calls to avoid rate limits */
 const EMBEDDING_THROTTLE_MS = 1500;
@@ -262,31 +268,59 @@ async function processCalendarEventEmbedding(
     return;
   }
 
-  const event = await db.event.findFirst({
-    where: { id: eventId, userId },
-  });
+  try {
+    const event = await db.event.findFirst({
+      where: { id: eventId, userId },
+    });
 
-  if (!event) {
-    console.warn(
-      `[EmbeddingWorker] Calendar event ${eventId} not found, skipping`
+    if (!event) {
+      console.warn(
+        `[EmbeddingWorker] Calendar event ${eventId} not found, skipping`
+      );
+      await markEventEmbeddingFailed(eventId, "Event not found");
+      return;
+    }
+
+    // Mark as processing
+    await markEventEmbeddingProcessing(eventId);
+
+    const embeddingText = buildCalendarEventEmbeddingText(event);
+    if (!embeddingText.trim()) {
+      console.debug(
+        `[EmbeddingWorker] Skipping calendar event with no content: ${eventId}`
+      );
+      // Mark as completed even if no content (nothing to embed)
+      await markEventEmbeddingCompleted(eventId);
+      return;
+    }
+
+    await storeEmbedding({
+      userId,
+      entityType: "calendar_event",
+      entityId: eventId,
+      content: embeddingText,
+    });
+
+    // Mark as completed
+    await markEventEmbeddingCompleted(eventId);
+
+    // Update sync state stats
+    await updateCalendarEmbeddingStatsInSyncState(userId);
+  } catch (err) {
+    console.error(
+      `[EmbeddingWorker] Failed to embed calendar event ${eventId}:`,
+      err
     );
-    return;
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    await markEventEmbeddingFailed(eventId, errorMessage);
+    
+    // Still try to update stats
+    try {
+      await updateCalendarEmbeddingStatsInSyncState(userId);
+    } catch {
+      // Ignore stats update failure
+    }
   }
-
-  const embeddingText = buildCalendarEventEmbeddingText(event);
-  if (!embeddingText.trim()) {
-    console.debug(
-      `[EmbeddingWorker] Skipping calendar event with no content: ${eventId}`
-    );
-    return;
-  }
-
-  await storeEmbedding({
-    userId,
-    entityType: "calendar_event",
-    entityId: eventId,
-    content: embeddingText,
-  });
 }
 
 /**
@@ -316,12 +350,19 @@ async function processBulkCalendarEventEmbedding(
         console.warn(
           `[EmbeddingWorker] Calendar event ${eventId} not found, skipping`
         );
+        await markEventEmbeddingFailed(eventId, "Event not found");
         failed++;
         continue;
       }
 
+      // Mark as processing
+      await markEventEmbeddingProcessing(eventId);
+
       const embeddingText = buildCalendarEventEmbeddingText(event);
       if (!embeddingText.trim()) {
+        // Mark as completed even if no content (nothing to embed)
+        await markEventEmbeddingCompleted(eventId);
+        processed++;
         continue;
       }
 
@@ -332,18 +373,32 @@ async function processBulkCalendarEventEmbedding(
         content: embeddingText,
       });
 
+      // Mark as completed
+      await markEventEmbeddingCompleted(eventId);
       processed++;
     } catch (err) {
       console.error(
         `[EmbeddingWorker] Failed to embed calendar event ${eventId}:`,
         err
       );
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      await markEventEmbeddingFailed(eventId, errorMessage);
       failed++;
     }
 
     if (i < eventIds.length - 1) {
       await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
     }
+  }
+
+  // Update sync state with current embedding stats
+  try {
+    await updateCalendarEmbeddingStatsInSyncState(userId);
+  } catch (err) {
+    console.error(
+      `[EmbeddingWorker] Failed to update calendar embedding stats:`,
+      err
+    );
   }
 
   console.log(

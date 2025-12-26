@@ -34,6 +34,8 @@ export interface CalendarInfo {
   foregroundColor?: string | null;
   isSelected: boolean;
   isHidden: boolean;
+  /** Whether this calendar can be enabled for event sync (reader/owner access) */
+  canSyncEvents?: boolean;
 }
 
 export interface CalendarListData {
@@ -45,9 +47,10 @@ export interface CalendarListProps {
   data?: CalendarListData;
   isLoading?: boolean;
   isConnected?: boolean;
-  onToggleSelection: (calendarId: string, isSelected: boolean) => Promise<void>;
+  isSyncingMetadata?: boolean;
   onToggleHidden: (calendarId: string, isHidden: boolean) => Promise<void>;
   onRefresh: () => void;
+  onRefreshCalendars?: () => Promise<void>;
   className?: string;
 }
 
@@ -59,24 +62,13 @@ export function CalendarList({
   data,
   isLoading = false,
   isConnected = false,
-  onToggleSelection,
+  isSyncingMetadata = false,
   onToggleHidden,
   onRefresh,
+  onRefreshCalendars,
   className,
 }: CalendarListProps) {
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
-
-  const handleToggleSelection = async (
-    calendarId: string,
-    currentValue: boolean
-  ) => {
-    setTogglingId(calendarId);
-    try {
-      await onToggleSelection(calendarId, !currentValue);
-    } finally {
-      setTogglingId(null);
-    }
-  };
 
   const handleToggleHidden = async (
     calendarId: string,
@@ -121,17 +113,39 @@ export function CalendarList({
               )}
             </CardTitle>
             <CardDescription>
-              Choose which calendars to sync and display
+              Manage calendar visibility. Use Sync Configuration above to select which calendars to sync events from.
             </CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            <RefreshIcon className="size-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {onRefreshCalendars && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefreshCalendars}
+                disabled={isLoading || isSyncingMetadata}
+              >
+                {isSyncingMetadata ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <SyncIcon className="mr-1.5 size-4" />
+                    Refresh Calendars
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+            >
+              <RefreshIcon className="size-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -147,9 +161,6 @@ export function CalendarList({
                 key={calendar.id}
                 calendar={calendar}
                 isToggling={togglingId === calendar.id}
-                onToggleSelection={() =>
-                  handleToggleSelection(calendar.id, calendar.isSelected)
-                }
                 onToggleHidden={() =>
                   handleToggleHidden(calendar.id, calendar.isHidden)
                 }
@@ -177,14 +188,12 @@ export function CalendarList({
 interface CalendarItemProps {
   calendar: CalendarInfo;
   isToggling: boolean;
-  onToggleSelection: () => void;
   onToggleHidden: () => void;
 }
 
 function CalendarItem({
   calendar,
   isToggling,
-  onToggleSelection,
   onToggleHidden,
 }: CalendarItemProps) {
   const accessRoleLabels: Record<string, string> = {
@@ -219,6 +228,11 @@ function CalendarItem({
               Primary
             </Badge>
           )}
+          {calendar.isSelected && (
+            <Badge variant="default" className="shrink-0 text-xs">
+              Syncing
+            </Badge>
+          )}
         </div>
         <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
           <span>{accessRoleLabels[calendar.accessRole] || calendar.accessRole}</span>
@@ -231,42 +245,29 @@ function CalendarItem({
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex shrink-0 items-center gap-4">
+      {/* Visibility toggle */}
+      <div className="flex shrink-0 items-center">
         {isToggling ? (
           <Spinner size="sm" />
         ) : (
-          <>
-            {/* Sync toggle */}
-            <Button
-              variant={calendar.isSelected ? "default" : "outline"}
-              size="sm"
-              onClick={onToggleSelection}
-              disabled={isToggling}
-              className="min-w-[70px]"
-            >
-              {calendar.isSelected ? "Syncing" : "Sync"}
-            </Button>
-
-            {/* Hidden toggle */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggleHidden}
-              disabled={isToggling}
-              className={cn(
-                calendar.isHidden
-                  ? "text-muted-foreground"
-                  : "text-muted-foreground/50"
-              )}
-            >
-              {calendar.isHidden ? (
-                <EyeOffIcon className="size-4" />
-              ) : (
-                <EyeIcon className="size-4" />
-              )}
-            </Button>
-          </>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onToggleHidden}
+            disabled={isToggling}
+            title={calendar.isHidden ? "Show calendar" : "Hide calendar"}
+            className={cn(
+              calendar.isHidden
+                ? "text-muted-foreground"
+                : "text-muted-foreground/50"
+            )}
+          >
+            {calendar.isHidden ? (
+              <EyeOffIcon className="size-4" />
+            ) : (
+              <EyeIcon className="size-4" />
+            )}
+          </Button>
         )}
       </div>
     </div>
@@ -296,6 +297,24 @@ function CalendarListIcon({ className }: { className?: string }) {
 }
 
 function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
+    </svg>
+  );
+}
+
+function SyncIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}

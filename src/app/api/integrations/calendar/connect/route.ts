@@ -5,16 +5,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { checkCalendarScopes } from "@/lib/auth/scope-upgrade";
 import { ALL_CALENDAR_SCOPES, formatScopes, BASE_SCOPES } from "@/lib/auth/scopes";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { calendarLogger } from "@/integrations/calendar/logger";
-import {
-  getCalendarQueue,
-  startRecurringSync,
-  scheduleIncrementalSync,
-  hasRecurringSyncActive,
-} from "@/integrations/calendar/sync";
+import { calendarSyncStateRepository } from "@/integrations/calendar/repository";
+import { syncCalendarMetadata } from "@/integrations/calendar/sync";
 
 const logger = calendarLogger.child("api.connect");
 
@@ -90,23 +87,24 @@ export async function POST(
   // Check current Calendar scope status
   const scopeCheck = await checkCalendarScopes(userId);
 
-  // If already connected with write access and not forcing, ensure sync is running
+  // If already connected with write access and not forcing
   if (scopeCheck.hasRequiredScopes && !body.force) {
-    // Ensure recurring sync is running for this user
-    try {
-      const queue = getCalendarQueue();
-      const hasRecurring = await hasRecurringSyncActive(queue, userId);
-      
-      if (!hasRecurring) {
-        // Start recurring sync for this user
-        await startRecurringSync(queue, userId);
-        // Trigger an immediate sync to get the latest events
-        await scheduleIncrementalSync(queue, userId);
-        logger.info("Started auto-sync for returning user", { userId });
+    // Check if calendars have been synced (metadata sync)
+    const syncState = await calendarSyncStateRepository.get(userId);
+    const hasCalendars = syncState && syncState.calendarCount > 0;
+    
+    // If calendars haven't been synced yet, do a metadata sync
+    if (!hasCalendars) {
+      try {
+        const accessToken = await getValidAccessToken(userId);
+        if (accessToken) {
+          await syncCalendarMetadata(userId, accessToken);
+          logger.info("Synced calendar metadata for returning user", { userId });
+        }
+      } catch (error) {
+        // Log but don't fail the request if metadata sync fails
+        logger.error("Failed to sync calendar metadata", { userId }, error);
       }
-    } catch (error) {
-      // Log but don't fail the request if sync scheduling fails
-      logger.error("Failed to start auto-sync", { userId }, error);
     }
 
     logger.info("Calendar already connected", { userId });

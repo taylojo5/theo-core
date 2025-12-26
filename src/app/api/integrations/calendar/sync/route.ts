@@ -15,7 +15,9 @@ import {
   startRecurringSync,
   stopRecurringSync,
   hasRecurringSyncActive,
+  syncCalendarMetadata,
 } from "@/integrations/calendar/sync";
+import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { z } from "zod";
 
 const logger = calendarLogger.child("api.sync");
@@ -25,7 +27,7 @@ const logger = calendarLogger.child("api.sync");
 // ─────────────────────────────────────────────────────────────
 
 const TriggerSyncSchema = z.object({
-  type: z.enum(["auto", "full", "incremental"]).optional(),
+  type: z.enum(["auto", "full", "incremental", "metadata"]).optional(),
   enableRecurring: z.boolean().optional(),
 });
 
@@ -150,6 +152,8 @@ export async function POST(request: NextRequest) {
 
     // Schedule the appropriate sync type (only if explicitly requested)
     let jobId: string | undefined;
+    let metadataResult: { calendarsProcessed: number } | undefined;
+    
     if (syncType) {
       switch (syncType) {
         case "full":
@@ -171,6 +175,21 @@ export async function POST(request: NextRequest) {
             jobId = autoFullJob.jobId;
           }
           break;
+        case "metadata":
+          // Metadata sync: only sync calendar list, no events
+          const accessToken = await getValidAccessToken(userId);
+          if (!accessToken) {
+            return NextResponse.json(
+              { error: "No valid access token available. Please reconnect Google Calendar." },
+              { status: 401, headers }
+            );
+          }
+          metadataResult = await syncCalendarMetadata(userId, accessToken);
+          logger.info("Metadata sync completed", { 
+            userId, 
+            calendarsProcessed: metadataResult.calendarsProcessed 
+          });
+          break;
       }
     }
 
@@ -180,14 +199,27 @@ export async function POST(request: NextRequest) {
 
     logger.info("Sync triggered via API", { userId, syncType, jobId });
 
+    // Build response message
+    let message = "Recurring sync updated";
+    if (jobId) {
+      message = "Sync scheduled";
+    } else if (metadataResult) {
+      message = `Calendar list refreshed (${metadataResult.calendarsProcessed} calendars)`;
+    }
+
     return NextResponse.json(
       {
         success: true,
-        message: jobId ? "Sync scheduled" : "Recurring sync updated",
+        message,
         jobId,
         syncType: syncType || null,
         recurring: isRecurring,
         currentStatus: currentSyncState?.syncStatus || "idle",
+        ...(metadataResult && { 
+          metadata: { 
+            calendarsProcessed: metadataResult.calendarsProcessed 
+          } 
+        }),
       },
       { headers }
     );

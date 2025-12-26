@@ -179,7 +179,9 @@ export function mapGoogleCalendarToDb(
     accessRole: calendar.accessRole,
     backgroundColor: calendar.backgroundColor,
     foregroundColor: calendar.foregroundColor,
-    isSelected: calendar.selected ?? true,
+    // Default to NOT syncing events - user must explicitly opt-in
+    // Only calendars with reader/owner accessRole can be opted in
+    isSelected: false,
     isHidden: calendar.hidden ?? false,
   };
 }
@@ -201,7 +203,7 @@ export function calendarInputToPrisma(
     accessRole: input.accessRole,
     backgroundColor: input.backgroundColor,
     foregroundColor: input.foregroundColor,
-    isSelected: input.isSelected ?? true,
+    isSelected: input.isSelected ?? false,
     isHidden: input.isHidden ?? false,
   };
 }
@@ -223,7 +225,7 @@ export function calendarInputToUpsertPrisma(
     accessRole: input.accessRole,
     backgroundColor: input.backgroundColor,
     foregroundColor: input.foregroundColor,
-    isSelected: input.isSelected ?? true,
+    isSelected: input.isSelected ?? false,
     isHidden: input.isHidden ?? false,
   };
 }
