@@ -54,8 +54,11 @@ model User {
   calendarSyncState CalendarSyncState?
   calendarApprovals CalendarApproval[]
 
-  // Agent configuration
-  agentConfig AgentUserConfig?
+  // Agent Engine
+  agentConfig      AgentUserConfig?
+  agentPlans       AgentPlan[]
+  actionApprovals  ActionApproval[]
+  autonomySettings UserAutonomySettings?
 }
 
 model Account {
@@ -102,11 +105,22 @@ model Conversation {
   userId    String
   title     String?
   summary   String?
+
+  // Status tracking
+  status        String    @default("active") // active, paused, completed, archived
+  lastMessageAt DateTime?
+
+  // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relations
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages Message[]
+  plans    AgentPlan[]
+
+  @@index([userId])
+  @@index([lastMessageAt])
 }
 
 model Message {
@@ -968,6 +982,161 @@ model AgentUserConfig {
   // Confidence thresholds (JSON object matching ConfidenceThresholds type)
   // Keys: ACTION, STATEMENT, ASSUMPTION, HIGH_RISK, ENTITY_RESOLUTION
   confidenceThresholds Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agent Engine: Plans
+// Multi-step execution plans for complex agent tasks
+// ─────────────────────────────────────────────────────────────
+
+model AgentPlan {
+  id             String  @id @default(cuid())
+  userId         String
+  conversationId String?
+
+  // Goal
+  goal     String @db.Text
+  goalType String // schedule, communicate, task, query, summarize, etc.
+
+  // Status
+  status      String @default("planned") // planned, executing, paused, awaiting_approval, completed, failed, cancelled
+  currentStep Int    @default(0)
+
+  // Approval
+  requiresApproval Boolean   @default(false)
+  approvedAt       DateTime?
+  approvedBy       String? // user ID or 'system'
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Relations
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation?  @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  steps        AgentPlanStep[]
+
+  // NOTE: User consistency with Conversation is enforced via database trigger
+  // See migration: add_agent_plan_user_consistency_trigger
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([status])
+}
+
+model AgentPlanStep {
+  id     String @id @default(cuid())
+  planId String
+
+  // Order and dependencies
+  stepOrder Int
+  dependsOn String[] @default([]) // IDs of steps this step depends on
+
+  // Action
+  toolName   String
+  toolParams Json // Parameters for the tool
+
+  // Status
+  status       String  @default("pending") // pending, executing, completed, failed, skipped, rolled_back
+  errorMessage String?
+
+  // Result
+  result Json? // Execution result
+
+  // Rollback support
+  rollbackAction Json? // { toolName, toolParams } for undoing this step
+  rolledBackAt   DateTime?
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  executedAt DateTime?
+
+  // Relations
+  plan AgentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agent Engine: Action Approvals
+// Generic approval system for all agent actions
+// ─────────────────────────────────────────────────────────────
+
+model ActionApproval {
+  id     String @id @default(cuid())
+  userId String
+
+  // Context
+  planId         String?
+  stepIndex      Int?
+  conversationId String?
+
+  // Action details
+  actionType String // create, update, delete, send, schedule, etc.
+  toolName   String
+  parameters Json // Tool parameters
+
+  // Status
+  status String @default("pending") // pending, approved, rejected, expired, executed, failed
+
+  // Risk assessment
+  riskLevel String // low, medium, high, critical
+
+  // Reasoning
+  reasoning String @db.Text // Agent's explanation for this action
+
+  // Timing
+  requestedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  decidedAt   DateTime?
+
+  // Result (after execution)
+  result       Json?
+  errorMessage String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@index([conversationId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agent Engine: User Autonomy Settings
+// Per-action-type approval level preferences
+// ─────────────────────────────────────────────────────────────
+
+model UserAutonomySettings {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Per-action approval levels (JSON object)
+  // Keys are action types like "email.send", "calendar.create", "task.update"
+  // Values are approval levels: "auto", "confirm", "review", "never"
+  // Example: { "email.send": "confirm", "task.create": "auto", "calendar.create": "review" }
+  settings Json @default("{}")
+
+  // Global defaults
+  defaultApprovalLevel String @default("confirm") // auto, confirm, review, never
+
+  // Trust settings
+  highRiskOverride  Boolean @default(true) // Always require approval for high-risk actions
+  learningEnabled   Boolean @default(true) // Learn from approval patterns
+  notifyOnAutoApply Boolean @default(true) // Notify user when actions are auto-approved
 
   // Timestamps
   createdAt DateTime @default(now())

@@ -64,10 +64,14 @@ export async function createMessage(
     },
   });
 
-  // Update conversation's updatedAt timestamp
+  // Update conversation's lastMessageAt and updatedAt timestamps
+  const now = new Date();
   await db.conversation.update({
     where: { id: input.conversationId },
-    data: { updatedAt: new Date() },
+    data: {
+      lastMessageAt: now,
+      updatedAt: now,
+    },
   });
 
   // Log audit entry for user messages
