@@ -53,6 +53,9 @@ model User {
   calendars         Calendar[]
   calendarSyncState CalendarSyncState?
   calendarApprovals CalendarApproval[]
+
+  // Agent configuration
+  agentConfig AgentUserConfig?
 }
 
 model Account {
@@ -935,4 +938,41 @@ model CalendarApproval {
   @@index([userId, status])
   @@index([expiresAt])
   @@index([userId, requestedAt(sort: Desc)])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agent Engine: User Configuration
+// Per-user agent settings with defaults from environment/code
+// ─────────────────────────────────────────────────────────────
+
+model AgentUserConfig {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Rate limits (JSON object matching AgentRateLimits type)
+  // Keys: CHAT_PER_MINUTE, ACTIONS_PER_MINUTE, EXTERNAL_CALLS_PER_HOUR, etc.
+  rateLimits Json @default("{}")
+
+  // Token limits (JSON object matching TokenLimits type)
+  // Keys: MAX_CONVERSATION_CONTEXT, MAX_RETRIEVED_CONTEXT, MAX_RESPONSE_TOKENS, etc.
+  tokenLimits Json @default("{}")
+
+  // Content filter settings (JSON object matching ContentFilterConfig type)
+  // Keys: SANITIZE_INPUT, FILTER_OUTPUT, MAX_MESSAGE_LENGTH, DETECT_INJECTION, etc.
+  contentFilterConfig Json @default("{}")
+
+  // Feature flags (JSON object matching AgentFeatureFlags type)
+  // Keys: enablePlanning, enableProactive, enableLearning, enableToolExecution, etc.
+  featureFlags Json @default("{}")
+
+  // Confidence thresholds (JSON object matching ConfidenceThresholds type)
+  // Keys: ACTION, STATEMENT, ASSUMPTION, HIGH_RISK, ENTITY_RESOLUTION
+  confidenceThresholds Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

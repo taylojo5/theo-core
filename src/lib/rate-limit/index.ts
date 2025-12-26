@@ -597,4 +597,64 @@ export const RATE_LIMITS = {
     maxRequests: 5,
     keyPrefix: "calendar-connect",
   } as RateLimitConfig,
+
+  // ─────────────────────────────────────────────────────────────
+  // Agent Engine Rate Limits
+  // ─────────────────────────────────────────────────────────────
+
+  /** Agent chat messages: 20 per minute (LLM cost control) */
+  agentChat: {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    keyPrefix: "agent-chat",
+  } as RateLimitConfig,
+
+  /** Agent actions/tool executions: 10 per minute */
+  agentActions: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "agent-actions",
+  } as RateLimitConfig,
+
+  /** LLM token consumption: 100,000 tokens per hour */
+  llmTokens: {
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 100000,
+    keyPrefix: "llm-tokens",
+  } as RateLimitConfig,
+
+  /** Agent external API calls: 50 per hour (Gmail, Calendar, etc.) */
+  agentExternal: {
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 50,
+    keyPrefix: "agent-external",
+  } as RateLimitConfig,
+
+  /** Agent plan creation: 10 per minute */
+  agentPlans: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "agent-plans",
+  } as RateLimitConfig,
+
+  /** Agent approval actions: 30 per minute */
+  agentApprovals: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "agent-approvals",
+  } as RateLimitConfig,
+
+  /** Agent audit queries: 60 per minute */
+  agentAudit: {
+    windowMs: 60 * 1000,
+    maxRequests: 60,
+    keyPrefix: "agent-audit",
+  } as RateLimitConfig,
+
+  /** Agent conversations: 30 per minute */
+  agentConversations: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "agent-conversations",
+  } as RateLimitConfig,
 } as const;

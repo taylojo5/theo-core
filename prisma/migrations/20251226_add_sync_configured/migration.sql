@@ -7,3 +7,4 @@ ALTER TABLE "GmailSyncState" ADD COLUMN "syncConfigured" BOOLEAN NOT NULL DEFAUL
 COMMENT ON COLUMN "GmailSyncState"."syncLabels" IS 'Labels opted-in for sync (empty = no emails synced)';
 COMMENT ON COLUMN "GmailSyncState"."syncConfigured" IS 'Whether user has configured sync settings';
 
+
