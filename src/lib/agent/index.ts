@@ -415,3 +415,57 @@ export {
   hasConversationContext,
   createTokenProvider,
 } from "./tools";
+
+// ─────────────────────────────────────────────────────────────
+// Execution Engine
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Execution
+  executeToolCall,
+  validateParameters,
+  checkIntegrations,
+
+  // Approval management
+  createPendingApproval,
+  getPendingApproval,
+  listPendingApprovals,
+  updateApprovalStatus,
+  expireApprovals,
+  getDefaultExpirationMs,
+
+  // Result formatting
+  formatExecutionResult,
+  formatErrorResult,
+  extractResultHighlights,
+  truncateResultForDisplay,
+
+  // Type guards
+  isSuccessfulExecution,
+  isFailedExecution,
+  isPendingApproval,
+  isValidationError,
+  isIntegrationError,
+
+  // Types
+  type ToolExecutionRequest,
+  type ExecutionDecision,
+  type ExecutionOutcome,
+  type ToolExecutionSuccess,
+  type ToolExecutionFailure,
+  type PendingApprovalResult,
+  type ApprovalSummary,
+  type ExecutionErrorCode,
+  type ToolExecutionError,
+  type ErrorDetails,
+  type ValidationErrorDetails,
+  type IntegrationErrorDetails,
+  type ExecutionErrorDetails,
+  type FieldValidationError,
+  type IntegrationCheckResult,
+  type ParameterValidationResult,
+  type FormattedExecutionResult,
+  type ResultMetadata,
+  type ApprovalCreationInput,
+  type ApprovalCreationResult,
+} from "./execution";
