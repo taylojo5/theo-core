@@ -3,6 +3,7 @@
 // Bidirectional mapping between Google Calendar API and Prisma database models
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { DateTime, Duration } from "luxon";
 import type { Prisma, Event, Calendar } from "@prisma/client";
 import type {
   GoogleCalendar,
@@ -18,13 +19,14 @@ import type {
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────
-// Date/Time Utilities
+// Date/Time Utilities (Luxon-based)
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Parse a Google Calendar EventDateTime to a JavaScript Date
  *
  * Handles both all-day events (date only) and timed events (dateTime).
+ * Uses Luxon for reliable ISO 8601 / RFC 3339 parsing.
  *
  * For timed events: Returns the exact time from the RFC3339 dateTime string.
  *
@@ -43,14 +45,22 @@ export function parseEventDateTime(
 ): Date {
   if (eventDateTime.dateTime) {
     // Timed event - dateTime is in RFC3339 format (includes timezone offset)
-    return new Date(eventDateTime.dateTime);
+    // Luxon handles the timezone offset in the string automatically
+    const dt = DateTime.fromISO(eventDateTime.dateTime);
+    if (!dt.isValid) {
+      throw new Error(`Invalid dateTime format: ${eventDateTime.dateTime}`);
+    }
+    return dt.toJSDate();
   }
 
   if (eventDateTime.date) {
     // All-day event - date is in YYYY-MM-DD format
     // Parse as midnight UTC for consistent storage across different server timezones
-    // The 'Z' suffix ensures UTC interpretation, avoiding local timezone issues
-    return new Date(`${eventDateTime.date}T00:00:00Z`);
+    const dt = DateTime.fromISO(eventDateTime.date, { zone: "UTC" }).startOf("day");
+    if (!dt.isValid) {
+      throw new Error(`Invalid date format: ${eventDateTime.date}`);
+    }
+    return dt.toJSDate();
   }
 
   // Fallback - shouldn't happen with valid data
@@ -84,6 +94,7 @@ export function isAllDayEvent(dateTime: EventDateTime): boolean {
 
 /**
  * Format a JavaScript Date to a Google Calendar EventDateTime
+ * Uses Luxon for reliable ISO formatting.
  *
  * @param date - JavaScript Date to format
  * @param allDay - Whether this is an all-day event
@@ -95,22 +106,20 @@ export function formatEventDateTime(
   allDay: boolean,
   timeZone?: string
 ): EventDateTime {
+  const dt = DateTime.fromJSDate(date, { zone: "UTC" });
+
   if (allDay) {
     // Format as YYYY-MM-DD for all-day events
-    // Use UTC methods since all-day events are stored as midnight UTC
-    // (via parseEventDateTime which appends 'Z' to the date string)
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(date.getUTCDate()).padStart(2, "0");
+    // All-day events are stored as midnight UTC
     return {
-      date: `${year}-${month}-${day}`,
+      date: dt.toISODate() ?? dt.toFormat("yyyy-MM-dd"),
       timeZone,
     };
   }
 
   // Format as RFC3339 for timed events
   return {
-    dateTime: date.toISOString(),
+    dateTime: dt.toISO() ?? date.toISOString(),
     timeZone,
   };
 }
@@ -544,6 +553,7 @@ export function eventInputToUncheckedPrisma(
  *
  * Converts a database Event record back to the format expected
  * by the Google Calendar API for creates/updates.
+ * Uses Luxon for date arithmetic (DST-safe).
  *
  * @param event - Database event record
  * @returns Event input for Google Calendar API
@@ -557,16 +567,13 @@ export function mapDbEventToGoogleInput(event: Event): EventCreateInput {
     endDateTime = formatEventDateTime(event.endsAt, allDay, event.timezone ?? undefined);
   } else if (allDay) {
     // For all-day events, Google Calendar expects end date to be the day AFTER the start
-    // (the end date is exclusive). Add one day to startsAt.
-    const endDate = new Date(event.startsAt);
-    endDate.setUTCDate(endDate.getUTCDate() + 1);
-    endDateTime = formatEventDateTime(endDate, true, event.timezone ?? undefined);
+    // (the end date is exclusive). Add one day to startsAt using Luxon.
+    const endDt = DateTime.fromJSDate(event.startsAt, { zone: "UTC" }).plus({ days: 1 });
+    endDateTime = formatEventDateTime(endDt.toJSDate(), true, event.timezone ?? undefined);
   } else {
     // For timed events without an end time, default to 1 hour duration
-    // Use UTC methods for consistency with all-day event handling
-    const endDate = new Date(event.startsAt);
-    endDate.setUTCHours(endDate.getUTCHours() + 1);
-    endDateTime = formatEventDateTime(endDate, false, event.timezone ?? undefined);
+    const endDt = DateTime.fromJSDate(event.startsAt, { zone: "UTC" }).plus({ hours: 1 });
+    endDateTime = formatEventDateTime(endDt.toJSDate(), false, event.timezone ?? undefined);
   }
 
   return {
@@ -1080,41 +1087,52 @@ export function isMasterRecurringEvent(event: GoogleEvent): boolean {
 
 /**
  * Get event duration in minutes
+ * Uses Luxon for accurate duration calculation
  */
 export function getEventDurationMinutes(event: GoogleEvent): number {
-  const start = parseEventDateTime(event.start);
-  const end = event.end ? parseEventDateTime(event.end) : start;
+  const start = DateTime.fromJSDate(parseEventDateTime(event.start));
+  const end = event.end 
+    ? DateTime.fromJSDate(parseEventDateTime(event.end))
+    : start;
 
-  const diffMs = end.getTime() - start.getTime();
-  return Math.round(diffMs / (1000 * 60));
+  const duration = end.diff(start, "minutes");
+  return Math.round(duration.minutes);
 }
 
 /**
  * Check if event is currently happening
+ * Uses Luxon for accurate time comparison
  */
 export function isEventHappening(event: GoogleEvent, now: Date = new Date()): boolean {
-  const start = parseEventDateTime(event.start);
-  const end = event.end ? parseEventDateTime(event.end) : start;
+  const nowDt = DateTime.fromJSDate(now);
+  const start = DateTime.fromJSDate(parseEventDateTime(event.start));
+  const end = event.end 
+    ? DateTime.fromJSDate(parseEventDateTime(event.end))
+    : start;
 
-  return now >= start && now <= end;
+  return nowDt >= start && nowDt <= end;
 }
 
 /**
  * Check if event is in the past
+ * Uses Luxon for accurate time comparison
  */
 export function isEventPast(event: GoogleEvent, now: Date = new Date()): boolean {
+  const nowDt = DateTime.fromJSDate(now);
   const end = event.end
-    ? parseEventDateTime(event.end)
-    : parseEventDateTime(event.start);
+    ? DateTime.fromJSDate(parseEventDateTime(event.end))
+    : DateTime.fromJSDate(parseEventDateTime(event.start));
 
-  return end < now;
+  return end < nowDt;
 }
 
 /**
  * Check if event is in the future
+ * Uses Luxon for accurate time comparison
  */
 export function isEventFuture(event: GoogleEvent, now: Date = new Date()): boolean {
-  const start = parseEventDateTime(event.start);
-  return start > now;
+  const nowDt = DateTime.fromJSDate(now);
+  const start = DateTime.fromJSDate(parseEventDateTime(event.start));
+  return start > nowDt;
 }
 

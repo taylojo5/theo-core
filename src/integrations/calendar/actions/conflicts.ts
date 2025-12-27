@@ -1,8 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Calendar Conflict Detection
 // Detects scheduling conflicts for event creation and updates
+// Uses Luxon for accurate time calculations
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { DateTime, Duration } from "luxon";
 import { calendarEventRepository } from "../repository";
 import { calendarLogger } from "../logger";
 import type {
@@ -32,6 +34,7 @@ const SAME_TIME_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Detect scheduling conflicts for a proposed event time
+ * Uses Luxon for accurate time calculations (DST-safe)
  * 
  * @param userId - User ID to check conflicts for
  * @param start - Proposed start time
@@ -55,10 +58,11 @@ export async function detectConflicts(
   const logger = calendarLogger.child("detectConflicts");
 
   try {
-    // Calculate buffered time range
-    const bufferMs = bufferMinutes * 60 * 1000;
-    const bufferedStart = new Date(start.getTime() - bufferMs);
-    const bufferedEnd = new Date(end.getTime() + bufferMs);
+    // Calculate buffered time range using Luxon (DST-safe)
+    const startDt = DateTime.fromJSDate(start);
+    const endDt = DateTime.fromJSDate(end);
+    const bufferedStart = startDt.minus({ minutes: bufferMinutes }).toJSDate();
+    const bufferedEnd = endDt.plus({ minutes: bufferMinutes }).toJSDate();
 
     // Find potentially conflicting events
     const potentialConflicts = await calendarEventRepository.findConflicts(
@@ -172,6 +176,7 @@ export function summarizeConflicts(conflicts: ConflictInfo[]): string {
 
 /**
  * Analyze a single event for conflict with proposed time
+ * Uses Luxon for accurate time comparisons
  */
 function analyzeConflict(
   event: Event,
@@ -179,22 +184,25 @@ function analyzeConflict(
   proposedEnd: Date,
   bufferMinutes: number
 ): ConflictInfo | null {
-  const eventStart = event.startsAt;
-  const eventEnd = event.endsAt || event.startsAt;
+  const eventStartDt = DateTime.fromJSDate(event.startsAt);
+  const eventEndDt = DateTime.fromJSDate(event.endsAt || event.startsAt);
+  const proposedStartDt = DateTime.fromJSDate(proposedStart);
+  const proposedEndDt = DateTime.fromJSDate(proposedEnd);
 
   // Calculate if there's an actual overlap
-  const hasOverlap = eventStart < proposedEnd && eventEnd > proposedStart;
+  const hasOverlap = eventStartDt < proposedEndDt && eventEndDt > proposedStartDt;
 
-  // Check for same-time start
-  const isSameTime = Math.abs(eventStart.getTime() - proposedStart.getTime()) < SAME_TIME_THRESHOLD_MS;
+  // Check for same-time start (within threshold)
+  const timeDiff = Math.abs(eventStartDt.diff(proposedStartDt, "milliseconds").milliseconds);
+  const isSameTime = timeDiff < SAME_TIME_THRESHOLD_MS;
 
   // Check for back-to-back (within buffer time)
-  const bufferMs = bufferMinutes * 60 * 1000;
+  const bufferDuration = Duration.fromObject({ minutes: bufferMinutes });
   const isBackToBack = !hasOverlap && (
-    (eventEnd.getTime() >= proposedStart.getTime() - bufferMs && 
-     eventEnd.getTime() <= proposedStart.getTime()) ||
-    (proposedEnd.getTime() >= eventStart.getTime() - bufferMs && 
-     proposedEnd.getTime() <= eventStart.getTime())
+    (eventEndDt >= proposedStartDt.minus(bufferDuration) && 
+     eventEndDt <= proposedStartDt) ||
+    (proposedEndDt >= eventStartDt.minus(bufferDuration) && 
+     proposedEndDt <= eventStartDt)
   );
 
   // Determine conflict type and severity
@@ -221,8 +229,8 @@ function analyzeConflict(
     eventId: event.id,
     googleEventId: event.googleEventId || undefined,
     title: event.title || "Untitled Event",
-    startsAt: eventStart,
-    endsAt: eventEnd,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt || event.startsAt,
     allDay: event.allDay || false,
     calendarId: event.googleCalendarId || event.calendarId || undefined,
     conflictType,

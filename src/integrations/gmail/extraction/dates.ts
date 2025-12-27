@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Email Date Extraction
 // Extract dates and potential deadlines from email content using chrono-node
+// Uses Luxon for date comparisons and formatting
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as chrono from "chrono-node";
+import { DateTime } from "luxon";
 import type { ExtractedDate, DateType, DateExtractionOptions } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ const RECURRING_KEYWORDS = [
 
 /**
  * Extract dates from text content
+ * Uses chrono-node for NLP parsing and Luxon for comparisons
  *
  * @param text - The text to extract dates from
  * @param options - Extraction options
@@ -91,6 +94,7 @@ export function extractDates(
   }
 
   const referenceDate = options.referenceDate ?? new Date();
+  const referenceDt = DateTime.fromJSDate(referenceDate);
   const minConfidence = options.minConfidence ?? 0.5;
 
   // Parse dates using chrono-node
@@ -120,9 +124,10 @@ export function extractDates(
     const hasTime =
       result.start.isCertain("hour") || result.start.isCertain("minute");
 
-    // Filter future-only if requested
+    // Filter future-only if requested (using Luxon for comparison)
     const startDate = result.start.date();
-    if (options.futureOnly && startDate < referenceDate) {
+    const startDt = DateTime.fromJSDate(startDate);
+    if (options.futureOnly && startDt < referenceDt) {
       continue;
     }
 
@@ -148,8 +153,12 @@ export function extractDates(
     results.push(extracted);
   }
 
-  // Sort by date
-  results.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Sort by date using Luxon for comparison
+  results.sort((a, b) => {
+    const aDt = DateTime.fromJSDate(a.date);
+    const bDt = DateTime.fromJSDate(b.date);
+    return aDt.toMillis() - bDt.toMillis();
+  });
 
   // Deduplicate dates that are very close
   return deduplicateDates(results);
@@ -319,6 +328,7 @@ function checkIfDeadline(context: string, dateType: DateType): boolean {
 
 /**
  * Remove duplicate dates that are within a small time window
+ * Uses Luxon for ISO date formatting
  */
 function deduplicateDates(dates: ExtractedDate[]): ExtractedDate[] {
   if (dates.length <= 1) return dates;
@@ -327,19 +337,20 @@ function deduplicateDates(dates: ExtractedDate[]): ExtractedDate[] {
   const seen = new Set<string>();
 
   for (const date of dates) {
-    // Create a key based on date (rounded to hour)
-    const key = `${date.date.toISOString().slice(0, 13)}-${date.type}`;
+    // Create a key based on date (rounded to hour) using Luxon
+    const dt = DateTime.fromJSDate(date.date);
+    const hourKey = dt.toFormat("yyyy-MM-dd'T'HH");
+    const key = `${hourKey}-${date.type}`;
 
     if (!seen.has(key)) {
       seen.add(key);
       result.push(date);
     } else {
       // If duplicate, keep the one with higher confidence
-      const existingIndex = result.findIndex(
-        (d) =>
-          d.date.toISOString().slice(0, 13) ===
-          date.date.toISOString().slice(0, 13)
-      );
+      const existingIndex = result.findIndex((d) => {
+        const existingDt = DateTime.fromJSDate(d.date);
+        return existingDt.toFormat("yyyy-MM-dd'T'HH") === hourKey;
+      });
       if (
         existingIndex >= 0 &&
         date.confidence > result[existingIndex].confidence
@@ -354,23 +365,22 @@ function deduplicateDates(dates: ExtractedDate[]): ExtractedDate[] {
 
 /**
  * Format an extracted date for display
+ * Uses Luxon for consistent, locale-aware formatting
  */
 export function formatExtractedDate(date: ExtractedDate): string {
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  };
-
-  if (date.hasTime) {
-    options.hour = "numeric";
-    options.minute = "2-digit";
-  }
-
-  let formatted = date.date.toLocaleDateString("en-US", options);
+  const dt = DateTime.fromJSDate(date.date);
+  
+  // Format with Luxon - weekday, month, day, optionally time
+  let formatted = date.hasTime
+    ? dt.toFormat("EEE, MMM d 'at' h:mm a")
+    : dt.toFormat("EEE, MMM d");
 
   if (date.endDate) {
-    formatted += ` - ${date.endDate.toLocaleDateString("en-US", options)}`;
+    const endDt = DateTime.fromJSDate(date.endDate);
+    const endFormatted = date.hasTime
+      ? endDt.toFormat("EEE, MMM d 'at' h:mm a")
+      : endDt.toFormat("EEE, MMM d");
+    formatted += ` - ${endFormatted}`;
   }
 
   return formatted;

@@ -2,9 +2,11 @@
 // Deadlines API
 // POST /api/context/deadlines - Create a new deadline
 // GET /api/context/deadlines - List user's deadlines (paginated, filterable)
+// Uses Luxon for reliable ISO date parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
+import { DateTime } from "luxon";
 import {
   parseAndValidateBody,
   validateQuery,
@@ -56,12 +58,12 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    // Convert date strings to Date objects
+    // Convert date strings to Date objects using Luxon
     const input = {
       ...validation.data,
-      dueAt: new Date(validation.data.dueAt),
+      dueAt: DateTime.fromISO(validation.data.dueAt).toJSDate(),
       reminderAt: validation.data.reminderAt
-        ? new Date(validation.data.reminderAt)
+        ? DateTime.fromISO(validation.data.reminderAt).toJSDate()
         : undefined,
     };
 
@@ -180,14 +182,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Otherwise use list with filters
+    // Otherwise use list with filters (using Luxon for date parsing)
     const options: ListDeadlinesOptions = {
       limit,
       cursor,
       type: type as DeadlineType,
       status: status as DeadlineStatus,
-      dueBefore: dueBefore ? new Date(dueBefore) : undefined,
-      dueAfter: dueAfter ? new Date(dueAfter) : undefined,
+      dueBefore: dueBefore ? DateTime.fromISO(dueBefore).toJSDate() : undefined,
+      dueAfter: dueAfter ? DateTime.fromISO(dueAfter).toJSDate() : undefined,
       includeDeleted,
     };
 

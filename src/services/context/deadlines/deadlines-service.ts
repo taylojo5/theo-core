@@ -13,6 +13,9 @@ import {
   buildOrderBy,
   normalizeTags,
   validateImportance,
+  getDaysRemaining,
+  addDays,
+  isFuture,
 } from "../utils";
 import {
   embedDeadline,
@@ -40,16 +43,15 @@ import type {
 import { DeadlinesServiceError as DeadlinesError } from "./types";
 
 // ─────────────────────────────────────────────────────────────
-// Urgency Calculation
+// Urgency Calculation (Luxon-based)
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Calculate days remaining until deadline
+ * Uses Luxon for accurate day calculations (DST-safe)
  */
 function calculateDaysRemaining(dueAt: Date): number {
-  const now = new Date();
-  const diffMs = dueAt.getTime() - now.getTime();
-  return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+  return getDaysRemaining(dueAt);
 }
 
 /**
@@ -391,8 +393,8 @@ export async function extendDeadline(
     throw new DeadlinesError("DEADLINE_NOT_FOUND", `Deadline not found: ${id}`);
   }
 
-  // Validate new due date is in the future
-  if (newDueAt <= new Date()) {
+  // Validate new due date is in the future (using Luxon)
+  if (!isFuture(newDueAt)) {
     throw new DeadlinesError(
       "INVALID_DUE_DATE",
       "Extended due date must be in the future",
@@ -601,6 +603,7 @@ export async function getOverdueDeadlines(
 
 /**
  * Get approaching deadlines (within N days)
+ * Uses Luxon for accurate day calculations (DST-safe)
  */
 export async function getApproachingDeadlines(
   userId: string,
@@ -608,7 +611,7 @@ export async function getApproachingDeadlines(
   limit: number = 20
 ): Promise<Deadline[]> {
   const now = new Date();
-  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const future = addDays(now, days);
 
   return db.deadline.findMany({
     where: {
@@ -627,6 +630,7 @@ export async function getApproachingDeadlines(
 
 /**
  * Get deadlines with urgency calculation
+ * Uses Luxon for accurate day calculations (DST-safe)
  */
 export async function getDeadlinesByUrgency(
   userId: string,
@@ -639,10 +643,11 @@ export async function getDeadlinesByUrgency(
     minUrgency,
   } = options;
 
-  // Calculate date range
+  // Calculate date range using Luxon (DST-safe)
   const now = new Date();
-  const approachingDate = new Date(now.getTime() + approachingDays * 24 * 60 * 60 * 1000);
-  const normalDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const urgentDate = addDays(now, urgentDays);
+  const approachingDate = addDays(now, approachingDays);
+  const normalDate = addDays(now, 30);
 
   // Determine date filter based on minUrgency
   let dateFilter: Prisma.DeadlineWhereInput = {};
@@ -656,13 +661,13 @@ export async function getDeadlinesByUrgency(
         dateFilter = {
           dueAt: {
             gte: now,
-            lte: new Date(now.getTime() + urgentDays * 24 * 60 * 60 * 1000),
+            lte: urgentDate,
           },
         };
       } else {
         dateFilter = {
           dueAt: {
-            lte: new Date(now.getTime() + urgentDays * 24 * 60 * 60 * 1000),
+            lte: urgentDate,
           },
         };
       }

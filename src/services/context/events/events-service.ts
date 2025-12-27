@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import { logAuditEntry } from "@/services/audit";
 import { Prisma } from "@prisma/client";
+import { DateTime } from "luxon";
 import {
   softDeleteFilter,
   normalizePagination,
@@ -14,6 +15,9 @@ import {
   normalizeTags,
   validateImportance,
   getDateRange,
+  getStartOfDay,
+  getEndOfDay,
+  addDays,
 } from "../utils";
 import {
   embedEvent,
@@ -82,6 +86,7 @@ function validateStatusTransition(
 
 /**
  * Get date range from preset
+ * Uses Luxon for accurate week/month calculations (DST-safe)
  */
 function getPresetDateRange(preset: TimeRangePreset): { start: Date; end: Date } {
   const now = new Date();
@@ -91,36 +96,40 @@ function getPresetDateRange(preset: TimeRangePreset): { start: Date; end: Date }
       return getDateRange("today");
 
     case "tomorrow": {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const start = new Date(tomorrow);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(tomorrow);
-      end.setHours(23, 59, 59, 999);
-      return { start, end };
+      const tomorrow = addDays(now, 1);
+      return {
+        start: getStartOfDay(tomorrow),
+        end: getEndOfDay(tomorrow),
+      };
     }
 
     case "this_week":
       return getDateRange("week");
 
     case "next_week": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - now.getDay() + 7);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-      return { start, end };
+      // Get end of this week, then start of next week
+      const { end: thisWeekEnd } = getDateRange("week");
+      const nextWeekStart = addDays(thisWeekEnd, 1);
+      const nextWeekEnd = addDays(nextWeekStart, 6);
+      return {
+        start: getStartOfDay(nextWeekStart),
+        end: getEndOfDay(nextWeekEnd),
+      };
     }
 
     case "this_month":
       return getDateRange("month");
 
     case "next_month": {
-      const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-      end.setHours(23, 59, 59, 999);
-      return { start, end };
+      // Get end of this month, then start/end of next month using Luxon
+      const { end: thisMonthEnd } = getDateRange("month");
+      const nextMonthStart = addDays(thisMonthEnd, 1);
+      const nextMonthDt = DateTime.fromJSDate(nextMonthStart);
+      const nextMonthEndDt = nextMonthDt.endOf("month");
+      return {
+        start: getStartOfDay(nextMonthStart),
+        end: nextMonthEndDt.toJSDate(),
+      };
     }
   }
 }
@@ -628,24 +637,22 @@ export async function getEventsByTimeRange(
 
 /**
  * Get events on a specific date
+ * Uses Luxon for accurate day boundaries (timezone-aware)
  */
 export async function getEventsOnDate(
   userId: string,
   date: Date
 ): Promise<Event[]> {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const startOfDayDate = getStartOfDay(date);
+  const endOfDayDate = getEndOfDay(date);
 
   return db.event.findMany({
     where: {
       userId,
       ...softDeleteFilter(),
       startsAt: {
-        gte: startOfDay,
-        lte: endOfDay,
+        gte: startOfDayDate,
+        lte: endOfDayDate,
       },
     },
     orderBy: { startsAt: "asc" },

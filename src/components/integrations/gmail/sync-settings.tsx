@@ -3,9 +3,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Sync Settings Component
 // Sync configuration form with manual sync trigger
+// Uses Luxon for date formatting
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
+import { DateTime } from "luxon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,13 +99,11 @@ export function SyncSettings({
     }
   };
 
+  // Using Luxon for consistent date formatting
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Never";
-    const date = new Date(dateStr);
-    return date.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    const dt = DateTime.fromISO(dateStr);
+    return dt.toLocaleString(DateTime.DATETIME_MED);
   };
 
   if (!isConnected) {

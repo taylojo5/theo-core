@@ -3,6 +3,7 @@
 // Shared utility functions for context entity operations
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { DateTime } from "luxon";
 import type { PaginationParams, SortOrder } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -256,77 +257,136 @@ export function mergeTags(existing: string[], additional: string[]): string[] {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Date Utilities
+// Date Utilities (Luxon-based)
+// All operations use local timezone to match legacy behavior
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * Get current time as Luxon DateTime in local timezone
+ */
+function nowLocal(): DateTime {
+  return DateTime.local();
+}
+
+/**
  * Check if a date is in the past
+ * Uses Luxon for accurate comparison
  */
 export function isPast(date: Date): boolean {
-  return date < new Date();
+  return DateTime.fromJSDate(date) < nowLocal();
 }
 
 /**
  * Check if a date is in the future
+ * Uses Luxon for accurate comparison
  */
 export function isFuture(date: Date): boolean {
-  return date > new Date();
+  return DateTime.fromJSDate(date) > nowLocal();
 }
 
 /**
  * Check if a date is within N days from now
+ * Uses Luxon for accurate day calculations (DST-safe)
  */
 export function isWithinDays(date: Date, days: number): boolean {
-  const now = new Date();
-  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-  return date >= now && date <= future;
+  const dt = DateTime.fromJSDate(date);
+  const now = nowLocal();
+  const future = now.plus({ days });
+  return dt >= now && dt <= future;
 }
 
 /**
  * Get date range for common queries
+ * Uses Luxon for proper month/quarter/year boundary calculations
+ * Preserves local timezone behavior for legacy compatibility
  */
 export function getDateRange(
   range: "today" | "week" | "month" | "quarter" | "year"
 ): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
-
+  const now = nowLocal();
+  
   switch (range) {
     case "today":
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      break;
-    case "week":
-      start.setDate(now.getDate() - now.getDay());
-      start.setHours(0, 0, 0, 0);
-      // Copy start after month wrapping, then add 6 days for end of week
-      end.setTime(start.getTime());
-      end.setDate(end.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-      break;
+      return {
+        start: now.startOf("day").toJSDate(),
+        end: now.endOf("day").toJSDate(),
+      };
+    
+    case "week": {
+      // Use Sunday as week start for US locale compatibility
+      // Luxon uses Monday by default (ISO), so adjust
+      const dayOfWeek = now.weekday % 7; // Convert Mon=1...Sun=7 to Sun=0...Sat=6
+      const startOfWeek = now.minus({ days: dayOfWeek }).startOf("day");
+      const endOfWeek = startOfWeek.plus({ days: 6 }).endOf("day");
+      return {
+        start: startOfWeek.toJSDate(),
+        end: endOfWeek.toJSDate(),
+      };
+    }
+    
     case "month":
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(end.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
-      break;
+      return {
+        start: now.startOf("month").toJSDate(),
+        end: now.endOf("month").toJSDate(),
+      };
+    
     case "quarter":
-      const quarter = Math.floor(now.getMonth() / 3);
-      start.setMonth(quarter * 3, 1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(quarter * 3 + 3, 0);
-      end.setHours(23, 59, 59, 999);
-      break;
+      return {
+        start: now.startOf("quarter").toJSDate(),
+        end: now.endOf("quarter").toJSDate(),
+      };
+    
     case "year":
-      start.setMonth(0, 1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(11, 31);
-      end.setHours(23, 59, 59, 999);
-      break;
+      return {
+        start: now.startOf("year").toJSDate(),
+        end: now.endOf("year").toJSDate(),
+      };
+    
+    default: {
+      // Exhaustive check - TypeScript will error if a case is missing
+      const _exhaustiveCheck: never = range;
+      throw new Error(`Unknown date range: ${_exhaustiveCheck}`);
+    }
   }
+}
 
-  return { start, end };
+/**
+ * Get start of day for a date
+ * @param date - The date to get the start of day for
+ * @param timezone - Optional IANA timezone (e.g., "America/New_York"). Defaults to local timezone.
+ */
+export function getStartOfDay(date: Date, timezone?: string): Date {
+  const dt = DateTime.fromJSDate(date);
+  const zoned = timezone ? dt.setZone(timezone) : dt;
+  return zoned.startOf("day").toJSDate();
+}
+
+/**
+ * Get end of day for a date
+ * @param date - The date to get the end of day for
+ * @param timezone - Optional IANA timezone (e.g., "America/New_York"). Defaults to local timezone.
+ */
+export function getEndOfDay(date: Date, timezone?: string): Date {
+  const dt = DateTime.fromJSDate(date);
+  const zoned = timezone ? dt.setZone(timezone) : dt;
+  return zoned.endOf("day").toJSDate();
+}
+
+/**
+ * Add days to a date (DST-safe)
+ */
+export function addDays(date: Date, days: number): Date {
+  return DateTime.fromJSDate(date).plus({ days }).toJSDate();
+}
+
+/**
+ * Calculate days remaining until a target date
+ * Returns negative if date is in the past
+ */
+export function getDaysRemaining(targetDate: Date): number {
+  const target = DateTime.fromJSDate(targetDate);
+  const diff = target.diff(nowLocal(), "days").days;
+  return Math.ceil(diff);
 }
 
 // ─────────────────────────────────────────────────────────────

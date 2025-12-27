@@ -3,9 +3,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Sync History Component
 // Shows recent sync activity and pending jobs
+// Uses Luxon for date formatting
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
+import { DateTime } from "luxon";
 import { cn } from "@/lib/utils";
 import {
   Card,
@@ -54,21 +56,16 @@ export function SyncHistory({
   isConnected = false,
   className,
 }: SyncHistoryProps) {
+  // Using Luxon for consistent date formatting
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Never";
-    const date = new Date(dateStr);
-    return date.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
+    const dt = DateTime.fromISO(dateStr);
+    return dt.toLocaleString(DateTime.DATETIME_SHORT);
   };
 
   const formatTimestamp = (ts: number) => {
-    const date = new Date(ts);
-    return date.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
+    const dt = DateTime.fromMillis(ts);
+    return dt.toLocaleString(DateTime.DATETIME_SHORT);
   };
 
   const getStatusVariant = (status: SyncJob["status"]) => {

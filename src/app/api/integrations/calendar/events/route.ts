@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Calendar Events API
 // List events and request event creation
+// Uses Luxon for reliable ISO date parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
+import { DateTime } from "luxon";
 import { auth } from "@/lib/auth";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { calendarEventRepository } from "@/integrations/calendar/repository";
@@ -117,12 +119,12 @@ export async function GET(request: NextRequest) {
       events = await calendarEventRepository.findThisWeek(userId);
       total = events.length;
     } else {
-      // Use search with filters
+      // Use search with filters (using Luxon for date parsing)
       const result = await calendarEventRepository.search(userId, {
         query,
         calendarId,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
+        startDate: startDate ? DateTime.fromISO(startDate).toJSDate() : undefined,
+        endDate: endDate ? DateTime.fromISO(endDate).toJSDate() : undefined,
         status,
         limit,
         offset,

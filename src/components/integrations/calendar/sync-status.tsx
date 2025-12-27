@@ -3,9 +3,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Calendar Sync Status Component
 // Displays sync progress, status, and controls
+// Uses Luxon for relative time formatting
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
+import { DateTime } from "luxon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -359,21 +361,18 @@ function StatBox({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helpers
+// Helpers (Luxon-powered)
 // ─────────────────────────────────────────────────────────────
 
 function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days === 1) return "Yesterday";
-  return `${days}d ago`;
+  const dt = DateTime.fromJSDate(date);
+  const diff = DateTime.now().diff(dt, ["days", "hours", "minutes"]);
+  
+  if (diff.minutes < 1) return "Just now";
+  if (diff.hours < 1) return `${Math.floor(diff.minutes)}m ago`;
+  if (diff.days < 1) return `${Math.floor(diff.hours)}h ago`;
+  if (diff.days < 2) return "Yesterday";
+  return `${Math.floor(diff.days)}d ago`;
 }
 
 // ─────────────────────────────────────────────────────────────

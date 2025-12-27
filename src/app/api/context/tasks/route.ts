@@ -2,9 +2,11 @@
 // Tasks API
 // POST /api/context/tasks - Create a new task
 // GET /api/context/tasks - List user's tasks (paginated, filterable)
+// Uses Luxon for reliable ISO date parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
+import { DateTime } from "luxon";
 import {
   parseAndValidateBody,
   validateQuery,
@@ -51,14 +53,14 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    // Convert date strings to Date objects
+    // Convert date strings to Date objects using Luxon
     const input = {
       ...validation.data,
       dueDate: validation.data.dueDate
-        ? new Date(validation.data.dueDate)
+        ? DateTime.fromISO(validation.data.dueDate).toJSDate()
         : undefined,
       startDate: validation.data.startDate
-        ? new Date(validation.data.startDate)
+        ? DateTime.fromISO(validation.data.startDate).toJSDate()
         : undefined,
     };
 
@@ -163,15 +165,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Otherwise use list with filters
+    // Otherwise use list with filters (using Luxon for date parsing)
     const options: ListTasksOptions = {
       limit,
       cursor,
       status: status as TaskStatus,
       priority: priority as TaskPriority,
       parentId: parentId === "null" ? null : parentId,
-      dueBefore: dueBefore ? new Date(dueBefore) : undefined,
-      dueAfter: dueAfter ? new Date(dueAfter) : undefined,
+      dueBefore: dueBefore ? DateTime.fromISO(dueBefore).toJSDate() : undefined,
+      dueAfter: dueAfter ? DateTime.fromISO(dueAfter).toJSDate() : undefined,
       includeDeleted,
     };
 

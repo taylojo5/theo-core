@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Check Availability Tool
 // Find free time slots and check for scheduling conflicts
+// Uses Luxon for accurate date/time calculations (DST-safe)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { z } from "zod";
+import { DateTime } from "luxon";
 import type { ToolDefinition } from "../types";
 import { defineTool, objectSchema } from "../types";
 import { calendarEventRepository } from "@/integrations/calendar/repository";
@@ -147,26 +149,18 @@ This analyzes calendar events to find gaps and available time slots.`,
       excludeWeekends,
     } = input;
 
-    // Parse dates - use UTC to avoid timezone drift
-    const startDateTime = new Date(startDate);
-    startDateTime.setUTCHours(0, 0, 0, 0);
-
-    let endDateTime: Date;
-    if (endDate) {
-      endDateTime = new Date(endDate);
-    } else {
-      // Default to same day
-      endDateTime = new Date(startDate);
-    }
-    endDateTime.setUTCHours(23, 59, 59, 999);
+    // Parse dates using Luxon (UTC to avoid timezone drift)
+    const startDt = DateTime.fromISO(startDate, { zone: "UTC" }).startOf("day");
+    const endDt = endDate 
+      ? DateTime.fromISO(endDate, { zone: "UTC" }).endOf("day")
+      : startDt.endOf("day");
 
     // Determine if this is a single-day or multi-day query
     const isSingleDay = !endDate || startDate === endDate;
 
     // Check if date is weekend and we're excluding weekends
-    // Only apply early rejection for single-day queries
-    const dayOfWeek = startDateTime.getUTCDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    // Luxon: weekday 6 = Saturday, 7 = Sunday
+    const isWeekend = startDt.weekday === 6 || startDt.weekday === 7;
 
     if (excludeWeekends && isWeekend && isSingleDay) {
       return {
@@ -180,8 +174,8 @@ This analyzes calendar events to find gaps and available time slots.`,
 
     // Get events for the date range
     const eventsResult = await calendarEventRepository.search(context.userId, {
-      startDate: startDateTime,
-      endDate: endDateTime,
+      startDate: startDt.toJSDate(),
+      endDate: endDt.toJSDate(),
       status: "confirmed",
       limit: 100,
       orderBy: "startsAt",
@@ -192,8 +186,10 @@ This analyzes calendar events to find gaps and available time slots.`,
     const busyPeriods: BusyPeriod[] = eventsResult.events
       .filter((e) => !e.allDay)
       .map((event) => ({
-        start: event.startsAt.toISOString(),
-        end: event.endsAt?.toISOString() ?? event.startsAt.toISOString(),
+        start: DateTime.fromJSDate(event.startsAt).toISO() ?? event.startsAt.toISOString(),
+        end: event.endsAt 
+          ? (DateTime.fromJSDate(event.endsAt).toISO() ?? event.endsAt.toISOString())
+          : (DateTime.fromJSDate(event.startsAt).toISO() ?? event.startsAt.toISOString()),
         title: event.title,
         allDay: false,
       }));
@@ -202,38 +198,37 @@ This analyzes calendar events to find gaps and available time slots.`,
     const allDayEvents = eventsResult.events
       .filter((e) => e.allDay)
       .map((event) => ({
-        start: event.startsAt.toISOString(),
-        end: event.endsAt?.toISOString() ?? event.startsAt.toISOString(),
+        start: DateTime.fromJSDate(event.startsAt).toISO() ?? event.startsAt.toISOString(),
+        end: event.endsAt 
+          ? (DateTime.fromJSDate(event.endsAt).toISO() ?? event.endsAt.toISOString())
+          : (DateTime.fromJSDate(event.startsAt).toISO() ?? event.startsAt.toISOString()),
         title: event.title,
         allDay: true,
       }));
 
     // Calculate free slots within working hours for each day in the range
     const allFreeSlots: FreeSlot[] = [];
-    const currentDate = new Date(startDateTime);
+    let currentDt = startDt;
     
-    // Iterate through each day in the range
-    while (currentDate <= endDateTime) {
-      const dayOfWeekCurrent = currentDate.getUTCDay();
-      const isWeekendDay = dayOfWeekCurrent === 0 || dayOfWeekCurrent === 6;
+    // Iterate through each day in the range using Luxon
+    while (currentDt <= endDt) {
+      // Luxon: weekday 6 = Saturday, 7 = Sunday
+      const isWeekendDay = currentDt.weekday === 6 || currentDt.weekday === 7;
       
       // Skip weekend days if excludeWeekends is true
       if (excludeWeekends && isWeekendDay) {
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        currentDt = currentDt.plus({ days: 1 });
         continue;
       }
       
-      // Set working hours for this specific day (use UTC for consistency)
-      const dayWorkStart = new Date(currentDate);
-      dayWorkStart.setUTCHours(workingHoursStart, 0, 0, 0);
-      
-      const dayWorkEnd = new Date(currentDate);
-      dayWorkEnd.setUTCHours(workingHoursEnd, 0, 0, 0);
+      // Set working hours for this specific day (using Luxon)
+      const dayWorkStart = currentDt.set({ hour: workingHoursStart, minute: 0, second: 0, millisecond: 0 });
+      const dayWorkEnd = currentDt.set({ hour: workingHoursEnd, minute: 0, second: 0, millisecond: 0 });
       
       // Filter busy periods that overlap with this day's working hours
       const dayBusyPeriods = busyPeriods.filter((b) => {
-        const busyStart = new Date(b.start);
-        const busyEnd = new Date(b.end);
+        const busyStart = DateTime.fromISO(b.start);
+        const busyEnd = DateTime.fromISO(b.end);
         // Check if busy period overlaps with this day's working hours
         return busyStart < dayWorkEnd && busyEnd > dayWorkStart;
       });
@@ -248,8 +243,8 @@ This analyzes calendar events to find gaps and available time slots.`,
       
       allFreeSlots.push(...dayFreeSlots);
       
-      // Move to next day
-      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      // Move to next day using Luxon (DST-safe)
+      currentDt = currentDt.plus({ days: 1 });
     }
 
     // Calculate total free time
@@ -275,41 +270,43 @@ This analyzes calendar events to find gaps and available time slots.`,
 });
 
 // ─────────────────────────────────────────────────────────────
-// Helper Functions
+// Helper Functions (Luxon-based)
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Calculate free slots between busy periods
+ * Uses Luxon for accurate duration calculations
  */
 function calculateFreeSlots(
   busyPeriods: BusyPeriod[],
-  workStart: Date,
-  workEnd: Date,
+  workStart: DateTime,
+  workEnd: DateTime,
   minDurationMinutes: number
 ): FreeSlot[] {
   const slots: FreeSlot[] = [];
 
-  // Sort busy periods by start time
-  const sortedBusy = [...busyPeriods].sort(
-    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-  );
+  // Sort busy periods by start time using Luxon
+  const sortedBusy = [...busyPeriods].sort((a, b) => {
+    const aStart = DateTime.fromISO(a.start);
+    const bStart = DateTime.fromISO(b.start);
+    return aStart.toMillis() - bStart.toMillis();
+  });
 
   let currentStart = workStart;
 
   for (const busy of sortedBusy) {
-    const busyStart = new Date(busy.start);
-    const busyEnd = new Date(busy.end);
+    const busyStart = DateTime.fromISO(busy.start);
+    const busyEnd = DateTime.fromISO(busy.end);
 
     // If there's a gap before this busy period
     if (busyStart > currentStart) {
       const slotEnd = busyStart < workEnd ? busyStart : workEnd;
-      const durationMs = slotEnd.getTime() - currentStart.getTime();
-      const durationMinutes = Math.floor(durationMs / (1000 * 60));
+      const durationMinutes = Math.floor(slotEnd.diff(currentStart, "minutes").minutes);
 
       if (durationMinutes >= minDurationMinutes) {
         slots.push({
-          start: currentStart.toISOString(),
-          end: slotEnd.toISOString(),
+          start: currentStart.toISO() ?? currentStart.toJSDate().toISOString(),
+          end: slotEnd.toISO() ?? slotEnd.toJSDate().toISOString(),
           durationMinutes,
         });
       }
@@ -323,13 +320,12 @@ function calculateFreeSlots(
 
   // Check for free time after the last busy period
   if (currentStart < workEnd) {
-    const durationMs = workEnd.getTime() - currentStart.getTime();
-    const durationMinutes = Math.floor(durationMs / (1000 * 60));
+    const durationMinutes = Math.floor(workEnd.diff(currentStart, "minutes").minutes);
 
     if (durationMinutes >= minDurationMinutes) {
       slots.push({
-        start: currentStart.toISOString(),
-        end: workEnd.toISOString(),
+        start: currentStart.toISO() ?? currentStart.toJSDate().toISOString(),
+        end: workEnd.toISO() ?? workEnd.toJSDate().toISOString(),
         durationMinutes,
       });
     }

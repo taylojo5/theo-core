@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // List Calendar Events Tool
 // Query calendar events by date range and filters
+// Uses Luxon for accurate date parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { z } from "zod";
+import { DateTime } from "luxon";
 import type { ToolDefinition } from "../types";
 import { defineTool, objectSchema } from "../types";
 import { calendarEventRepository } from "@/integrations/calendar/repository";
@@ -157,25 +159,18 @@ This queries synced calendar events from Google Calendar.`,
       limit,
     } = input;
 
-    // Parse dates - use UTC to avoid timezone drift
-    const startDateTime = new Date(startDate);
-    startDateTime.setUTCHours(0, 0, 0, 0);
-
-    let endDateTime: Date;
-    if (endDate) {
-      endDateTime = new Date(endDate);
-    } else {
-      // Default to same day if no end date
-      endDateTime = new Date(startDate);
-    }
-    endDateTime.setUTCHours(23, 59, 59, 999);
+    // Parse dates using Luxon (UTC to avoid timezone drift)
+    const startDt = DateTime.fromISO(startDate, { zone: "UTC" }).startOf("day");
+    const endDt = endDate 
+      ? DateTime.fromISO(endDate, { zone: "UTC" }).endOf("day")
+      : startDt.endOf("day");
 
     // Execute the search
     const searchResult = await calendarEventRepository.search(context.userId, {
       query,
       calendarId,
-      startDate: startDateTime,
-      endDate: endDateTime,
+      startDate: startDt.toJSDate(),
+      endDate: endDt.toJSDate(),
       status,
       allDay,
       hasAttendees,
@@ -185,7 +180,7 @@ This queries synced calendar events from Google Calendar.`,
       orderDirection: "asc",
     });
 
-    // Map results to output format
+    // Map results to output format using Luxon for ISO formatting
     const events: CalendarEventResult[] = searchResult.events.map((event) => {
       // Parse attendees if present
       const attendees = event.attendees as Array<{ email: string; self?: boolean }> | null;
@@ -199,8 +194,10 @@ This queries synced calendar events from Google Calendar.`,
         id: event.id,
         title: event.title,
         description: event.description ?? undefined,
-        startsAt: event.startsAt.toISOString(),
-        endsAt: event.endsAt?.toISOString(),
+        startsAt: DateTime.fromJSDate(event.startsAt).toISO() ?? event.startsAt.toISOString(),
+        endsAt: event.endsAt 
+          ? (DateTime.fromJSDate(event.endsAt).toISO() ?? event.endsAt.toISOString())
+          : undefined,
         allDay: event.allDay,
         location: event.location ?? undefined,
         status: event.status ?? "confirmed",

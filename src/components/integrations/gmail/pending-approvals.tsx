@@ -3,10 +3,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Gmail Pending Approvals Component
 // Lists pending email approvals with quick actions
+// Uses Luxon for date/time calculations
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as React from "react";
 import Link from "next/link";
+import { DateTime } from "luxon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -259,17 +261,21 @@ interface ApprovalCardProps {
 }
 
 function ApprovalCard({ approval, onClick }: ApprovalCardProps) {
-  const requestedAt =
+  // Convert requestedAt to Luxon DateTime
+  const requestedAtDt =
     approval.requestedAt instanceof Date
-      ? approval.requestedAt
-      : new Date(approval.requestedAt);
+      ? DateTime.fromJSDate(approval.requestedAt)
+      : DateTime.fromISO(approval.requestedAt as string);
 
   const [isExpiringSoon, setIsExpiringSoon] = React.useState(false);
 
   React.useEffect(() => {
     if (approval.expiresAt) {
       const checkExpiration = () => {
-        const remaining = new Date(approval.expiresAt!).getTime() - Date.now();
+        const expiresAtDt = approval.expiresAt instanceof Date
+          ? DateTime.fromJSDate(approval.expiresAt)
+          : DateTime.fromISO(approval.expiresAt as string);
+        const remaining = expiresAtDt.diffNow("milliseconds").milliseconds;
         setIsExpiringSoon(remaining < 60 * 60 * 1000);
       };
       checkExpiration();
@@ -302,7 +308,7 @@ function ApprovalCard({ approval, onClick }: ApprovalCardProps) {
               </Badge>
             )}
             <span className="text-muted-foreground text-xs">
-              {formatTimeAgo(requestedAt)}
+              {formatTimeAgo(requestedAtDt)}
             </span>
           </div>
         </div>
@@ -324,20 +330,16 @@ function ApprovalCard({ approval, onClick }: ApprovalCardProps) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helpers
+// Helpers (Luxon-powered)
 // ─────────────────────────────────────────────────────────────
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+function formatTimeAgo(dt: DateTime): string {
+  const diff = DateTime.now().diff(dt, ["days", "hours", "minutes"]);
+  
+  if (diff.minutes < 1) return "Just now";
+  if (diff.hours < 1) return `${Math.floor(diff.minutes)}m ago`;
+  if (diff.days < 1) return `${Math.floor(diff.hours)}h ago`;
+  return `${Math.floor(diff.days)}d ago`;
 }
 
 // ─────────────────────────────────────────────────────────────

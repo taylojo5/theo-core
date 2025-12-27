@@ -2,9 +2,11 @@
 // Events API
 // POST /api/context/events - Create a new event
 // GET /api/context/events - List user's events (paginated, filterable)
+// Uses Luxon for reliable ISO date parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
+import { DateTime } from "luxon";
 import {
   parseAndValidateBody,
   validateQuery,
@@ -51,13 +53,13 @@ export async function POST(request: NextRequest) {
       return validation.error;
     }
 
-    // Convert date strings to Date objects and cast types
+    // Convert date strings to Date objects using Luxon and cast types
     const input = {
       ...validation.data,
       type: validation.data.type as EventType,
-      startsAt: new Date(validation.data.startsAt),
+      startsAt: DateTime.fromISO(validation.data.startsAt).toJSDate(),
       endsAt: validation.data.endsAt
-        ? new Date(validation.data.endsAt)
+        ? DateTime.fromISO(validation.data.endsAt).toJSDate()
         : undefined,
       virtualUrl: validation.data.virtualUrl || undefined,
     } as CreateEventInput;
@@ -148,14 +150,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Otherwise use list with filters
+    // Otherwise use list with filters (using Luxon for date parsing)
     const options: ListEventsOptions = {
       limit,
       cursor,
       type: type as EventType,
       status: status as EventStatus,
-      startsAfter: startsAfter ? new Date(startsAfter) : undefined,
-      startsBefore: startsBefore ? new Date(startsBefore) : undefined,
+      startsAfter: startsAfter ? DateTime.fromISO(startsAfter).toJSDate() : undefined,
+      startsBefore: startsBefore ? DateTime.fromISO(startsBefore).toJSDate() : undefined,
       includeDeleted,
     };
 

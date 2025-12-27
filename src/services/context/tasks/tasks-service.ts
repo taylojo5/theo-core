@@ -12,6 +12,9 @@ import {
   processPaginatedResults,
   buildOrderBy,
   normalizeTags,
+  addDays,
+  getStartOfDay,
+  getEndOfDay,
 } from "../utils";
 import {
   embedTask,
@@ -711,6 +714,7 @@ export async function getOverdueTasks(
 
 /**
  * Get tasks due soon (within N days)
+ * Uses Luxon for accurate day calculations (DST-safe)
  */
 export async function getTasksDueSoon(
   userId: string,
@@ -718,7 +722,7 @@ export async function getTasksDueSoon(
   limit: number = 20
 ): Promise<Task[]> {
   const now = new Date();
-  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const future = addDays(now, days);
 
   return db.task.findMany({
     where: {
@@ -737,24 +741,22 @@ export async function getTasksDueSoon(
 
 /**
  * Get tasks due on a specific date
+ * Uses Luxon for accurate day boundaries (timezone-aware)
  */
 export async function getTasksDueOnDate(
   userId: string,
   date: Date
 ): Promise<Task[]> {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const startOfDayDate = getStartOfDay(date);
+  const endOfDayDate = getEndOfDay(date);
 
   return db.task.findMany({
     where: {
       userId,
       ...softDeleteFilter(),
       dueDate: {
-        gte: startOfDay,
-        lte: endOfDay,
+        gte: startOfDayDate,
+        lte: endOfDayDate,
       },
     },
     orderBy: { priority: "desc" },
