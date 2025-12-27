@@ -245,4 +245,45 @@ export {
   type ContentFilterOptions,
 } from "./safety";
 
+// ─────────────────────────────────────────────────────────────
+// Audit Trail
+// ─────────────────────────────────────────────────────────────
 
+export {
+  // Service
+  auditService,
+  logAgentAction,
+  startAuditAction,
+  completeAuditAction,
+  failAuditAction,
+  withAuditTrail,
+  queryAuditLog,
+  getAuditEntry,
+  getEntityAuditTrail,
+  getRecentActions,
+  getConversationAuditTrail,
+  queryAssumptions,
+  getAssumptionsForAction,
+  getUnverifiedAssumptions,
+  verifyAssumption,
+  getAuditStats,
+
+  // Repository
+  auditLogRepository,
+  assumptionRepository,
+
+  // Types
+  type AuditLogCreateInput,
+  type AuditLogUpdateInput,
+  type AuditLogWithAssumptions,
+  type AssumptionCreateInput,
+  type AssumptionVerifyInput,
+  type AssumptionRecord,
+  type AuditQueryOptions,
+  type AssumptionQueryOptions,
+  type AuditQueryResult,
+  type AssumptionQueryResult,
+  type AuditActionInput,
+  type AuditStats,
+  type AuditedAction,
+} from "./audit";
