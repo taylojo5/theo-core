@@ -363,3 +363,55 @@ export {
   createTimeoutError,
   withTimeout,
 } from "./llm";
+
+// ─────────────────────────────────────────────────────────────
+// Tools
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type ToolDefinition,
+  type AnyToolDefinition,
+  type ToolFilterOptions,
+  type UserToolsOptions,
+  type JSONSchema,
+  type JSONSchemaProperty,
+  type ValidationResult,
+  type ValidationError,
+  type ToolExecutionResult as ToolExecResult,
+  type ExtendedExecutionContext,
+  type CreateContextOptions,
+  type ToolRegistrySummary,
+
+  // Type utilities
+  toToolForLLM,
+  isToolAvailable,
+  defineTool,
+  objectSchema,
+
+  // Registry
+  ToolRegistry,
+  toolRegistry,
+
+  // Validation
+  validateToolParams,
+  validateWithSchema,
+  formatZodErrors,
+  formatErrorsForLLM,
+  formatValidationError,
+  commonSchemas,
+  paginatedQuerySchema,
+  dateRangeSchema,
+
+  // Context
+  createExecutionContext,
+  createExtendedContext,
+  createSystemContext,
+  withPlanContext,
+  withConversationContext,
+  withSessionContext,
+  isValidContext,
+  hasPlanContext,
+  hasConversationContext,
+  createTokenProvider,
+} from "./tools";
