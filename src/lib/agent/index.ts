@@ -287,3 +287,79 @@ export {
   type AuditStats,
   type AuditedAction,
 } from "./audit";
+
+// ─────────────────────────────────────────────────────────────
+// LLM Client
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type ToolForLLM,
+  type ClassificationRequest,
+  type ClassificationResponse,
+  type LLMExtractedEntity,
+  type LLMAssumption,
+  type PlanGenerationRequest,
+  type PlanAttempt,
+  type LLMGeneratedPlan,
+  type LLMPlanStep,
+  type ResponseGenerationRequest,
+  type ToolExecutionResult,
+  type ResponseStyle,
+  type RecoveryRequest,
+  type RecoveryAction,
+  type LLMMessage,
+  type LLMToolCall,
+  type CompletionOptions,
+  type LLMConfig,
+  type TokenUsage,
+  type CompletionResult,
+  type StreamChunk,
+  type LLMClient,
+  type LLMErrorCode,
+  type LLMErrorDetails,
+
+  // Client factory
+  createLLMClient,
+  getDefaultLLMConfig,
+  getDefaultLLMClient,
+  resetDefaultLLMClient,
+  setDefaultLLMClient,
+  isProviderAvailable,
+  getAvailableProviders,
+  getBestAvailableProvider,
+
+  // Providers
+  createOpenAIClient,
+  createAnthropicClient,
+
+  // Prompts
+  buildClassificationPrompt,
+  getClassificationSystemPrompt,
+  parseClassificationResponse,
+  buildPlanGenerationPrompt,
+  getPlanGenerationSystemPrompt,
+  parsePlanGenerationResponse,
+  buildResponsePrompt,
+  getResponseSystemPrompt,
+  buildErrorResponsePrompt,
+  buildClarificationPrompt,
+  determineResponseStyle,
+  buildRecoveryPrompt,
+  getRecoverySystemPrompt,
+  parseRecoveryResponse,
+  isTransientError,
+  getSuggestedRecoveryAction,
+
+  // Retry logic
+  DEFAULT_RETRY_CONFIG,
+  type RetryConfig,
+  type RetryResult,
+  type RetryProgressCallback,
+  calculateRetryDelay,
+  isRetryableError as isRetryableLLMError,
+  withRetry,
+  extractErrorDetails,
+  createTimeoutError,
+  withTimeout,
+} from "./llm";
