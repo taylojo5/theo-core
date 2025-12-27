@@ -125,3 +125,43 @@ export {
   registerQueryTools,
 } from "./query";
 
+// ─────────────────────────────────────────────────────────────
+// Action Tools
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Individual action tools
+  createTaskTool,
+  updateTaskTool,
+  draftEmailTool,
+  sendEmailTool,
+  createCalendarEventTool,
+  updateCalendarEventTool,
+
+  // All action tools array
+  actionTools,
+
+  // Risk-categorized arrays
+  lowRiskActionTools,
+  highRiskActionTools,
+
+  // Registration function
+  registerActionTools,
+} from "./action";
+
+// ─────────────────────────────────────────────────────────────
+// Combined Tool Registration
+// ─────────────────────────────────────────────────────────────
+
+import { registerQueryTools } from "./query";
+import { registerActionTools } from "./action";
+
+/**
+ * Register all tools with the global registry
+ * Call this once during application initialization
+ */
+export function registerAllTools(): void {
+  registerQueryTools();
+  registerActionTools();
+}
+
