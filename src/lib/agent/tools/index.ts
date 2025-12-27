@@ -106,3 +106,22 @@ export {
   createTokenProvider,
 } from "./context";
 
+// ─────────────────────────────────────────────────────────────
+// Query Tools
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Individual query tools
+  queryContextTool,
+  searchEmailsTool,
+  listCalendarEventsTool,
+  checkAvailabilityTool,
+  listTasksTool,
+
+  // All query tools array
+  queryTools,
+
+  // Registration function
+  registerQueryTools,
+} from "./query";
+
