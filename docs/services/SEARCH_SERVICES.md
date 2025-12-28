@@ -12,7 +12,7 @@ Theo provides unified search across all context entities and emails using a comb
 
 This document covers:
 
-- **Context Search** - Search across People, Places, Events, Tasks, Deadlines
+- **Context Search** - Search across People, Places, Events, Tasks, Deadlines, Routines, Open Loops, Projects, Notes
 - **Email Search** - Semantic and text search across synced emails
 
 ---
@@ -101,7 +101,7 @@ Combines text and semantic search with intelligent ranking:
 
 ```typescript
 const results = await searchContext(userId, query, {
-  entityTypes: ["person", "place", "event", "task", "deadline"],
+  entityTypes: ["person", "place", "event", "task", "deadline", "routine", "open_loop", "project", "note"],
   limit: 20,
   useSemanticSearch: true,
   minSimilarity: 0.5,
@@ -134,13 +134,17 @@ const results = await textSearchContext(userId, query, {
 
 **Searched Fields by Entity:**
 
-| Entity   | Fields                                        |
-| -------- | --------------------------------------------- |
-| Person   | name, email, company, title, bio, notes, tags |
-| Place    | name, address, city, country, notes, tags     |
-| Event    | title, description, location, notes, tags     |
-| Task     | title, description, notes, tags               |
-| Deadline | title, description, notes, consequences, tags |
+| Entity    | Fields                                                  |
+| --------- | ------------------------------------------------------- |
+| Person    | name, email, company, title, bio, notes, tags           |
+| Place     | name, address, city, country, notes, tags               |
+| Event     | title, description, location, notes, tags               |
+| Task      | title, description, notes, tags                         |
+| Deadline  | title, description, notes, consequences, tags           |
+| Routine   | name, description, notes, tags                          |
+| Open Loop | title, description, notes, tags                         |
+| Project   | name, description, notes, tags                          |
+| Note      | title, content, tags                                    |
 
 ### 3. Semantic Search
 

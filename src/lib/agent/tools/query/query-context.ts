@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Query Context Tool
-// Search user context for people, events, tasks, and other information
+// Search user context for people, events, tasks, routines, projects, notes, and other information
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { z } from "zod";
@@ -14,8 +14,19 @@ import type { EntityType as ContextEntityType, ContextSearchResult as ServiceSea
 // ─────────────────────────────────────────────────────────────
 
 /** Valid entity types for context query */
-const ENTITY_TYPES = ["person", "event", "task", "place", "deadline", "any"] as const;
-type QueryEntityType = (typeof ENTITY_TYPES)[number];
+const ENTITY_TYPES = [
+  "person",
+  "event",
+  "task",
+  "place",
+  "deadline",
+  "routine",
+  "open_loop",
+  "project",
+  "note",
+  "any",
+] as const;
+type _QueryEntityType = (typeof ENTITY_TYPES)[number];
 
 /** Input schema for context query */
 const queryContextInputSchema = z.object({
@@ -53,7 +64,7 @@ export const queryContextTool: ToolDefinition<QueryContextInput, QueryContextOut
   // LLM Interface
   // ═══════════════════════════════════════════════════════════
   name: "query_context",
-  description: "Search user context for relevant information about people, events, tasks, places, and deadlines",
+  description: "Search user context for relevant information about people, events, tasks, places, deadlines, routines, open loops, projects, and notes",
 
   whenToUse: `Use when the user asks about:
 - People they know: "Who is Sarah?", "Tell me about John from Acme"
@@ -61,16 +72,23 @@ export const queryContextTool: ToolDefinition<QueryContextInput, QueryContextOut
 - Tasks and to-dos: "What tasks are related to the project?"
 - Places: "What do I know about the conference venue?"
 - Deadlines: "What deadlines are coming up for X?"
+- Routines: "What are my morning routines?", "What's my workout schedule?"
+- Open loops: "What things are still unresolved?", "What am I waiting on?"
+- Projects: "What projects am I working on?", "Tell me about the website redesign"
+- Notes: "Find my notes about...", "What did I write about X?"
 - General context: "What do I know about...", "Find information about..."
 
 This tool searches across all stored context using semantic and text search.`,
 
   examples: [
     'User: "Who is Sarah?" → query_context({ query: "Sarah", entityType: "person" })',
-    'User: "What do I know about the Acme project?" → query_context({ query: "Acme project" })',
+    'User: "What do I know about the Acme project?" → query_context({ query: "Acme project", entityType: "project" })',
     'User: "Tell me about my meetings last week" → query_context({ query: "meetings last week", entityType: "event" })',
     'User: "What tasks are related to the Q4 report?" → query_context({ query: "Q4 report", entityType: "task" })',
     'User: "Find anything about the Chicago office" → query_context({ query: "Chicago office" })',
+    'User: "What are my morning routines?" → query_context({ query: "morning", entityType: "routine" })',
+    'User: "What open loops do I have?" → query_context({ query: "pending follow-up", entityType: "open_loop" })',
+    'User: "Find my notes about the API design" → query_context({ query: "API design", entityType: "note" })',
   ],
 
   parametersSchema: objectSchema(
@@ -83,7 +101,7 @@ This tool searches across all stored context using semantic and text search.`,
       entityType: {
         type: "string",
         enum: [...ENTITY_TYPES],
-        description: "Filter by entity type (person, event, task, place, deadline, or any)",
+        description: "Filter by entity type (person, event, task, place, deadline, routine, open_loop, project, note, or any)",
       },
       limit: {
         type: "integer",
@@ -118,7 +136,7 @@ This tool searches across all stored context using semantic and text search.`,
     // Map "any" to all entity types
     const entityTypes: ContextEntityType[] =
       entityType === "any"
-        ? ["person", "event", "task", "place", "deadline"]
+        ? ["person", "event", "task", "place", "deadline", "routine", "open_loop", "project", "note"]
         : [entityType as ContextEntityType];
 
     // Get the search service singleton
@@ -168,7 +186,14 @@ function getResultTitle(result: ServiceSearchResult): string {
     case "task":
     case "deadline":
     case "place":
+    case "routine":
+    case "project":
       return String(entity.title || entity.name || "Untitled");
+    case "open_loop":
+      return String(entity.title || "Untitled Open Loop");
+    case "note":
+      // Notes may not have a title, use content preview
+      return String(entity.title || (entity.content as string)?.substring(0, 50) || "Untitled Note");
     default:
       return String(entity.name || entity.title || "Unknown");
   }
@@ -211,6 +236,37 @@ function extractMetadata(result: ServiceSearchResult): Record<string, unknown> |
       return {
         address: entity.address,
         type: entity.type,
+      };
+    case "routine":
+      return {
+        frequency: entity.frequency,
+        preferredTime: entity.preferredTime,
+        isActive: entity.isActive,
+        streak: entity.streak,
+        lastCompletedAt: entity.lastCompletedAt,
+        nextRunAt: entity.nextRunAt,
+      };
+    case "open_loop":
+      return {
+        status: entity.status,
+        priority: entity.priority,
+        openedAt: entity.openedAt,
+        deferredUntil: entity.deferredUntil,
+      };
+    case "project":
+      return {
+        status: entity.status,
+        priority: entity.priority,
+        startDate: entity.startDate,
+        dueDate: entity.dueDate,
+        progress: entity.progress,
+      };
+    case "note":
+      return {
+        type: entity.type,
+        category: entity.category,
+        isPinned: entity.isPinned,
+        createdAt: entity.createdAt,
       };
     default:
       return undefined;

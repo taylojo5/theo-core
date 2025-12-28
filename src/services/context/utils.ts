@@ -380,6 +380,13 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * Add hours to a date
+ */
+export function addHours(date: Date, hours: number): Date {
+  return DateTime.fromJSDate(date).plus({ hours }).toJSDate();
+}
+
+/**
  * Calculate days remaining until a target date
  * Returns negative if date is in the past
  */

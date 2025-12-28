@@ -15,6 +15,10 @@ const {
   mockEventFindMany,
   mockTaskFindMany,
   mockDeadlineFindMany,
+  mockRoutineFindMany,
+  mockOpenLoopFindMany,
+  mockProjectFindMany,
+  mockNoteFindMany,
   mockSearchSimilar,
 } = vi.hoisted(() => ({
   mockPersonFindMany: vi.fn(),
@@ -22,6 +26,10 @@ const {
   mockEventFindMany: vi.fn(),
   mockTaskFindMany: vi.fn(),
   mockDeadlineFindMany: vi.fn(),
+  mockRoutineFindMany: vi.fn(),
+  mockOpenLoopFindMany: vi.fn(),
+  mockProjectFindMany: vi.fn(),
+  mockNoteFindMany: vi.fn(),
   mockSearchSimilar: vi.fn(),
 }));
 
@@ -32,6 +40,10 @@ vi.mock("@/lib/db", () => ({
     event: { findMany: mockEventFindMany },
     task: { findMany: mockTaskFindMany },
     deadline: { findMany: mockDeadlineFindMany },
+    routine: { findMany: mockRoutineFindMany },
+    openLoop: { findMany: mockOpenLoopFindMany },
+    project: { findMany: mockProjectFindMany },
+    note: { findMany: mockNoteFindMany },
   },
 }));
 
@@ -187,6 +199,10 @@ function setupDefaultMocks() {
   mockEventFindMany.mockResolvedValue(mockEvents);
   mockTaskFindMany.mockResolvedValue(mockTasks);
   mockDeadlineFindMany.mockResolvedValue(mockDeadlines);
+  mockRoutineFindMany.mockResolvedValue([]);
+  mockOpenLoopFindMany.mockResolvedValue([]);
+  mockProjectFindMany.mockResolvedValue([]);
+  mockNoteFindMany.mockResolvedValue([]);
   mockSearchSimilar.mockResolvedValue(mockSemanticResults);
 }
 
@@ -374,7 +390,7 @@ describe("ContextSearchService", () => {
       expect(mockSearchSimilar).toHaveBeenCalledWith({
         userId: testUserId,
         query: "software engineering",
-        entityTypes: ["person", "place", "event", "task", "deadline"],
+        entityTypes: ["person", "place", "event", "task", "deadline", "routine", "open_loop", "project", "note"],
         limit: 20,
         minSimilarity: 0.5,
       });
@@ -653,6 +669,10 @@ describe("Edge Cases", () => {
     mockEventFindMany.mockResolvedValue([]);
     mockTaskFindMany.mockResolvedValue([]);
     mockDeadlineFindMany.mockResolvedValue([]);
+    mockRoutineFindMany.mockResolvedValue([]);
+    mockOpenLoopFindMany.mockResolvedValue([]);
+    mockProjectFindMany.mockResolvedValue([]);
+    mockNoteFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     const results = await service.search(testUserId, "nonexistent");
@@ -661,6 +681,7 @@ describe("Edge Cases", () => {
   });
 
   it("handles empty entity types array", async () => {
+    setupDefaultMocks();
     const results = await service.search(testUserId, "test", {
       entityTypes: [],
     });
@@ -675,6 +696,10 @@ describe("Edge Cases", () => {
     mockEventFindMany.mockResolvedValue([]);
     mockTaskFindMany.mockResolvedValue([]);
     mockDeadlineFindMany.mockResolvedValue([]);
+    mockRoutineFindMany.mockResolvedValue([]);
+    mockOpenLoopFindMany.mockResolvedValue([]);
+    mockProjectFindMany.mockResolvedValue([]);
+    mockNoteFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     // Negative limit
@@ -693,6 +718,10 @@ describe("Edge Cases", () => {
     mockEventFindMany.mockResolvedValue([]);
     mockTaskFindMany.mockResolvedValue([]);
     mockDeadlineFindMany.mockResolvedValue([]);
+    mockRoutineFindMany.mockResolvedValue([]);
+    mockOpenLoopFindMany.mockResolvedValue([]);
+    mockProjectFindMany.mockResolvedValue([]);
+    mockNoteFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     // Should propagate database errors (not silently swallow them)

@@ -505,3 +505,63 @@ export {
   type ApprovalCreationInput,
   type ApprovalCreationResult,
 } from "./execution";
+
+// ─────────────────────────────────────────────────────────────
+// Entity Resolution
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type ResolutionStatus,
+  type ResolvableEntityType,
+  type ResolutionCandidate,
+  type EntityMatch,
+  type ResolvedEntity as EntityResolvedEntity,
+  type ResolutionResult,
+  type PersonResolutionHints,
+  type EventResolutionHints,
+  type TaskResolutionHints,
+  type EmailResolutionHints,
+  type PlaceResolutionHints,
+  type DeadlineResolutionHints,
+  type ResolverConfig,
+  type IEntityResolver,
+
+  // Constants
+  DEFAULT_RESOLVER_CONFIG,
+  EntityResolutionError as EntityResolverError,
+
+  // Matchers
+  normalizeString,
+  normalizeName,
+  extractNameParts,
+  levenshteinDistance,
+  levenshteinSimilarity,
+  jaroWinklerSimilarity,
+  containsMatch,
+  partialMatchScore,
+  nameSimilarity,
+  couldBeNickname,
+  extractEmailUsername,
+  nameMatchesEmail,
+  textSimilarity,
+  rankCandidates,
+  generateDisambiguationQuestion,
+  generateNotFoundMessage,
+
+  // Resolver
+  EntityResolver,
+  getEntityResolver,
+  createEntityResolver,
+  resolveEntities,
+  resolvePerson,
+  resolveEvent,
+  resolveTask,
+  resolveEmail,
+  resolvePlace,
+  resolveDeadline,
+  resolveRoutine,
+  resolveOpenLoop,
+  resolveProject,
+  resolveNote,
+} from "./entities";

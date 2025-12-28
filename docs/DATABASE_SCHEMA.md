@@ -13,7 +13,7 @@ Theo's intelligence comes from context. This document defines the database schem
 
 ### 1. Entities as First-Class Citizens
 
-Each context type (Person, Place, Event, etc.) has its own table with rich metadata.
+Each context type (Person, Place, Event, Task, Deadline, Routine, OpenLoop, Project, Note, etc.) has its own table with rich metadata.
 
 ### 2. Relationships Are Explicit
 
@@ -338,7 +338,7 @@ CREATE TABLE entity_relationships (
     user_id         UUID NOT NULL REFERENCES users(id),
 
     -- Source Entity
-    source_type     VARCHAR(50) NOT NULL, -- person, place, event, task, deadline
+    source_type     VARCHAR(50) NOT NULL, -- person, place, event, task, deadline, routine, open_loop, project, note
     source_id       UUID NOT NULL,
 
     -- Target Entity

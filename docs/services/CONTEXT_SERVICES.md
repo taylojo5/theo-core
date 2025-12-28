@@ -8,7 +8,7 @@
 
 ## Overview
 
-Context Services manage the core entities in Theo: **People**, **Places**, **Events**, **Tasks**, **Deadlines**, and **Relationships**. These services provide CRUD operations with built-in audit logging, soft deletion, pagination, and automatic embedding generation.
+Context Services manage the core entities in Theo: **People**, **Places**, **Events**, **Tasks**, **Deadlines**, **Routines**, **Open Loops**, **Projects**, **Notes**, and **Relationships**. These services provide CRUD operations with built-in audit logging, soft deletion, pagination, and automatic embedding generation.
 
 ---
 
@@ -28,6 +28,16 @@ Context Services manage the core entities in Theo: **People**, **Places**, **Eve
 │  │   Tasks     │  │  Deadlines  │  │   Relationships   │       │
 │  │   Service   │  │   Service   │  │      Service      │       │
 │  └─────────────┘  └─────────────┘  └───────────────────┘       │
+│                                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │  Routines   │  │ Open Loops  │  │  Projects   │             │
+│  │   Service   │  │   Service   │  │   Service   │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│                                                                  │
+│  ┌─────────────┐                                                │
+│  │   Notes     │                                                │
+│  │   Service   │                                                │
+│  └─────────────┘                                                │
 │                          │                                       │
 │           ┌──────────────┼──────────────────┐                   │
 │           ▼              ▼                  ▼                   │
@@ -115,7 +125,17 @@ All entities track their origin:
 ### Type Constants
 
 ```typescript
-type EntityType = "person" | "place" | "event" | "task" | "deadline";
+type EntityType = 
+  | "person" 
+  | "place" 
+  | "event" 
+  | "task" 
+  | "deadline"
+  | "routine"
+  | "open_loop"
+  | "project"
+  | "note";
+
 type Source = "manual" | "gmail" | "slack" | "calendar" | "import";
 
 // Person types
@@ -162,6 +182,21 @@ type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 // Deadline status
 type DeadlineStatus = "pending" | "completed" | "missed" | "extended";
+
+// Routine frequency
+type RoutineFrequency = "daily" | "weekly" | "monthly" | "custom";
+
+// Routine status
+type RoutineStatus = "active" | "paused" | "completed";
+
+// Open loop status
+type OpenLoopStatus = "open" | "closed" | "deferred" | "waiting";
+
+// Project status
+type ProjectStatus = "active" | "completed" | "on_hold" | "cancelled";
+
+// Note type
+type NoteType = "note" | "idea" | "snippet" | "thought";
 ```
 
 ---
@@ -749,6 +784,255 @@ const exists = await relationshipExists(userId, {
 
 ---
 
+## Routines Service
+
+Manage recurring activities, habits, and scheduled rituals.
+
+### Import
+
+```typescript
+import {
+  createRoutine,
+  getRoutineById,
+  updateRoutine,
+  deleteRoutine,
+  restoreRoutine,
+  listRoutines,
+  searchRoutines,
+  getUpcomingRoutines,
+  completeRoutine,
+  skipRoutine,
+  RoutinesServiceError,
+} from "@/services/context";
+```
+
+### Create Routine
+
+```typescript
+const routine = await createRoutine(
+  userId,
+  {
+    name: "Morning Standup",
+    description: "Daily team sync meeting",
+    frequency: "daily",
+    preferredTime: "09:00",
+    durationMinutes: 15,
+    isActive: true,
+    source: "manual",
+    tags: ["work", "meeting"],
+  },
+  context
+);
+```
+
+### List Routines
+
+```typescript
+const result = await listRoutines(userId, {
+  isActive: true,
+  frequency: "daily",
+  limit: 20,
+});
+```
+
+### Complete/Skip Routine
+
+```typescript
+// Mark as completed for today
+await completeRoutine(userId, routineId, context);
+
+// Skip today's occurrence
+await skipRoutine(userId, routineId, context);
+```
+
+---
+
+## Open Loops Service
+
+Manage unresolved commitments, pending follow-ups, and things waiting on others.
+
+### Import
+
+```typescript
+import {
+  createOpenLoop,
+  getOpenLoopById,
+  updateOpenLoop,
+  deleteOpenLoop,
+  listOpenLoops,
+  searchOpenLoops,
+  closeOpenLoop,
+  deferOpenLoop,
+  OpenLoopsServiceError,
+} from "@/services/context";
+```
+
+### Create Open Loop
+
+```typescript
+const openLoop = await createOpenLoop(
+  userId,
+  {
+    title: "Follow up with Sarah about proposal",
+    description: "Need to check on the Q4 budget proposal status",
+    status: "open",
+    priority: "high",
+    deferredUntil: new Date("2024-12-28"),
+    source: "manual",
+    tags: ["work", "follow-up"],
+  },
+  context
+);
+```
+
+### List Open Loops
+
+```typescript
+const result = await listOpenLoops(userId, {
+  status: "open",
+  priority: "high",
+  limit: 20,
+});
+```
+
+### Close/Defer Open Loop
+
+```typescript
+// Mark as resolved
+await closeOpenLoop(userId, openLoopId, context);
+
+// Defer to later date
+await deferOpenLoop(userId, openLoopId, new Date("2025-01-05"), context);
+```
+
+---
+
+## Projects Service
+
+Manage larger endeavors with goals, milestones, and hierarchical organization.
+
+### Import
+
+```typescript
+import {
+  createProject,
+  getProjectById,
+  updateProject,
+  deleteProject,
+  listProjects,
+  searchProjects,
+  getActiveProjects,
+  completeProject,
+  archiveProject,
+  ProjectsServiceError,
+} from "@/services/context";
+```
+
+### Create Project
+
+```typescript
+const project = await createProject(
+  userId,
+  {
+    name: "Website Redesign",
+    description: "Complete overhaul of company website",
+    status: "active",
+    priority: "high",
+    startDate: new Date("2024-12-01"),
+    dueDate: new Date("2025-02-28"),
+    source: "manual",
+    tags: ["design", "web"],
+  },
+  context
+);
+```
+
+### List Projects
+
+```typescript
+const result = await listProjects(userId, {
+  status: "active",
+  priority: "high",
+  limit: 20,
+});
+```
+
+### Project Status Updates
+
+```typescript
+// Complete a project
+await completeProject(userId, projectId, context);
+
+// Put on hold
+await updateProject(userId, projectId, { status: "on_hold" }, context);
+
+// Archive
+await archiveProject(userId, projectId, context);
+```
+
+---
+
+## Notes Service
+
+Manage freeform content like ideas, snippets, and thoughts.
+
+### Import
+
+```typescript
+import {
+  createNote,
+  getNoteById,
+  updateNote,
+  deleteNote,
+  listNotes,
+  searchNotes,
+  pinNote,
+  unpinNote,
+  favoriteNote,
+  unfavoriteNote,
+  NotesServiceError,
+} from "@/services/context";
+```
+
+### Create Note
+
+```typescript
+const note = await createNote(
+  userId,
+  {
+    title: "API Design Ideas",
+    content: "Consider using GraphQL for the new mobile API...",
+    type: "idea",
+    category: "engineering",
+    source: "manual",
+    tags: ["api", "mobile"],
+  },
+  context
+);
+```
+
+### List Notes
+
+```typescript
+const result = await listNotes(userId, {
+  type: "idea",
+  isPinned: true,
+  limit: 20,
+});
+```
+
+### Pin/Favorite Notes
+
+```typescript
+// Pin for quick access
+await pinNote(userId, noteId, context);
+
+// Mark as favorite
+await favoriteNote(userId, noteId, context);
+```
+
+---
+
 ## Utility Functions
 
 ### Import
@@ -867,6 +1151,10 @@ import {
   TasksServiceError,
   DeadlinesServiceError,
   RelationshipsServiceError,
+  RoutinesServiceError,
+  OpenLoopsServiceError,
+  ProjectsServiceError,
+  NotesServiceError,
 } from "@/services/context";
 ```
 

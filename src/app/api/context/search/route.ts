@@ -118,6 +118,10 @@ export async function GET(request: NextRequest) {
       event: 0,
       task: 0,
       deadline: 0,
+      routine: 0,
+      open_loop: 0,
+      project: 0,
+      note: 0,
     };
 
     for (const result of results) {

@@ -10,6 +10,11 @@ import type {
   Task,
   Deadline,
   EntityRelationship,
+  Routine,
+  OpenLoop,
+  Project,
+  Note,
+  Prisma,
 } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
@@ -17,7 +22,7 @@ import type {
 // ─────────────────────────────────────────────────────────────
 
 /** Types of context entities in the system */
-export type EntityType = "person" | "place" | "event" | "task" | "deadline";
+export type EntityType = "person" | "place" | "event" | "task" | "deadline" | "routine" | "open_loop" | "project" | "note";
 
 /** Sources from which entities can originate */
 export type Source = "manual" | "gmail" | "slack" | "calendar" | "import";
@@ -396,6 +401,295 @@ export interface ListDeadlinesOptions extends BaseListOptions {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Routine DTOs
+// ─────────────────────────────────────────────────────────────
+
+// Routine types
+export type RoutineType = "habit" | "ritual" | "process" | "schedule";
+
+// Routine frequency
+export type RoutineFrequency = "daily" | "weekly" | "monthly" | "custom";
+
+// Routine status
+export type RoutineStatus = "active" | "paused" | "archived";
+
+export interface CreateRoutineInput {
+  name: string;
+  description?: string;
+  type?: RoutineType;
+  frequency: RoutineFrequency;
+  schedule?: Record<string, unknown>;
+  timezone?: string;
+  durationMinutes?: number;
+  preferredTime?: string;
+  status?: RoutineStatus;
+  notes?: string;
+  importance?: number;
+  category?: string;
+  relatedTaskIds?: string[];
+  relatedEventIds?: string[];
+  source: Source;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateRoutineInput {
+  name?: string;
+  description?: string;
+  type?: RoutineType;
+  frequency?: RoutineFrequency;
+  schedule?: Record<string, unknown>;
+  timezone?: string;
+  durationMinutes?: number;
+  preferredTime?: string;
+  status?: RoutineStatus;
+  isActive?: boolean;
+  streak?: number;
+  completionCount?: number;
+  skipCount?: number;
+  averageRating?: Prisma.Decimal | null;
+  lastCompletedAt?: Date;
+  lastRunAt?: Date;
+  nextRunAt?: Date;
+  notes?: string;
+  importance?: number;
+  category?: string;
+  relatedTaskIds?: string[];
+  relatedEventIds?: string[];
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface ListRoutinesOptions extends BaseListOptions {
+  /** Filter by routine type */
+  type?: RoutineType;
+  /** Filter by status */
+  status?: RoutineStatus;
+  /** Filter by category */
+  category?: string;
+  /** Filter by active status */
+  isActive?: boolean;
+  /** Filter routines due to run before this date */
+  nextRunBefore?: Date;
+  /** Filter routines due to run after this date */
+  nextRunAfter?: Date;
+}
+
+// ─────────────────────────────────────────────────────────────
+// OpenLoop DTOs
+// ─────────────────────────────────────────────────────────────
+
+// OpenLoop types
+export type OpenLoopType = "follow_up" | "waiting_for" | "promise" | "question" | "idea";
+
+// OpenLoop status
+export type OpenLoopStatus = "open" | "in_progress" | "resolved" | "cancelled" | "stale";
+
+// OpenLoop priority
+export type OpenLoopPriority = "low" | "medium" | "high" | "urgent";
+
+export interface CreateOpenLoopInput {
+  title: string;
+  description?: string;
+  type?: OpenLoopType;
+  context?: string;
+  trigger?: string;
+  status?: OpenLoopStatus;
+  priority?: OpenLoopPriority;
+  importance?: number;
+  dueAt?: Date;
+  reminderAt?: Date;
+  staleAfter?: Date;
+  relatedPersonId?: string;
+  relatedTaskId?: string;
+  relatedEventId?: string;
+  relatedEmailId?: string;
+  source: Source;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateOpenLoopInput {
+  title?: string;
+  description?: string;
+  type?: OpenLoopType;
+  context?: string;
+  trigger?: string;
+  status?: OpenLoopStatus;
+  /** Pass null to clear the resolved timestamp */
+  resolvedAt?: Date | null;
+  /** Pass null to clear the resolution text */
+  resolution?: string | null;
+  /** Pass null to clear the resolved by field */
+  resolvedBy?: string | null;
+  priority?: OpenLoopPriority;
+  importance?: number;
+  dueAt?: Date | null;
+  reminderAt?: Date | null;
+  staleAfter?: Date | null;
+  relatedPersonId?: string | null;
+  relatedTaskId?: string | null;
+  relatedEventId?: string | null;
+  relatedEmailId?: string | null;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface ListOpenLoopsOptions extends BaseListOptions {
+  /** Filter by open loop type */
+  type?: OpenLoopType;
+  /** Filter by status */
+  status?: OpenLoopStatus;
+  /** Filter by priority */
+  priority?: OpenLoopPriority;
+  /** Filter loops due before this date */
+  dueBefore?: Date;
+  /** Filter loops due after this date */
+  dueAfter?: Date;
+  /** Filter by related person */
+  relatedPersonId?: string;
+  /** Filter by minimum importance */
+  minImportance?: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Project DTOs
+// ─────────────────────────────────────────────────────────────
+
+// Project types
+export type ProjectType = "project" | "goal" | "initiative" | "area";
+
+// Project status
+export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "cancelled" | "archived";
+
+// Project priority
+export type ProjectPriority = "low" | "medium" | "high" | "critical";
+
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+  type?: ProjectType;
+  parentId?: string;
+  position?: number;
+  status?: ProjectStatus;
+  priority?: ProjectPriority;
+  importance?: number;
+  targetDate?: Date;
+  dueDate?: Date;
+  estimatedDays?: number;
+  notes?: string;
+  objective?: string;
+  color?: string;
+  source: Source;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  description?: string;
+  type?: ProjectType;
+  parentId?: string | null;
+  position?: number;
+  status?: ProjectStatus;
+  progress?: number;
+  startedAt?: Date;
+  completedAt?: Date;
+  priority?: ProjectPriority;
+  importance?: number;
+  targetDate?: Date;
+  dueDate?: Date;
+  estimatedDays?: number;
+  taskCount?: number;
+  completedTaskCount?: number;
+  notes?: string;
+  objective?: string;
+  color?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface ListProjectsOptions extends BaseListOptions {
+  /** Filter by project type */
+  type?: ProjectType;
+  /** Filter by status */
+  status?: ProjectStatus;
+  /** Filter by priority */
+  priority?: ProjectPriority;
+  /** Filter by parent project (null for top-level) */
+  parentId?: string | null;
+  /** Filter projects due before this date */
+  dueBefore?: Date;
+  /** Filter projects due after this date */
+  dueAfter?: Date;
+  /** Include child projects in results */
+  includeChildren?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Note DTOs
+// ─────────────────────────────────────────────────────────────
+
+// Note types
+export type NoteType = "note" | "memo" | "journal" | "meeting_notes" | "idea" | "reference";
+
+export interface CreateNoteInput {
+  title?: string;
+  content: string;
+  type?: NoteType;
+  folderId?: string;
+  isPinned?: boolean;
+  isFavorite?: boolean;
+  importance?: number;
+  category?: string;
+  relatedPersonIds?: string[];
+  relatedTaskIds?: string[];
+  relatedEventIds?: string[];
+  relatedProjectIds?: string[];
+  source: Source;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateNoteInput {
+  title?: string;
+  content?: string;
+  type?: NoteType;
+  folderId?: string;
+  isPinned?: boolean;
+  isFavorite?: boolean;
+  importance?: number;
+  category?: string;
+  relatedPersonIds?: string[];
+  relatedTaskIds?: string[];
+  relatedEventIds?: string[];
+  relatedProjectIds?: string[];
+  wordCount?: number;
+  lastViewedAt?: Date;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface ListNotesOptions extends BaseListOptions {
+  /** Filter by note type */
+  type?: NoteType;
+  /** Filter by category */
+  category?: string;
+  /** Filter by folder */
+  folderId?: string;
+  /** Filter by pinned status */
+  isPinned?: boolean;
+  /** Filter by favorite status */
+  isFavorite?: boolean;
+  /** Filter by minimum importance */
+  minImportance?: number;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Relationship DTOs
 // ─────────────────────────────────────────────────────────────
 
@@ -499,7 +793,7 @@ export interface ContextSearchResult {
   /** Entity ID */
   entityId: string;
   /** The matched entity (polymorphic) */
-  entity: Person | Place | Event | Task | Deadline;
+  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note;
   /** Relevance score (0-1) */
   score: number;
   /** How the match was found */
@@ -546,4 +840,4 @@ export interface UpsertResult<T> {
 }
 
 // Re-export Prisma types for convenience
-export type { Person, Place, Event, Task, Deadline, EntityRelationship };
+export type { Person, Place, Event, Task, Deadline, EntityRelationship, Routine, OpenLoop, Project, Note };

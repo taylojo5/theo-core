@@ -1288,7 +1288,7 @@ src/lib/agent/entities/
 4. Context is passed back to LLM for response generation
 
 Context retrieval gathers relevant information from:
-- Resolved entities (people, events, tasks from Chunk 5)
+- Resolved entities (people, events, tasks, etc. from Chunk 5)
 - Conversation history
 - Semantic search (embeddings)
 - Recent interactions

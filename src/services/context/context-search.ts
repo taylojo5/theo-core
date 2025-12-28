@@ -17,6 +17,10 @@ import type {
   Event,
   Task,
   Deadline,
+  Routine,
+  OpenLoop,
+  Project,
+  Note,
 } from "./types";
 import { excludeDeleted, extractSnippet } from "./utils";
 
@@ -86,6 +90,10 @@ const ALL_ENTITY_TYPES: EntityType[] = [
   "event",
   "task",
   "deadline",
+  "routine",
+  "open_loop",
+  "project",
+  "note",
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -197,6 +205,30 @@ export class ContextSearchService implements IContextSearchService {
     if (entityTypes.includes("deadline")) {
       searchPromises.push(
         this.searchDeadlinesText(userId, query, perTypeLimit)
+      );
+    }
+
+    if (entityTypes.includes("routine")) {
+      searchPromises.push(
+        this.searchRoutinesText(userId, query, perTypeLimit)
+      );
+    }
+
+    if (entityTypes.includes("open_loop")) {
+      searchPromises.push(
+        this.searchOpenLoopsText(userId, query, perTypeLimit)
+      );
+    }
+
+    if (entityTypes.includes("project")) {
+      searchPromises.push(
+        this.searchProjectsText(userId, query, perTypeLimit)
+      );
+    }
+
+    if (entityTypes.includes("note")) {
+      searchPromises.push(
+        this.searchNotesText(userId, query, perTypeLimit)
       );
     }
 
@@ -407,6 +439,124 @@ export class ContextSearchService implements IContextSearchService {
     }));
   }
 
+  private async searchRoutinesText(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<ContextSearchResult[]> {
+    const routines = await db.routine.findMany({
+      where: {
+        userId,
+        ...excludeDeleted(),
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { category: { contains: query, mode: "insensitive" } },
+          { notes: { contains: query, mode: "insensitive" } },
+          { tags: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+      take: limit,
+      orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
+    });
+
+    return routines.map((routine, index) => ({
+      entityType: "routine" as EntityType,
+      entityId: routine.id,
+      entity: routine,
+      score: this.calculateTextScore(routine, query, index, limit),
+      matchType: "text" as const,
+    }));
+  }
+
+  private async searchOpenLoopsText(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<ContextSearchResult[]> {
+    const openLoops = await db.openLoop.findMany({
+      where: {
+        userId,
+        ...excludeDeleted(),
+        OR: [
+          { title: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { context: { contains: query, mode: "insensitive" } },
+          { tags: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+      take: limit,
+      orderBy: [{ priority: "desc" }, { dueAt: "asc" }, { updatedAt: "desc" }],
+    });
+
+    return openLoops.map((openLoop, index) => ({
+      entityType: "open_loop" as EntityType,
+      entityId: openLoop.id,
+      entity: openLoop,
+      score: this.calculateTextScore(openLoop, query, index, limit),
+      matchType: "text" as const,
+    }));
+  }
+
+  private async searchProjectsText(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<ContextSearchResult[]> {
+    const projects = await db.project.findMany({
+      where: {
+        userId,
+        ...excludeDeleted(),
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { objective: { contains: query, mode: "insensitive" } },
+          { notes: { contains: query, mode: "insensitive" } },
+          { tags: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+      take: limit,
+      orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { updatedAt: "desc" }],
+    });
+
+    return projects.map((project, index) => ({
+      entityType: "project" as EntityType,
+      entityId: project.id,
+      entity: project,
+      score: this.calculateTextScore(project, query, index, limit),
+      matchType: "text" as const,
+    }));
+  }
+
+  private async searchNotesText(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<ContextSearchResult[]> {
+    const notes = await db.note.findMany({
+      where: {
+        userId,
+        ...excludeDeleted(),
+        OR: [
+          { title: { contains: query, mode: "insensitive" } },
+          { content: { contains: query, mode: "insensitive" } },
+          { category: { contains: query, mode: "insensitive" } },
+          { tags: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+      take: limit,
+      orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
+    });
+
+    return notes.map((note, index) => ({
+      entityType: "note" as EntityType,
+      entityId: note.id,
+      entity: note,
+      score: this.calculateTextScore(note, query, index, limit),
+      matchType: "text" as const,
+    }));
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Scoring & Merging
   // ─────────────────────────────────────────────────────────────
@@ -415,7 +565,7 @@ export class ContextSearchService implements IContextSearchService {
    * Calculate a text match score based on position and match quality
    */
   private calculateTextScore(
-    entity: Person | Place | Event | Task | Deadline,
+    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
     query: string,
     position: number,
     total: number
@@ -442,12 +592,16 @@ export class ContextSearchService implements IContextSearchService {
   /**
    * Get the primary title/name field from an entity
    */
-  private getEntityTitle(entity: Person | Place | Event | Task | Deadline): string {
-    if ("name" in entity) {
+  private getEntityTitle(entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note): string {
+    if ("name" in entity && entity.name) {
       return entity.name;
     }
-    if ("title" in entity) {
+    if ("title" in entity && entity.title) {
       return entity.title;
+    }
+    // For notes, fall back to content snippet if no title
+    if ("content" in entity) {
+      return entity.content.substring(0, 50);
     }
     return "";
   }
@@ -516,6 +670,10 @@ export class ContextSearchService implements IContextSearchService {
       event: [],
       task: [],
       deadline: [],
+      routine: [],
+      open_loop: [],
+      project: [],
+      note: [],
     };
 
     for (const result of results) {
@@ -523,7 +681,7 @@ export class ContextSearchService implements IContextSearchService {
     }
 
     // Fetch entities by type
-    const [people, places, events, tasks, deadlines] = await Promise.all([
+    const [people, places, events, tasks, deadlines, routines, openLoops, projects, notes] = await Promise.all([
       byType.person.length > 0
         ? db.person.findMany({
             where: {
@@ -569,15 +727,55 @@ export class ContextSearchService implements IContextSearchService {
             },
           })
         : Promise.resolve([]),
+      byType.routine.length > 0
+        ? db.routine.findMany({
+            where: {
+              userId,
+              id: { in: byType.routine.map((r) => r.entityId) },
+              ...excludeDeleted(),
+            },
+          })
+        : Promise.resolve([]),
+      byType.open_loop.length > 0
+        ? db.openLoop.findMany({
+            where: {
+              userId,
+              id: { in: byType.open_loop.map((r) => r.entityId) },
+              ...excludeDeleted(),
+            },
+          })
+        : Promise.resolve([]),
+      byType.project.length > 0
+        ? db.project.findMany({
+            where: {
+              userId,
+              id: { in: byType.project.map((r) => r.entityId) },
+              ...excludeDeleted(),
+            },
+          })
+        : Promise.resolve([]),
+      byType.note.length > 0
+        ? db.note.findMany({
+            where: {
+              userId,
+              id: { in: byType.note.map((r) => r.entityId) },
+              ...excludeDeleted(),
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     // Create lookup maps
-    const entityMaps = {
+    const entityMaps: Record<EntityType, Map<string, unknown>> = {
       person: new Map(people.map((p) => [p.id, p])),
       place: new Map(places.map((p) => [p.id, p])),
       event: new Map(events.map((e) => [e.id, e])),
       task: new Map(tasks.map((t) => [t.id, t])),
       deadline: new Map(deadlines.map((d) => [d.id, d])),
+      routine: new Map(routines.map((r) => [r.id, r])),
+      open_loop: new Map(openLoops.map((o) => [o.id, o])),
+      project: new Map(projects.map((p) => [p.id, p])),
+      note: new Map(notes.map((n) => [n.id, n])),
     };
 
     // Map results with entities
@@ -589,7 +787,7 @@ export class ContextSearchService implements IContextSearchService {
         enriched.push({
           entityType: result.entityType,
           entityId: result.entityId,
-          entity: entity as Person | Place | Event | Task | Deadline,
+          entity: entity as Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
           score: result.similarity,
           matchType: "semantic",
           snippet: result.content,
@@ -604,7 +802,7 @@ export class ContextSearchService implements IContextSearchService {
    * Generate a snippet from entity content
    */
   private generateSnippet(
-    entity: Person | Place | Event | Task | Deadline,
+    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
     query: string
   ): string | undefined {
     // Get searchable text from entity
@@ -616,6 +814,9 @@ export class ContextSearchService implements IContextSearchService {
       texts.push(entity.description);
     if ("bio" in entity && entity.bio) texts.push(entity.bio);
     if ("notes" in entity && entity.notes) texts.push(entity.notes);
+    if ("content" in entity && entity.content) texts.push(entity.content);
+    if ("objective" in entity && entity.objective) texts.push(entity.objective);
+    if ("context" in entity && entity.context) texts.push(entity.context);
 
     const content = texts.join(" ");
 

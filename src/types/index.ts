@@ -21,7 +21,11 @@ export type EntityType =
   | "integration"
   | "email_approval"
   | "calendar"
-  | "calendar_approval";
+  | "calendar_approval"
+  | "routine"
+  | "open_loop"
+  | "project"
+  | "note";
 
 export type SourceType = "manual" | "gmail" | "slack" | "calendar" | "import";
 

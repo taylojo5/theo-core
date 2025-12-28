@@ -21,6 +21,16 @@ export type {
   DeadlineType,
   DeadlineStatus,
   RelationshipType,
+  RoutineType,
+  RoutineFrequency,
+  RoutineStatus,
+  OpenLoopType,
+  OpenLoopStatus,
+  OpenLoopPriority,
+  ProjectType,
+  ProjectStatus,
+  ProjectPriority,
+  NoteType,
 
   // Pagination
   PaginationParams,
@@ -54,6 +64,26 @@ export type {
   UpdateDeadlineInput,
   ListDeadlinesOptions,
 
+  // Routine
+  CreateRoutineInput,
+  UpdateRoutineInput,
+  ListRoutinesOptions,
+
+  // OpenLoop
+  CreateOpenLoopInput,
+  UpdateOpenLoopInput,
+  ListOpenLoopsOptions,
+
+  // Project
+  CreateProjectInput,
+  UpdateProjectInput,
+  ListProjectsOptions,
+
+  // Note
+  CreateNoteInput,
+  UpdateNoteInput,
+  ListNotesOptions,
+
   // Relationship
   CreateRelationshipInput,
   UpdateRelationshipInput,
@@ -79,6 +109,10 @@ export type {
   Task,
   Deadline,
   EntityRelationship,
+  Routine,
+  OpenLoop,
+  Project,
+  Note,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -364,6 +398,160 @@ export type {
   // Error types
   RelationshipsErrorCode,
 } from "./relationships";
+
+// ─────────────────────────────────────────────────────────────
+// Routines Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  RoutinesService,
+  // Individual functions
+  createRoutine,
+  getRoutineById,
+  updateRoutine,
+  deleteRoutine,
+  restoreRoutine,
+  pauseRoutine,
+  resumeRoutine,
+  archiveRoutine,
+  recordRoutineCompletion,
+  recordRoutineSkip,
+  listRoutines,
+  findRoutineBySource,
+  searchRoutines,
+  getRoutinesDueNow,
+  getUpcomingRoutines,
+  getRoutinesByCategory,
+  upsertRoutinesFromSource,
+  // Error class
+  RoutinesServiceError,
+} from "./routines";
+
+export type {
+  // Service interface
+  IRoutinesService,
+  // Routine-specific types
+  SearchRoutinesOptions,
+  SourceRoutineInput,
+  RoutinesErrorCode,
+} from "./routines";
+
+// ─────────────────────────────────────────────────────────────
+// OpenLoops Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  OpenLoopsService,
+  // Individual functions
+  createOpenLoop,
+  getOpenLoopById,
+  updateOpenLoop,
+  deleteOpenLoop,
+  restoreOpenLoop,
+  resolveOpenLoop,
+  cancelOpenLoop,
+  markOpenLoopStale,
+  reopenOpenLoop,
+  listOpenLoops,
+  findOpenLoopBySource,
+  searchOpenLoops,
+  getOpenOpenLoops,
+  getOverdueOpenLoops,
+  getOpenLoopsByPerson,
+  upsertOpenLoopsFromSource,
+  // Error class
+  OpenLoopsServiceError,
+} from "./open-loops";
+
+export type {
+  // Service interface
+  IOpenLoopsService,
+  // OpenLoop-specific types
+  SearchOpenLoopsOptions,
+  SourceOpenLoopInput,
+  OpenLoopsErrorCode,
+} from "./open-loops";
+
+// ─────────────────────────────────────────────────────────────
+// Projects Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  ProjectsService,
+  // Individual functions
+  createProject,
+  getProjectById,
+  getProjectByIdWithRelations,
+  updateProject,
+  deleteProject,
+  restoreProject,
+  startProject,
+  completeProject,
+  cancelProject,
+  putProjectOnHold,
+  archiveProject,
+  getProjectChildren,
+  setProjectParent,
+  listProjects,
+  findProjectBySource,
+  searchProjects,
+  getActiveProjects,
+  getOverdueProjects,
+  upsertProjectsFromSource,
+  // Error class
+  ProjectsServiceError,
+} from "./projects";
+
+export type {
+  // Service interface
+  IProjectsService,
+  // Project-specific types
+  SearchProjectsOptions,
+  SourceProjectInput,
+  ProjectWithRelations,
+  ProjectsErrorCode,
+} from "./projects";
+
+// ─────────────────────────────────────────────────────────────
+// Notes Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  NotesService,
+  // Individual functions
+  createNote,
+  getNoteById,
+  updateNote,
+  deleteNote,
+  restoreNote,
+  pinNote,
+  unpinNote,
+  favoriteNote,
+  unfavoriteNote,
+  listNotes,
+  findNoteBySource,
+  searchNotes,
+  getPinnedNotes,
+  getFavoriteNotes,
+  getRecentNotes,
+  getNotesByCategory,
+  upsertNotesFromSource,
+  // Error class
+  NotesServiceError,
+} from "./notes";
+
+export type {
+  // Service interface
+  INotesService,
+  // Note-specific types
+  SearchNotesOptions,
+  SourceNoteInput,
+  NotesErrorCode,
+} from "./notes";
 
 // ─────────────────────────────────────────────────────────────
 // Context Search Service

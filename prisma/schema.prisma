@@ -54,6 +54,12 @@ model User {
   calendarSyncState CalendarSyncState?
   calendarApprovals CalendarApproval[]
 
+  // New Context Entities
+  routines  Routine[]
+  openLoops OpenLoop[]
+  projects  Project[]
+  notes     Note[]
+
   // Agent Engine
   agentConfig      AgentUserConfig?
   agentPlans       AgentPlan[]
@@ -467,6 +473,242 @@ model EntityRelationship {
   @@unique([userId, sourceType, sourceId, targetType, targetId, relationship])
   @@index([sourceType, sourceId])
   @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Routines
+// Recurring patterns, habits, and scheduled activities
+// ─────────────────────────────────────────────────────────────
+
+model Routine {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  description String? @db.Text
+  type        String  @default("habit") // habit, ritual, process, schedule
+
+  // Schedule (cron-like or natural language)
+  frequency   String // daily, weekly, monthly, custom
+  schedule    Json? // { days: [], times: [], cron?: string }
+  timezone    String?
+
+  // Timing
+  durationMinutes Int? // Expected duration
+  preferredTime   String? // morning, afternoon, evening, night
+
+  // Status
+  status     String   @default("active") // active, paused, archived
+  isActive   Boolean  @default(true)
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  streak     Int      @default(0) // Current streak count
+
+  // Tracking
+  completionCount  Int @default(0)
+  skipCount        Int @default(0)
+  lastCompletedAt  DateTime?
+  averageRating    Decimal? @db.Decimal(3, 2) // 0-5 user rating
+
+  // Context
+  notes        String? @db.Text
+  importance   Int     @default(5) // 1-10
+  category     String? // health, work, personal, etc.
+
+  // Associations
+  relatedTaskIds   String[] @default([])
+  relatedEventIds  String[] @default([])
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextRunAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Open Loops
+// Unresolved items, commitments, and things to follow up on
+// ─────────────────────────────────────────────────────────────
+
+model OpenLoop {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String? @db.Text
+  type        String  @default("follow_up") // follow_up, waiting_for, promise, question, idea
+
+  // Context of the loop
+  context    String? @db.Text // Where/how this came up
+  trigger    String? // What triggered this loop
+
+  // Resolution
+  status        String    @default("open") // open, in_progress, resolved, cancelled, stale
+  resolvedAt    DateTime?
+  resolution    String?   @db.Text // How it was resolved
+  resolvedBy    String? // user, auto, external
+
+  // Priority and timing
+  priority     String    @default("medium") // low, medium, high, urgent
+  importance   Int       @default(5) // 1-10
+  dueAt        DateTime?
+  reminderAt   DateTime?
+  staleAfter   DateTime? // When to mark as stale if unresolved
+
+  // Associations
+  relatedPersonId String?
+  relatedTaskId   String?
+  relatedEventId  String?
+  relatedEmailId  String?
+
+  // Source tracking (e.g., extracted from email)
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Projects
+// Groups of related tasks, goals, and activities
+// ─────────────────────────────────────────────────────────────
+
+model Project {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  description String? @db.Text
+  type        String  @default("project") // project, goal, initiative, area
+
+  // Hierarchy
+  parentId String?
+  position Int     @default(0)
+
+  // Status
+  status     String    @default("active") // planning, active, on_hold, completed, cancelled, archived
+  progress   Int       @default(0) // 0-100 percentage
+  startedAt  DateTime?
+  completedAt DateTime?
+
+  // Timing
+  targetDate    DateTime?
+  dueDate       DateTime?
+  estimatedDays Int?
+
+  // Priority
+  priority   String @default("medium") // low, medium, high, critical
+  importance Int    @default(5) // 1-10
+
+  // Metrics
+  taskCount          Int @default(0)
+  completedTaskCount Int @default(0)
+
+  // Context
+  notes     String? @db.Text
+  objective String? @db.Text // What success looks like
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+  color    String? // For UI display
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Project?  @relation("ProjectHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Project[] @relation("ProjectHierarchy")
+
+  @@index([userId])
+  @@index([status])
+  @@index([parentId])
+  @@index([dueDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Notes
+// General notes, memos, and unstructured information
+// ─────────────────────────────────────────────────────────────
+
+model Note {
+  id      String  @id @default(cuid())
+  userId  String
+  title   String?
+  content String  @db.Text
+  type    String  @default("note") // note, memo, journal, meeting_notes, idea, reference
+
+  // Organization
+  folderId   String? // Optional folder/notebook
+  isPinned   Boolean @default(false)
+  isFavorite Boolean @default(false)
+
+  // Context
+  importance Int    @default(5) // 1-10
+  category   String? // work, personal, reference, etc.
+
+  // Associations
+  relatedPersonIds  String[] @default([])
+  relatedTaskIds    String[] @default([])
+  relatedEventIds   String[] @default([])
+  relatedProjectIds String[] @default([])
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata    Json     @default("{}")
+  tags        String[] @default([])
+  wordCount   Int      @default(0)
+  lastViewedAt DateTime?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([isPinned])
+  @@index([category])
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -281,8 +281,11 @@ export const ENTITY_TYPES = {
   /** Duration (30 minutes, 2 hours) */
   DURATION: "duration",
 
-  /** Location or place */
+  /** Location or place reference */
   LOCATION: "location",
+
+  /** Place/venue stored in context (office, restaurant, etc.) */
+  PLACE: "place",
 
   /** Calendar event reference */
   EVENT: "event",
@@ -290,8 +293,26 @@ export const ENTITY_TYPES = {
   /** Task reference */
   TASK: "task",
 
+  /** Deadline or milestone reference */
+  DEADLINE: "deadline",
+
   /** Email or email thread reference */
   EMAIL: "email",
+
+  /** Routine/habit reference */
+  ROUTINE: "routine",
+
+  /** Open loop/follow-up reference */
+  OPEN_LOOP: "open_loop",
+
+  /** Project/goal reference */
+  PROJECT: "project",
+
+  /** Note/memo reference */
+  NOTE: "note",
+
+  /** Relationship reference (e.g., "Sarah's manager") */
+  RELATIONSHIP: "relationship",
 
   /** Unrecognized entity type */
   UNKNOWN: "unknown",
