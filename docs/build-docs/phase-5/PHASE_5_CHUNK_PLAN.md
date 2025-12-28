@@ -1097,12 +1097,14 @@ src/lib/agent/intent/
 
 ### Testing Results
 
-- [x] 25 tests pass
+- [x] 33 tests pass
 - [x] Analyzer factory tests
 - [x] Classification request tests  
 - [x] Response conversion tests
 - [x] Ambiguity detection tests
 - [x] Tool definition interface tests
+- [x] Utility function tests (requiresClarification, canProceedWithAssumptions, etc.)
+- [x] Integration flow tests
 
 ### Acceptance Criteria
 

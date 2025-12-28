@@ -417,6 +417,42 @@ export {
 } from "./tools";
 
 // ─────────────────────────────────────────────────────────────
+// Intent Analysis
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type IntentAnalysisResult,
+  type ProcessedEntity,
+  type SuggestedToolCall,
+  type ClarificationRequirement,
+  type ProcessedAssumption,
+  type IntentAnalyzerConfig,
+  type AmbiguityType,
+  type AmbiguityAnalysis,
+  type AnalyzeIntentInput,
+  type IIntentAnalyzer,
+
+  // Constants
+  DEFAULT_INTENT_ANALYZER_CONFIG,
+  AMBIGUITY_THRESHOLDS,
+
+  // Analyzer
+  createIntentAnalyzer,
+  getDefaultIntentAnalyzer,
+  resetDefaultIntentAnalyzer,
+  setDefaultIntentAnalyzer,
+  analyzeIntent,
+
+  // Ambiguity detection
+  analyzeAmbiguity,
+  requiresClarification,
+  getPrimaryClarificationQuestion,
+  canProceedWithAssumptions,
+  getAssumptionsToVerify,
+} from "./intent";
+
+// ─────────────────────────────────────────────────────────────
 // Execution Engine
 // ─────────────────────────────────────────────────────────────
 
