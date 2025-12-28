@@ -8,3 +8,4 @@ COMMENT ON COLUMN "GmailSyncState"."syncLabels" IS 'Labels opted-in for sync (em
 COMMENT ON COLUMN "GmailSyncState"."syncConfigured" IS 'Whether user has configured sync settings';
 
 
+

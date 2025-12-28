@@ -565,3 +565,70 @@ export {
   resolveProject,
   resolveNote,
 } from "./entities";
+
+// ─────────────────────────────────────────────────────────────
+// Context Retrieval
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type WithRelevance,
+  type ContextSource,
+  type PersonWithRelevance,
+  type EventWithRelevance,
+  type TaskWithRelevance,
+  type DeadlineWithRelevance,
+  type PlaceWithRelevance,
+  type RoutineWithRelevance,
+  type OpenLoopWithRelevance,
+  type ProjectWithRelevance,
+  type NoteWithRelevance,
+  type SemanticMatch,
+  type ConversationMessage,
+  type InteractionType,
+  type Interaction,
+  type ContextRetrieval,
+  type ContextRetrievalStats,
+  type RetrievalOptions,
+  type SemanticFilters,
+  type RankedContextItem,
+  type RankedContext,
+  type IContextRetrievalService,
+  type ContextRetrievalErrorCode,
+
+  // Constants
+  DEFAULT_RETRIEVAL_OPTIONS,
+  SOURCE_WEIGHTS,
+  INTENT_ENTITY_WEIGHTS,
+  MAX_CONTEXT_TOKENS,
+
+  // Error class
+  ContextRetrievalError,
+
+  // Entity utilities
+  getEntityDisplayName,
+  summarizeEntity,
+
+  // Ranking functions
+  calculateRelevanceScore,
+  rankContextRelevance,
+  mergeAndRank,
+  buildContextSummary,
+  rankSemanticMatches,
+  calculateTimeRelevance,
+  calculateRecencyRelevance,
+
+  // Service
+  ContextRetrievalService,
+  getContextRetrievalService,
+  createContextRetrievalService,
+  resetContextRetrievalService,
+
+  // Convenience functions
+  retrieveContext,
+  retrieveFromResolution,
+  searchSemantic,
+  getRecentInteractions,
+  getConversationContext,
+  rankContext,
+} from "./context";

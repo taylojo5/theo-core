@@ -7,3 +7,4 @@ ALTER TABLE "GmailSyncState" ADD COLUMN "recurringEnabled" BOOLEAN NOT NULL DEFA
 COMMENT ON COLUMN "GmailSyncState"."recurringEnabled" IS 'Whether automatic recurring sync is enabled';
 
 
+

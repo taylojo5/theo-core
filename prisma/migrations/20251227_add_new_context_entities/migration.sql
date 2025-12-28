@@ -256,3 +256,4 @@ COMMENT ON TABLE "OpenLoop" IS 'Unresolved items, commitments, and follow-ups';
 COMMENT ON TABLE "Project" IS 'Groups of related tasks, goals, and activities';
 COMMENT ON TABLE "Note" IS 'General notes, memos, and unstructured information';
 
+

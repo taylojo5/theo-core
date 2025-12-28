@@ -53,3 +53,4 @@ COMMENT ON COLUMN "AgentUserConfig"."contentFilterConfig" IS 'Content filtering 
 COMMENT ON COLUMN "AgentUserConfig"."featureFlags" IS 'Feature flags (null fields use defaults)';
 COMMENT ON COLUMN "AgentUserConfig"."confidenceThresholds" IS 'Confidence thresholds (null fields use defaults)';
 
+
