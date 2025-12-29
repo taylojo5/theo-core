@@ -682,3 +682,62 @@ export {
   shouldExecute as shouldExecuteAction,
   needsClarification as needsRoutingClarification,
 } from "./routing";
+
+// ─────────────────────────────────────────────────────────────
+// Response Formatting
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type ResponseGenerationMetadata,
+  type ClientResponseMetadata,
+  type ExecuteResponse,
+  type ConfirmResponse,
+  type ClarifyResponse,
+  type ConversationalResponse,
+  type ErrorResponse,
+  type FormattedResponse,
+  type ResponseChunk,
+  type StreamingOptions,
+  type ResponsePromptOptions,
+  type ToolResultForPrompt,
+  type FormatOptions,
+  type ClientFormattedResponse,
+
+  // Type guards
+  isExecuteResponse,
+  isConfirmResponse,
+  isClarifyResponse,
+  isConversationalResponse,
+  isErrorResponse,
+  requiresUserAction,
+
+  // Conversion utilities
+  llmAssumptionToAssumption,
+  convertAssumptions,
+  getDecisionType,
+
+  // System prompts
+  getSystemPromptForDecision,
+
+  // Prompt building
+  buildResponsePromptFromDecision,
+  buildTemplateResponse,
+
+  // Response formatting
+  formatResponse,
+  formatToolResult,
+  extractDisplayHighlights,
+  truncateResultStructured,
+
+  // Content utilities
+  cleanContent,
+  combineContents,
+
+  // Metadata utilities
+  getTotalTokens,
+  estimateCost,
+
+  // Serialization
+  serializeForClient,
+} from "./response";
