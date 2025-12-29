@@ -23,6 +23,11 @@ export type {
   EmailResolutionHints,
   PlaceResolutionHints,
   DeadlineResolutionHints,
+  RoutineResolutionHints,
+  OpenLoopResolutionHints,
+  ProjectResolutionHints,
+  NoteResolutionHints,
+  OpportunityResolutionHints,
 
   // Config types
   ResolverConfig,
@@ -92,5 +97,6 @@ export {
   resolveOpenLoop,
   resolveProject,
   resolveNote,
+  resolveOpportunity,
 } from "./resolver";
 

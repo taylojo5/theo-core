@@ -19,6 +19,7 @@ const {
   mockOpenLoopFindMany,
   mockProjectFindMany,
   mockNoteFindMany,
+  mockOpportunityFindMany,
   mockSearchSimilar,
 } = vi.hoisted(() => ({
   mockPersonFindMany: vi.fn(),
@@ -30,6 +31,7 @@ const {
   mockOpenLoopFindMany: vi.fn(),
   mockProjectFindMany: vi.fn(),
   mockNoteFindMany: vi.fn(),
+  mockOpportunityFindMany: vi.fn(),
   mockSearchSimilar: vi.fn(),
 }));
 
@@ -44,6 +46,7 @@ vi.mock("@/lib/db", () => ({
     openLoop: { findMany: mockOpenLoopFindMany },
     project: { findMany: mockProjectFindMany },
     note: { findMany: mockNoteFindMany },
+    opportunity: { findMany: mockOpportunityFindMany },
   },
 }));
 
@@ -203,6 +206,7 @@ function setupDefaultMocks() {
   mockOpenLoopFindMany.mockResolvedValue([]);
   mockProjectFindMany.mockResolvedValue([]);
   mockNoteFindMany.mockResolvedValue([]);
+  mockOpportunityFindMany.mockResolvedValue([]);
   mockSearchSimilar.mockResolvedValue(mockSemanticResults);
 }
 
@@ -390,7 +394,7 @@ describe("ContextSearchService", () => {
       expect(mockSearchSimilar).toHaveBeenCalledWith({
         userId: testUserId,
         query: "software engineering",
-        entityTypes: ["person", "place", "event", "task", "deadline", "routine", "open_loop", "project", "note"],
+        entityTypes: ["person", "place", "event", "task", "deadline", "routine", "open_loop", "project", "note", "opportunity"],
         limit: 20,
         minSimilarity: 0.5,
       });
@@ -673,6 +677,7 @@ describe("Edge Cases", () => {
     mockOpenLoopFindMany.mockResolvedValue([]);
     mockProjectFindMany.mockResolvedValue([]);
     mockNoteFindMany.mockResolvedValue([]);
+    mockOpportunityFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     const results = await service.search(testUserId, "nonexistent");
@@ -700,6 +705,7 @@ describe("Edge Cases", () => {
     mockOpenLoopFindMany.mockResolvedValue([]);
     mockProjectFindMany.mockResolvedValue([]);
     mockNoteFindMany.mockResolvedValue([]);
+    mockOpportunityFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     // Negative limit
@@ -722,6 +728,7 @@ describe("Edge Cases", () => {
     mockOpenLoopFindMany.mockResolvedValue([]);
     mockProjectFindMany.mockResolvedValue([]);
     mockNoteFindMany.mockResolvedValue([]);
+    mockOpportunityFindMany.mockResolvedValue([]);
     mockSearchSimilar.mockResolvedValue([]);
 
     // Should propagate database errors (not silently swallow them)

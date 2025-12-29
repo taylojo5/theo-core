@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { LLMExtractedEntity } from "../intent";
-import type { Person, Event, Task, Place, Deadline, Routine, OpenLoop, Project, Note } from "@/services/context/types";
+import type { Person, Event, Task, Place, Deadline, Routine, OpenLoop, Project, Note, Opportunity } from "@/services/context/types";
 import type { Email } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
@@ -29,7 +29,8 @@ export type ResolvableEntityType =
   | "routine"
   | "open_loop"
   | "project"
-  | "note";
+  | "note"
+  | "opportunity";
 
 // ─────────────────────────────────────────────────────────────
 // Resolved Entity
@@ -296,6 +297,29 @@ export interface NoteResolutionHints {
   pinnedOnly?: boolean;
 }
 
+/**
+ * Hints to improve opportunity resolution
+ */
+export interface OpportunityResolutionHints {
+  /** Type of opportunity (networking, business, learning, career, social, collaboration, investment) */
+  type?: string;
+
+  /** Status filter */
+  status?: string;
+
+  /** Priority filter */
+  priority?: string;
+
+  /** Category filter */
+  category?: string;
+
+  /** Related person ID */
+  relatedPersonId?: string;
+
+  /** Expiration date range */
+  expirationRange?: { start: Date; end: Date };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Resolver Configuration
 // ─────────────────────────────────────────────────────────────
@@ -440,6 +464,15 @@ export interface IEntityResolver {
     description: string,
     hints?: NoteResolutionHints
   ): Promise<ResolvedEntity<Note>>;
+
+  /**
+   * Resolve an opportunity reference to an Opportunity record
+   */
+  resolveOpportunity(
+    userId: string,
+    description: string,
+    hints?: OpportunityResolutionHints
+  ): Promise<ResolvedEntity<Opportunity>>;
 
   /**
    * Get the current configuration

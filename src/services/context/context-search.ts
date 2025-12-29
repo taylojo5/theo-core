@@ -21,6 +21,7 @@ import type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
 } from "./types";
 import { excludeDeleted, extractSnippet } from "./utils";
 
@@ -94,6 +95,7 @@ const ALL_ENTITY_TYPES: EntityType[] = [
   "open_loop",
   "project",
   "note",
+  "opportunity",
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -229,6 +231,12 @@ export class ContextSearchService implements IContextSearchService {
     if (entityTypes.includes("note")) {
       searchPromises.push(
         this.searchNotesText(userId, query, perTypeLimit)
+      );
+    }
+
+    if (entityTypes.includes("opportunity")) {
+      searchPromises.push(
+        this.searchOpportunitiesText(userId, query, perTypeLimit)
       );
     }
 
@@ -557,6 +565,35 @@ export class ContextSearchService implements IContextSearchService {
     }));
   }
 
+  private async searchOpportunitiesText(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<ContextSearchResult[]> {
+    const opportunities = await db.opportunity.findMany({
+      where: {
+        userId,
+        ...excludeDeleted(),
+        OR: [
+          { title: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { context: { contains: query, mode: "insensitive" } },
+          { tags: { hasSome: [query.toLowerCase()] } },
+        ],
+      },
+      take: limit,
+      orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
+    });
+
+    return opportunities.map((opportunity, index) => ({
+      entityType: "opportunity" as EntityType,
+      entityId: opportunity.id,
+      entity: opportunity,
+      score: this.calculateTextScore(opportunity, query, index, limit),
+      matchType: "text" as const,
+    }));
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Scoring & Merging
   // ─────────────────────────────────────────────────────────────
@@ -565,7 +602,7 @@ export class ContextSearchService implements IContextSearchService {
    * Calculate a text match score based on position and match quality
    */
   private calculateTextScore(
-    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
+    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity,
     query: string,
     position: number,
     total: number
@@ -592,7 +629,7 @@ export class ContextSearchService implements IContextSearchService {
   /**
    * Get the primary title/name field from an entity
    */
-  private getEntityTitle(entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note): string {
+  private getEntityTitle(entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity): string {
     if ("name" in entity && entity.name) {
       return entity.name;
     }
@@ -674,6 +711,7 @@ export class ContextSearchService implements IContextSearchService {
       open_loop: [],
       project: [],
       note: [],
+      opportunity: [],
     };
 
     for (const result of results) {
@@ -681,7 +719,7 @@ export class ContextSearchService implements IContextSearchService {
     }
 
     // Fetch entities by type
-    const [people, places, events, tasks, deadlines, routines, openLoops, projects, notes] = await Promise.all([
+    const [people, places, events, tasks, deadlines, routines, openLoops, projects, notes, opportunities] = await Promise.all([
       byType.person.length > 0
         ? db.person.findMany({
             where: {
@@ -763,6 +801,15 @@ export class ContextSearchService implements IContextSearchService {
             },
           })
         : Promise.resolve([]),
+      byType.opportunity.length > 0
+        ? db.opportunity.findMany({
+            where: {
+              userId,
+              id: { in: byType.opportunity.map((r) => r.entityId) },
+              ...excludeDeleted(),
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     // Create lookup maps
@@ -776,6 +823,7 @@ export class ContextSearchService implements IContextSearchService {
       open_loop: new Map(openLoops.map((o) => [o.id, o])),
       project: new Map(projects.map((p) => [p.id, p])),
       note: new Map(notes.map((n) => [n.id, n])),
+      opportunity: new Map(opportunities.map((o) => [o.id, o])),
     };
 
     // Map results with entities
@@ -787,7 +835,7 @@ export class ContextSearchService implements IContextSearchService {
         enriched.push({
           entityType: result.entityType,
           entityId: result.entityId,
-          entity: entity as Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
+          entity: entity as Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity,
           score: result.similarity,
           matchType: "semantic",
           snippet: result.content,
@@ -802,7 +850,7 @@ export class ContextSearchService implements IContextSearchService {
    * Generate a snippet from entity content
    */
   private generateSnippet(
-    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
+    entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity,
     query: string
   ): string | undefined {
     // Get searchable text from entity

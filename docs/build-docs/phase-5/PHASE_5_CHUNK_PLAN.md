@@ -145,43 +145,43 @@ F0A → F1B → F2C → F3D → LLM → T1R → T2Q → T3A → T4E → P1I → 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              FOUNDATION                                      │
-│                                                                              │
-│  ✅ [F0A] Security ──▶ ✅ [F1B] Module Base ──┬──▶ ✅ [F2C] DB Models         │
-│                                          └──▶ ✅ [F3D] Audit Trail           │
-│                                                     │                        │
-└─────────────────────────────────────────────────────│────────────────────────┘
+│                              FOUNDATION                                     │
+│                                                                             │
+│  ✅ [F0A] Security ──▶ ✅ [F1B] Module Base ──┬──▶ ✅ [F2C] DB Models        │
+│                                          └──▶ ✅ [F3D] Audit Trail          │
+│                                                     │                       │
+└─────────────────────────────────────────────────────│───────────────────────┘
                                                       │
                                             ═══ CHECKPOINT 1 ═══ ✅
                                                       │
 ┌─────────────────────────────────────────────────────│────────────────────────┐
-│                            ★★★ LLM CORE ★★★        │                        │
-│                                                      ▼                        │
+│                            ★★★ LLM CORE ★★★         │                        │
+│                                                     ▼                        │
 │                                             ✅[LLM] LLM Client                │
-│                                                      │                        │
+│                                                      │                       │
 │  THE BRAIN: classify(), generatePlan(), generateResponse(), decideRecovery() │
 └─────────────────────────────────────────────────────│────────────────────────┘
                                                       │
                                             ═══ CHECKPOINT 2 ═══ ✅
                                                       │
 ┌─────────────────────────────────────────────────────│────────────────────────┐
-│                              TOOLS                   │                        │
-│                                                      ▼                        │
-│  ✅[T1R] Registry ──▶ ✅[T2Q] Query ──▶ ✅[T3A] Action ──▶ ✅[T4E] Execution   │
-│                                                      │                        │
+│                              TOOLS                  │                        │
+│                                                     ▼                        │
+│  ✅[T1R] Registry ──▶ ✅[T2Q] Query ──▶ ✅[T3A] Action ──▶ ✅[T4E] Execution  │
+│                                                      │                       │
 │  Tools define: whenToUse, examples, parametersSchema, inputValidator         │
 └─────────────────────────────────────────────────────│────────────────────────┘
                                                       │
                                             ═══ CHECKPOINT 3 ═══ ✅
                                                       │
 ┌─────────────────────────────────────────────────────│────────────────────────┐
-│                            PERCEPTION                │                        │
-│                                                      ▼                        │
+│                            PERCEPTION               │                        │
+│                                                     ▼                        │
 │                    [P1I] Intent ──┬──▶ [P2E] Entity Resolution               │
 │                                   └──▶ [P3C] Context Retrieval               │
-│                                               │                               │
+│                                               │                              │
 │  Calls LLM.classify(), maps entities to DB records, gathers context          │
-└───────────────────────────────────────────────│───────────────────────────────┘
+└───────────────────────────────────────────────│──────────────────────────────┘
                                                 │
                                       ═══ CHECKPOINT 4 ═══
                                                 │
@@ -200,7 +200,7 @@ F0A → F1B → F2C → F3D → LLM → T1R → T2Q → T3A → T4E → P1I → 
 │                                               ▼                               │
 │       [L1G] Generation ──▶ [L2X] Execution ──▶ [L3S] State                    │
 │                                               │                               │
-│  LLM.generatePlan() → validate → execute → pause at approvals → recover      │
+│  LLM.generatePlan() → validate → execute → pause at approvals → recover       │
 └───────────────────────────────────────────────│───────────────────────────────┘
                                                 │
                                       ═══ CHECKPOINT 6 ═══

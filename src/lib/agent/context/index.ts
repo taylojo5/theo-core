@@ -20,6 +20,7 @@ export type {
   OpenLoopWithRelevance,
   ProjectWithRelevance,
   NoteWithRelevance,
+  OpportunityWithRelevance,
 
   // Semantic search types
   SemanticMatch,

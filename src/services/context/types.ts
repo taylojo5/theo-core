@@ -14,6 +14,7 @@ import type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
   Prisma,
 } from "@prisma/client";
 
@@ -22,7 +23,7 @@ import type {
 // ─────────────────────────────────────────────────────────────
 
 /** Types of context entities in the system */
-export type EntityType = "person" | "place" | "event" | "task" | "deadline" | "routine" | "open_loop" | "project" | "note";
+export type EntityType = "person" | "place" | "event" | "task" | "deadline" | "routine" | "open_loop" | "project" | "note" | "opportunity";
 
 /** Sources from which entities can originate */
 export type Source = "manual" | "gmail" | "slack" | "calendar" | "import";
@@ -636,6 +637,15 @@ export interface ListProjectsOptions extends BaseListOptions {
 // Note types
 export type NoteType = "note" | "memo" | "journal" | "meeting_notes" | "idea" | "reference";
 
+// Opportunity types
+export type OpportunityType = "general" | "networking" | "business" | "learning" | "career" | "social" | "collaboration" | "investment";
+
+// Opportunity status
+export type OpportunityStatus = "identified" | "evaluating" | "pursuing" | "converted" | "declined" | "expired" | "archived";
+
+// Opportunity priority
+export type OpportunityPriority = "low" | "medium" | "high" | "urgent";
+
 export interface CreateNoteInput {
   title?: string;
   content: string;
@@ -685,6 +695,86 @@ export interface ListNotesOptions extends BaseListOptions {
   isPinned?: boolean;
   /** Filter by favorite status */
   isFavorite?: boolean;
+  /** Filter by minimum importance */
+  minImportance?: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Opportunity DTOs
+// ─────────────────────────────────────────────────────────────
+
+export interface CreateOpportunityInput {
+  title: string;
+  description?: string;
+  type?: OpportunityType;
+  status?: OpportunityStatus;
+  priority?: OpportunityPriority;
+  importance?: number;
+  expiresAt?: Date;
+  context?: string;
+  trigger?: string;
+  relatedPersonId?: string;
+  participants?: string[];
+  relatedEmailId?: string;
+  relatedEventId?: string;
+  relatedTaskId?: string;
+  relatedProjectId?: string;
+  potentialValue?: string;
+  effort?: string;
+  risk?: string;
+  category?: string;
+  source: Source;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateOpportunityInput {
+  title?: string;
+  description?: string;
+  type?: OpportunityType;
+  status?: OpportunityStatus;
+  priority?: OpportunityPriority;
+  importance?: number;
+  expiresAt?: Date | null;
+  evaluatedAt?: Date | null;
+  decidedAt?: Date | null;
+  convertedAt?: Date | null;
+  context?: string;
+  trigger?: string;
+  outcome?: string | null;
+  outcomeNotes?: string | null;
+  convertedToType?: string | null;
+  convertedToId?: string | null;
+  relatedPersonId?: string | null;
+  participants?: string[];
+  relatedEmailId?: string | null;
+  relatedEventId?: string | null;
+  relatedTaskId?: string | null;
+  relatedProjectId?: string | null;
+  potentialValue?: string | null;
+  effort?: string | null;
+  risk?: string | null;
+  category?: string | null;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface ListOpportunitiesOptions extends BaseListOptions {
+  /** Filter by opportunity type */
+  type?: OpportunityType;
+  /** Filter by status */
+  status?: OpportunityStatus;
+  /** Filter by priority */
+  priority?: OpportunityPriority;
+  /** Filter by category */
+  category?: string;
+  /** Filter opportunities expiring before this date */
+  expiresBefore?: Date;
+  /** Filter opportunities expiring after this date */
+  expiresAfter?: Date;
+  /** Filter by related person */
+  relatedPersonId?: string;
   /** Filter by minimum importance */
   minImportance?: number;
 }
@@ -793,7 +883,7 @@ export interface ContextSearchResult {
   /** Entity ID */
   entityId: string;
   /** The matched entity (polymorphic) */
-  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note;
+  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity;
   /** Relevance score (0-1) */
   score: number;
   /** How the match was found */
@@ -840,4 +930,4 @@ export interface UpsertResult<T> {
 }
 
 // Re-export Prisma types for convenience
-export type { Person, Place, Event, Task, Deadline, EntityRelationship, Routine, OpenLoop, Project, Note };
+export type { Person, Place, Event, Task, Deadline, EntityRelationship, Routine, OpenLoop, Project, Note, Opportunity };

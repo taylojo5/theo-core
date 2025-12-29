@@ -12,7 +12,8 @@ import { searchRoutines } from "@/services/context/routines";
 import { searchOpenLoops } from "@/services/context/open-loops";
 import { searchProjects } from "@/services/context/projects";
 import { searchNotes } from "@/services/context/notes";
-import type { Person, Event, Task, Place, Deadline, Routine, OpenLoop, Project, Note } from "@/services/context/types";
+import { searchOpportunities } from "@/services/context/opportunities";
+import type { Person, Event, Task, Place, Deadline, Routine, OpenLoop, Project, Note, Opportunity } from "@/services/context/types";
 import type { Email } from "@prisma/client";
 import type { LLMExtractedEntity } from "../intent";
 import { ENTITY_TYPES } from "../constants";
@@ -40,6 +41,7 @@ import {
   type OpenLoopResolutionHints,
   type ProjectResolutionHints,
   type NoteResolutionHints,
+  type OpportunityResolutionHints,
   type ResolverConfig,
   type IEntityResolver,
   DEFAULT_RESOLVER_CONFIG,
@@ -1923,6 +1925,152 @@ export class EntityResolver implements IEntityResolver {
     };
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Opportunity Resolution
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Resolve an opportunity reference to an Opportunity record
+   */
+  async resolveOpportunity(
+    userId: string,
+    description: string,
+    hints?: OpportunityResolutionHints
+  ): Promise<ResolvedEntity<Opportunity>> {
+    const entity: LLMExtractedEntity = {
+      type: ENTITY_TYPES.OPPORTUNITY,
+      text: description,
+      value: description,
+      needsResolution: true,
+    };
+
+    try {
+      const opportunities = await searchOpportunities(userId, description, {
+        limit: 10,
+        status: hints?.status as "identified" | "evaluating" | "pursuing" | "converted" | "declined" | "expired" | "archived" | undefined,
+        priority: hints?.priority as "low" | "medium" | "high" | "urgent" | undefined,
+      });
+
+      if (opportunities.length === 0) {
+        const results = await searchContext(userId, description, {
+          entityTypes: ["opportunity"],
+          limit: 10,
+          minSimilarity: this.config.semanticThreshold,
+        });
+
+        if (results.length === 0) {
+          return {
+            extracted: entity,
+            status: "not_found",
+            confidence: 0,
+          };
+        }
+
+        return this.processOpportunityCandidates(
+          entity,
+          results.map((r) => r.entity as Opportunity),
+          description,
+          hints
+        );
+      }
+
+      return this.processOpportunityCandidates(entity, opportunities, description, hints);
+    } catch (error) {
+      agentLogger.error("Opportunity resolution failed", {
+        userId,
+        description,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return {
+        extracted: entity,
+        status: "not_found",
+        confidence: 0,
+        error: error instanceof Error ? error.message : "Resolution failed",
+      };
+    }
+  }
+
+  /**
+   * Process opportunity candidates for resolution
+   */
+  private processOpportunityCandidates(
+    entity: LLMExtractedEntity,
+    opportunities: Opportunity[],
+    description: string,
+    hints?: OpportunityResolutionHints
+  ): ResolvedEntity<Opportunity> {
+    // Handle empty array case
+    if (opportunities.length === 0) {
+      return {
+        extracted: entity,
+        status: "not_found",
+        confidence: 0,
+      };
+    }
+
+    const scoredCandidates = opportunities.map((opp) => {
+      let score = textSimilarity(description, opp.title);
+      
+      // Boost score based on description match
+      if (opp.description) {
+        score = Math.max(score, textSimilarity(description, opp.description) * 0.9);
+      }
+
+      // Apply hint filters
+      if (hints?.type && opp.type === hints.type) score *= 1.1;
+      if (hints?.category && opp.category === hints.category) score *= 1.1;
+      if (hints?.relatedPersonId && opp.relatedPersonId === hints.relatedPersonId) score *= 1.15;
+
+      return { opportunity: opp, score: Math.min(score, 1.0) };
+    });
+
+    scoredCandidates.sort((a, b) => b.score - a.score);
+    const topCandidate = scoredCandidates[0];
+
+    if (topCandidate.score >= this.config.exactMatchThreshold) {
+      return {
+        extracted: entity,
+        status: "resolved",
+        match: {
+          id: topCandidate.opportunity.id,
+          type: "opportunity",
+          record: topCandidate.opportunity,
+          confidence: topCandidate.score,
+          matchMethod: "fuzzy",
+        },
+        confidence: topCandidate.score,
+      };
+    }
+
+    if (
+      scoredCandidates.filter((c) => c.score >= this.config.fuzzyMatchThreshold)
+        .length > 1
+    ) {
+      const resolutionCandidates: ResolutionCandidate[] = scoredCandidates
+        .filter((c) => c.score >= this.config.fuzzyMatchThreshold)
+        .slice(0, this.config.maxCandidates)
+        .map((c) => ({
+          id: c.opportunity.id,
+          label: c.opportunity.title,
+          confidence: c.score,
+        }));
+
+      return {
+        extracted: entity,
+        status: "ambiguous",
+        candidates: rankCandidates(resolutionCandidates),
+        confidence: topCandidate.score,
+      };
+    }
+
+    return {
+      extracted: entity,
+      status: "not_found",
+      confidence: topCandidate.score,
+    };
+  }
+
   /**
    * Get the current configuration
    */
@@ -2076,5 +2224,16 @@ export async function resolveNote(
   hints?: NoteResolutionHints
 ): Promise<ResolvedEntity<Note>> {
   return getEntityResolver().resolveNote(userId, description, hints);
+}
+
+/**
+ * Resolve an opportunity reference to an Opportunity record
+ */
+export async function resolveOpportunity(
+  userId: string,
+  description: string,
+  hints?: OpportunityResolutionHints
+): Promise<ResolvedEntity<Opportunity>> {
+  return getEntityResolver().resolveOpportunity(userId, description, hints);
 }
 

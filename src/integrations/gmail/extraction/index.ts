@@ -68,6 +68,17 @@ export {
 } from "./topics";
 
 // ─────────────────────────────────────────────────────────────
+// Opportunity Extraction
+// ─────────────────────────────────────────────────────────────
+
+export {
+  extractOpportunities,
+  extractOpportunitiesWithPeople,
+  containsOpportunityPatterns,
+  getPrimaryOpportunityType,
+} from "./opportunities";
+
+// ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
@@ -93,6 +104,12 @@ export type {
   ActionPriority,
   ActionIndicator,
   ActionExtractionOptions,
+
+  // Opportunities
+  ExtractedOpportunity,
+  OpportunityType,
+  OpportunityIndicator,
+  OpportunityExtractionOptions,
 
   // Topics
   ExtractedTopic,

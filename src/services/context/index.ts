@@ -31,6 +31,9 @@ export type {
   ProjectStatus,
   ProjectPriority,
   NoteType,
+  OpportunityType,
+  OpportunityStatus,
+  OpportunityPriority,
 
   // Pagination
   PaginationParams,
@@ -84,6 +87,11 @@ export type {
   UpdateNoteInput,
   ListNotesOptions,
 
+  // Opportunity
+  CreateOpportunityInput,
+  UpdateOpportunityInput,
+  ListOpportunitiesOptions,
+
   // Relationship
   CreateRelationshipInput,
   UpdateRelationshipInput,
@@ -113,6 +121,7 @@ export type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────
@@ -552,6 +561,46 @@ export type {
   SourceNoteInput,
   NotesErrorCode,
 } from "./notes";
+
+// ─────────────────────────────────────────────────────────────
+// Opportunities Service
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Service object
+  OpportunitiesService,
+  // Individual functions
+  createOpportunity,
+  getOpportunityById,
+  updateOpportunity,
+  deleteOpportunity,
+  restoreOpportunity,
+  startEvaluatingOpportunity,
+  pursueOpportunity,
+  declineOpportunity,
+  markOpportunityExpired,
+  archiveOpportunity,
+  convertOpportunity,
+  listOpportunities,
+  findOpportunityBySource,
+  searchOpportunities,
+  getActiveOpportunities,
+  getExpiringOpportunities,
+  getOpportunitiesByPerson,
+  getOpportunitiesByCategory,
+  upsertOpportunitiesFromSource,
+  // Error class
+  OpportunitiesServiceError,
+} from "./opportunities";
+
+export type {
+  // Service interface
+  IOpportunitiesService,
+  // Opportunity-specific types
+  SearchOpportunitiesOptions,
+  SourceOpportunityInput,
+  OpportunitiesErrorCode,
+} from "./opportunities";
 
 // ─────────────────────────────────────────────────────────────
 // Context Search Service

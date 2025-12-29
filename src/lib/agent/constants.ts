@@ -311,6 +311,9 @@ export const ENTITY_TYPES = {
   /** Note/memo reference */
   NOTE: "note",
 
+  /** Opportunity/potential engagement reference */
+  OPPORTUNITY: "opportunity",
+
   /** Relationship reference (e.g., "Sarah's manager") */
   RELATIONSHIP: "relationship",
 

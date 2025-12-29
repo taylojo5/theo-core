@@ -26,6 +26,7 @@ import type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
   EntityType,
 } from "@/services/context/types";
 
@@ -93,7 +94,7 @@ export const MAX_CONTEXT_TOKENS = 2000;
  * Get display name for an entity
  */
 export function getEntityDisplayName(
-  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
+  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity,
   entityType: EntityType
 ): string {
   switch (entityType) {
@@ -115,6 +116,8 @@ export function getEntityDisplayName(
       return (entity as Project).name;
     case "note":
       return (entity as Note).title || "Untitled Note";
+    case "opportunity":
+      return (entity as Opportunity).title;
     default:
       return "Unknown";
   }
@@ -124,7 +127,7 @@ export function getEntityDisplayName(
  * Generate a brief summary for an entity
  */
 export function summarizeEntity(
-  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note,
+  entity: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity,
   entityType: EntityType
 ): string {
   switch (entityType) {
@@ -198,6 +201,16 @@ export function summarizeEntity(
       const title = n.title || "Untitled";
       const content = n.content.substring(0, 50) + (n.content.length > 50 ? "..." : "");
       return `${title}: ${content}`;
+    }
+    case "opportunity": {
+      const opp = entity as Opportunity;
+      const parts = [opp.title];
+      parts.push(`[${opp.status}]`);
+      if (opp.type && opp.type !== "general") parts.push(`(${opp.type})`);
+      if (opp.expiresAt) {
+        parts.push(`expires ${opp.expiresAt.toLocaleDateString()}`);
+      }
+      return parts.join(" ");
     }
     default:
       return "Unknown entity";

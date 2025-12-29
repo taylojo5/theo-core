@@ -15,6 +15,7 @@ import type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
   EntityType,
 } from "@/services/context/types";
 
@@ -64,6 +65,7 @@ export type RoutineWithRelevance = WithRelevance<Routine>;
 export type OpenLoopWithRelevance = WithRelevance<OpenLoop>;
 export type ProjectWithRelevance = WithRelevance<Project>;
 export type NoteWithRelevance = WithRelevance<Note>;
+export type OpportunityWithRelevance = WithRelevance<Opportunity>;
 
 // ─────────────────────────────────────────────────────────────
 // Semantic Search Results
@@ -86,7 +88,7 @@ export interface SemanticMatch {
   content: string;
 
   /** The actual entity (when enriched) */
-  entity?: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note;
+  entity?: Person | Place | Event | Task | Deadline | Routine | OpenLoop | Project | Note | Opportunity;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -186,6 +188,9 @@ export interface ContextRetrieval {
   /** Relevant notes */
   relevantNotes: NoteWithRelevance[];
 
+  /** Relevant opportunities */
+  relevantOpportunities: OpportunityWithRelevance[];
+
   /** Conversation history context */
   conversationContext: ConversationMessage[];
 
@@ -263,6 +268,9 @@ export interface RetrievalOptions {
   /** Maximum notes to retrieve */
   maxNotes?: number;
 
+  /** Maximum opportunities to retrieve */
+  maxOpportunities?: number;
+
   /** Maximum semantic search matches */
   maxSemanticMatches?: number;
 
@@ -306,6 +314,7 @@ export const DEFAULT_RETRIEVAL_OPTIONS: Required<
   maxOpenLoops: 5,
   maxProjects: 5,
   maxNotes: 5,
+  maxOpportunities: 5,
   maxSemanticMatches: 10,
   maxConversationMessages: 10,
   maxRecentInteractions: 5,

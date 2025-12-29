@@ -55,10 +55,11 @@ model User {
   calendarApprovals CalendarApproval[]
 
   // New Context Entities
-  routines  Routine[]
-  openLoops OpenLoop[]
-  projects  Project[]
-  notes     Note[]
+  routines      Routine[]
+  openLoops     OpenLoop[]
+  projects      Project[]
+  notes         Note[]
+  opportunities Opportunity[]
 
   // Agent Engine
   agentConfig      AgentUserConfig?
@@ -708,6 +709,80 @@ model Note {
   @@index([userId])
   @@index([type])
   @@index([isPinned])
+  @@index([category])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context Entities: Opportunities
+// Potential engagements, leads, and actionable possibilities
+// ─────────────────────────────────────────────────────────────
+
+model Opportunity {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String? @db.Text
+  type        String  @default("general") // general, networking, business, learning, career, social, collaboration, investment
+
+  // Status tracking
+  status      String    @default("identified") // identified, evaluating, pursuing, converted, declined, expired, archived
+  priority    String    @default("medium") // low, medium, high, urgent
+  importance  Int       @default(5) // 1-10
+
+  // Timing
+  identifiedAt   DateTime  @default(now()) // When the opportunity was first identified
+  expiresAt      DateTime? // When the opportunity may expire or become irrelevant
+  evaluatedAt    DateTime? // When user started evaluating
+  decidedAt      DateTime? // When a decision was made
+  convertedAt    DateTime? // When converted to task/event/project
+
+  // Context of discovery
+  context    String?  @db.Text // Where/how this opportunity was identified
+  trigger    String? // What triggered identification of this opportunity
+
+  // Outcome tracking
+  outcome        String? // accepted, declined, converted, expired
+  outcomeNotes   String? @db.Text // Notes on the outcome or decision
+  convertedToType String? // task, event, project, relationship - what it became
+  convertedToId  String? // ID of the converted entity
+
+  // People & Relationships
+  relatedPersonId String? // Primary person associated
+  participants    String[] @default([]) // Other people involved
+
+  // Associations
+  relatedEmailId  String? // Email that surfaced this opportunity
+  relatedEventId  String? // Related event/meeting
+  relatedTaskId   String? // Related task
+  relatedProjectId String? // Related project
+
+  // Potential value/benefit
+  potentialValue String? @db.Text // What value this could bring
+  effort         String? // low, medium, high - effort required
+  risk           String? // low, medium, high - risk level
+
+  // Source tracking
+  source         String
+  sourceId       String?
+  sourceSyncedAt DateTime?
+
+  // Metadata
+  metadata Json     @default("{}")
+  tags     String[] @default([])
+  category String? // work, personal, professional_development, etc.
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, sourceId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([expiresAt])
   @@index([category])
 }
 

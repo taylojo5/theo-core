@@ -25,7 +25,8 @@ export type EntityType =
   | "routine"
   | "open_loop"
   | "project"
-  | "note";
+  | "note"
+  | "opportunity";
 
 export type SourceType = "manual" | "gmail" | "slack" | "calendar" | "import";
 

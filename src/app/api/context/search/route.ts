@@ -32,6 +32,11 @@ const VALID_ENTITY_TYPES: EntityType[] = [
   "event",
   "task",
   "deadline",
+  "routine",
+  "open_loop",
+  "project",
+  "note",
+  "opportunity",
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -122,6 +127,7 @@ export async function GET(request: NextRequest) {
       open_loop: 0,
       project: 0,
       note: 0,
+      opportunity: 0,
     };
 
     for (const result of results) {

@@ -10,6 +10,7 @@ import {
   extractActionItems,
   extractActionItemsWithAssignees,
 } from "./action-items";
+import { extractOpportunitiesWithPeople } from "./opportunities";
 import { extractTopics } from "./topics";
 import type {
   EmailProcessingResult,
@@ -20,6 +21,7 @@ import type {
   ExtractedPerson,
   ExtractedDate,
   ExtractedActionItem,
+  ExtractedOpportunity,
   ExtractedTopic,
   BatchProcessingResult,
   BatchProcessingOptions,
@@ -64,6 +66,7 @@ export async function processEmailContent(
   let people: ExtractedPerson[] = [];
   let dates: ExtractedDate[] = [];
   let actionItems: ExtractedActionItem[] = [];
+  let opportunities: ExtractedOpportunity[] = [];
   let topics: ExtractedTopic[] = [];
   let summary: string | undefined;
 
@@ -113,6 +116,26 @@ export async function processEmailContent(
     }
   }
 
+  // Extract opportunities
+  if (!options.skip?.opportunities) {
+    try {
+      if (emailInput.bodyText) {
+        // Include people for related person detection
+        opportunities = extractOpportunitiesWithPeople(
+          emailInput.bodyText,
+          people,
+          options.opportunities
+        );
+      }
+    } catch (error) {
+      errors.push({
+        phase: "opportunities",
+        message: error instanceof Error ? error.message : "Unknown error",
+        recoverable: true,
+      });
+    }
+  }
+
   // Extract topics
   if (!options.skip?.topics) {
     try {
@@ -152,6 +175,7 @@ export async function processEmailContent(
     people,
     dates,
     actionItems,
+    opportunities,
     topics,
     summary,
     metadata,

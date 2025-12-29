@@ -25,6 +25,9 @@ export interface EmailProcessingResult {
   /** Action items identified in the email */
   actionItems: ExtractedActionItem[];
 
+  /** Opportunities identified in the email */
+  opportunities: ExtractedOpportunity[];
+
   /** Topics/categories identified */
   topics: ExtractedTopic[];
 
@@ -56,7 +59,7 @@ export interface ProcessingMetadata {
  * Error during processing
  */
 export interface ProcessingError {
-  phase: "people" | "dates" | "actions" | "topics" | "summary";
+  phase: "people" | "dates" | "actions" | "opportunities" | "topics" | "summary";
   message: string;
   recoverable: boolean;
 }
@@ -298,6 +301,80 @@ export interface TopicExtractionOptions {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Extracted Opportunity
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * An opportunity extracted from email content
+ */
+export interface ExtractedOpportunity {
+  /** Brief title/summary of the opportunity */
+  title: string;
+
+  /** Full description/context */
+  description: string;
+
+  /** Type of opportunity */
+  type: OpportunityType;
+
+  /** Indicators that suggest this is an opportunity */
+  indicators: OpportunityIndicator[];
+
+  /** Confidence in the extraction (0-1) */
+  confidence: number;
+
+  /** Potential value or benefit */
+  potentialValue?: string;
+
+  /** Whether there's urgency/deadline mentioned */
+  hasUrgency: boolean;
+
+  /** Expiration date if mentioned */
+  expiresAt?: ExtractedDate;
+
+  /** Related person from the email */
+  relatedPerson?: ExtractedPerson;
+}
+
+/**
+ * Types of opportunities
+ */
+export type OpportunityType =
+  | "networking"    // Connection, introduction, meetup
+  | "business"      // Sales lead, partnership, client
+  | "learning"      // Course, webinar, conference
+  | "career"        // Job opportunity, recruiting
+  | "social"        // Event, party, gathering
+  | "collaboration" // Joint project, contribution
+  | "investment"    // Financial opportunity
+  | "general";      // Uncategorized
+
+/**
+ * Indicators that suggest an opportunity
+ */
+export type OpportunityIndicator =
+  | "networking_phrase"     // "let's connect", "introduce you"
+  | "business_phrase"       // "business opportunity", "potential client"
+  | "learning_phrase"       // "webinar", "workshop"
+  | "career_phrase"         // "job opportunity", "hiring"
+  | "social_phrase"         // "you're invited", "join us"
+  | "collaboration_phrase"  // "collaborate", "work together"
+  | "investment_phrase"     // "investment opportunity"
+  | "opportunity_keyword"   // "opportunity", "chance", "potential"
+  | "urgency_indicator";    // "limited time", "deadline"
+
+/**
+ * Options for opportunity extraction
+ */
+export interface OpportunityExtractionOptions {
+  /** Minimum confidence threshold */
+  minConfidence?: number;
+
+  /** Create Opportunity entities for high-confidence items */
+  createOpportunities?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Processing Options
 // ─────────────────────────────────────────────────────────────
 
@@ -314,6 +391,9 @@ export interface EmailProcessingOptions {
   /** Options for action item extraction */
   actions?: ActionExtractionOptions;
 
+  /** Options for opportunity extraction */
+  opportunities?: OpportunityExtractionOptions;
+
   /** Options for topic extraction */
   topics?: TopicExtractionOptions;
 
@@ -322,6 +402,7 @@ export interface EmailProcessingOptions {
     people?: boolean;
     dates?: boolean;
     actions?: boolean;
+    opportunities?: boolean;
     topics?: boolean;
     summary?: boolean;
   };

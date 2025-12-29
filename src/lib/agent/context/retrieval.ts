@@ -18,6 +18,7 @@ import type {
   OpenLoop,
   Project,
   Note,
+  Opportunity,
   EntityType,
 } from "@/services/context/types";
 import { excludeDeleted } from "@/services/context/utils";
@@ -46,6 +47,7 @@ import type {
   OpenLoopWithRelevance,
   ProjectWithRelevance,
   NoteWithRelevance,
+  OpportunityWithRelevance,
   ContextRetrievalStats,
 } from "./types";
 import { DEFAULT_RETRIEVAL_OPTIONS, ContextRetrievalError as ContextError } from "./types";
@@ -178,6 +180,7 @@ export class ContextRetrievalService implements IContextRetrievalService {
       relevantOpenLoops: [],
       relevantProjects: [],
       relevantNotes: [],
+      relevantOpportunities: [],
       conversationContext: [],
       semanticMatches: [],
       recentInteractions: [],
@@ -349,6 +352,7 @@ export class ContextRetrievalService implements IContextRetrievalService {
       relevantOpenLoops: [],
       relevantProjects: [],
       relevantNotes: [],
+      relevantOpportunities: [],
     };
 
     // Group entities by type
@@ -554,6 +558,10 @@ export class ContextRetrievalService implements IContextRetrievalService {
         resolved.relevantNotes || [],
         semantic.relevantNotes || []
       ),
+      relevantOpportunities: this.mergeWithDedup(
+        resolved.relevantOpportunities || [],
+        semantic.relevantOpportunities || []
+      ),
     };
   }
 
@@ -659,6 +667,7 @@ export class ContextRetrievalService implements IContextRetrievalService {
       relevantOpenLoops: [],
       relevantProjects: [],
       relevantNotes: [],
+      relevantOpportunities: [],
     };
 
     for (const match of matches) {
@@ -698,6 +707,9 @@ export class ContextRetrievalService implements IContextRetrievalService {
           break;
         case "note":
           result.relevantNotes!.push(withRelevance as NoteWithRelevance);
+          break;
+        case "opportunity":
+          result.relevantOpportunities!.push(withRelevance as OpportunityWithRelevance);
           break;
       }
     }
@@ -748,6 +760,9 @@ export class ContextRetrievalService implements IContextRetrievalService {
         break;
       case "note":
         result.relevantNotes.push(withRelevance as NoteWithRelevance);
+        break;
+      case "opportunity":
+        result.relevantOpportunities.push(withRelevance as OpportunityWithRelevance);
         break;
     }
   }
@@ -823,6 +838,7 @@ export class ContextRetrievalService implements IContextRetrievalService {
       relevantOpenLoops: [],
       relevantProjects: [],
       relevantNotes: [],
+      relevantOpportunities: [],
     };
   }
 }
