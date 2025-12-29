@@ -632,3 +632,53 @@ export {
   getConversationContext,
   rankContext,
 } from "./context";
+
+// ─────────────────────────────────────────────────────────────
+// Action Routing
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type PerceptionResult,
+  type ActionDecision,
+  type RoutingResult,
+  type RoutingContext,
+  type ConfidenceThresholdConfig,
+  type IActionRouter,
+  type ExecuteToolDecision,
+  type ConfirmActionDecision,
+  type ClarifyDecision,
+  type RespondDecision,
+  type ErrorDecision,
+  type ClarificationReason,
+  type ResponseStyle as RoutingResponseStyle,
+  type RoutingErrorCode,
+  type ThresholdPreset,
+  type ThresholdBand,
+
+  // Type guards
+  isExecuteDecision,
+  isConfirmDecision,
+  isClarifyDecision,
+  isRespondDecision,
+  isErrorDecision,
+
+  // Thresholds
+  DEFAULT_THRESHOLDS,
+  CONSERVATIVE_THRESHOLDS,
+  AGGRESSIVE_THRESHOLDS,
+  ALWAYS_CONFIRM_THRESHOLDS,
+  getThresholdPreset,
+  mergeThresholds,
+  validateThresholds,
+  getThresholdBand,
+  describeConfidenceAction,
+
+  // Router
+  ActionRouter,
+  actionRouter,
+  createActionRouter,
+  routeToAction,
+  shouldExecute as shouldExecuteAction,
+  needsClarification as needsRoutingClarification,
+} from "./routing";
