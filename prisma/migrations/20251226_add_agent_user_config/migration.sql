@@ -54,3 +54,4 @@ COMMENT ON COLUMN "AgentUserConfig"."featureFlags" IS 'Feature flags (null field
 COMMENT ON COLUMN "AgentUserConfig"."confidenceThresholds" IS 'Confidence thresholds (null fields use defaults)';
 
 
+

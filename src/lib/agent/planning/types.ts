@@ -596,3 +596,437 @@ export class PlanningError extends Error {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Output Resolution Types
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Result of resolving step outputs
+ */
+export interface OutputResolutionResult {
+  /** Whether all references were successfully resolved */
+  success: boolean;
+
+  /** Resolved parameters */
+  resolvedParams: Record<string, unknown>;
+
+  /** Errors encountered during resolution */
+  errors: OutputResolutionError[];
+
+  /** References that were resolved */
+  resolvedReferences: ResolvedReference[];
+}
+
+/**
+ * An error during output resolution
+ */
+export interface OutputResolutionError {
+  /** Type of error */
+  type: "step_not_found" | "step_not_completed" | "path_not_found" | "invalid_reference";
+
+  /** The reference that failed */
+  reference: string;
+
+  /** Human-readable error message */
+  message: string;
+
+  /** Step index referenced (if applicable) */
+  stepIndex?: number;
+
+  /** Path within the output (if applicable) */
+  path?: string;
+}
+
+/**
+ * A successfully resolved reference
+ */
+export interface ResolvedReference {
+  /** Original reference string */
+  reference: string;
+
+  /** Step index that was referenced */
+  stepIndex: number;
+
+  /** Path within the output (if any) */
+  path?: string;
+
+  /** Resolved value */
+  value: unknown;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Execution Types
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Options for plan execution
+ */
+export interface ExecutionOptions {
+  /** Context for tool execution */
+  context: import("../types").ExecutionContext;
+
+  /** Whether to stop on first failure */
+  stopOnFailure?: boolean;
+
+  /** Event listener for real-time updates */
+  onEvent?: PlanEventListener;
+
+  /** Async event listener for real-time updates */
+  onEventAsync?: AsyncPlanEventListener;
+
+  /** Whether to skip approval checks (for testing) */
+  skipApprovals?: boolean;
+}
+
+/**
+ * Result of plan execution
+ */
+export interface PlanExecutionResult {
+  /** Final plan state */
+  plan: StructuredPlan;
+
+  /** Whether execution completed successfully */
+  success: boolean;
+
+  /** Whether execution was paused (for approval) */
+  paused: boolean;
+
+  /** Approval ID if paused for approval */
+  pendingApprovalId?: string;
+
+  /** Step index where execution stopped */
+  stoppedAtStep: number;
+
+  /** Number of steps completed */
+  completedSteps: number;
+
+  /** Number of steps failed */
+  failedSteps: number;
+
+  /** Number of steps skipped */
+  skippedSteps: number;
+
+  /** Total execution duration in milliseconds */
+  durationMs: number;
+
+  /** Step results (for completed steps) */
+  stepResults: Map<number, unknown>;
+
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Result of single step execution
+ */
+export interface StepExecutionResult {
+  /** The step that was executed */
+  step: StructuredStep;
+
+  /** Whether the step succeeded */
+  success: boolean;
+
+  /** Whether approval was requested */
+  approvalRequested: boolean;
+
+  /** Approval ID (if approval requested) */
+  approvalId?: string;
+
+  /** Step result (if successful) */
+  result?: unknown;
+
+  /** Error message (if failed) */
+  error?: string;
+
+  /** Execution duration in milliseconds */
+  durationMs: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Execution Event Types
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * All possible plan execution events
+ */
+export type PlanExecutionEvent =
+  | PlanExecutionStartedEvent
+  | StepStartingEvent
+  | StepExecutionCompletedEvent
+  | StepExecutionFailedEvent
+  | StepSkippedEvent
+  | PlanExecutionPausedEvent
+  | PlanResumedEvent
+  | PlanExecutionCompletedEvent
+  | PlanExecutionFailedEvent
+  | PlanCancelledEvent
+  | ApprovalRequestedEvent
+  | ApprovalReceivedEvent;
+
+/**
+ * Base interface for all plan events
+ */
+export interface BasePlanEvent {
+  /** Event type discriminator */
+  type: string;
+
+  /** Plan ID */
+  planId: string;
+
+  /** Timestamp of the event */
+  timestamp: Date;
+}
+
+/**
+ * Emitted when plan execution starts
+ */
+export interface PlanExecutionStartedEvent extends BasePlanEvent {
+  type: "plan_started";
+
+  /** Plan goal */
+  goal: string;
+
+  /** Total number of steps */
+  totalSteps: number;
+
+  /** Whether any step requires approval */
+  requiresApproval: boolean;
+}
+
+/**
+ * Emitted when a step is about to start executing
+ */
+export interface StepStartingEvent extends BasePlanEvent {
+  type: "step_starting";
+
+  /** Step index (0-based) */
+  stepIndex: number;
+
+  /** Tool being executed */
+  toolName: string;
+
+  /** Step description */
+  description: string;
+
+  /** Whether this step requires approval */
+  requiresApproval: boolean;
+}
+
+/**
+ * Emitted when a step completes successfully
+ */
+export interface StepExecutionCompletedEvent extends BasePlanEvent {
+  type: "step_completed";
+
+  /** Step index (0-based) */
+  stepIndex: number;
+
+  /** Tool that was executed */
+  toolName: string;
+
+  /** Step description */
+  description: string;
+
+  /** Execution duration in milliseconds */
+  durationMs: number;
+
+  /** Summary of the result (for display) */
+  resultSummary?: string;
+}
+
+/**
+ * Emitted when a step fails
+ */
+export interface StepExecutionFailedEvent extends BasePlanEvent {
+  type: "step_failed";
+
+  /** Step index (0-based) */
+  stepIndex: number;
+
+  /** Tool that was executed */
+  toolName: string;
+
+  /** Step description */
+  description: string;
+
+  /** Error message */
+  error: string;
+
+  /** Whether the error is retryable */
+  retryable: boolean;
+
+  /** Execution duration in milliseconds */
+  durationMs: number;
+}
+
+/**
+ * Emitted when a step is skipped
+ */
+export interface StepSkippedEvent extends BasePlanEvent {
+  type: "step_skipped";
+
+  /** Step index (0-based) */
+  stepIndex: number;
+
+  /** Tool that would have been executed */
+  toolName: string;
+
+  /** Step description */
+  description: string;
+
+  /** Reason for skipping */
+  reason: "dependency_failed" | "user_cancelled" | "plan_cancelled";
+}
+
+/**
+ * Emitted when plan pauses for approval
+ */
+export interface PlanExecutionPausedEvent extends BasePlanEvent {
+  type: "plan_paused";
+
+  /** Step index where the plan paused */
+  stepIndex: number;
+
+  /** Reason for pausing */
+  reason: "approval_needed" | "user_requested";
+
+  /** Approval ID (if paused for approval) */
+  approvalId?: string;
+
+  /** Tool requiring approval */
+  toolName?: string;
+
+  /** Risk level of the action */
+  riskLevel?: RiskLevel;
+}
+
+/**
+ * Emitted when plan resumes after pause
+ */
+export interface PlanResumedEvent extends BasePlanEvent {
+  type: "plan_resumed";
+
+  /** Step index where execution will resume */
+  stepIndex: number;
+
+  /** How the plan was resumed */
+  resumeReason: "approval_granted" | "user_requested";
+}
+
+/**
+ * Emitted when plan completes successfully
+ */
+export interface PlanExecutionCompletedEvent extends BasePlanEvent {
+  type: "plan_completed";
+
+  /** Plan goal */
+  goal: string;
+
+  /** Number of steps that succeeded */
+  successfulSteps: number;
+
+  /** Total number of steps */
+  totalSteps: number;
+
+  /** Total execution duration in milliseconds */
+  totalDurationMs: number;
+}
+
+/**
+ * Emitted when plan fails
+ */
+export interface PlanExecutionFailedEvent extends BasePlanEvent {
+  type: "plan_failed";
+
+  /** Plan goal */
+  goal: string;
+
+  /** Step index where failure occurred */
+  failedStepIndex: number;
+
+  /** Error message from the failed step */
+  error: string;
+
+  /** Number of steps completed before failure */
+  completedSteps: number;
+
+  /** Total number of steps */
+  totalSteps: number;
+}
+
+/**
+ * Emitted when plan is cancelled
+ */
+export interface PlanCancelledEvent extends BasePlanEvent {
+  type: "plan_cancelled";
+
+  /** Plan goal */
+  goal: string;
+
+  /** Step index where cancellation occurred */
+  cancelledAtStep: number;
+
+  /** Number of steps completed before cancellation */
+  completedSteps: number;
+
+  /** Total number of steps */
+  totalSteps: number;
+
+  /** Who cancelled the plan */
+  cancelledBy: "user" | "system";
+}
+
+/**
+ * Emitted when an approval is requested
+ */
+export interface ApprovalRequestedEvent extends BasePlanEvent {
+  type: "approval_requested";
+
+  /** Step index requiring approval */
+  stepIndex: number;
+
+  /** Approval record ID */
+  approvalId: string;
+
+  /** Tool requiring approval */
+  toolName: string;
+
+  /** Description of what needs approval */
+  description: string;
+
+  /** Risk level */
+  riskLevel: RiskLevel;
+
+  /** When the approval expires */
+  expiresAt: Date;
+}
+
+/**
+ * Emitted when an approval decision is received
+ */
+export interface ApprovalReceivedEvent extends BasePlanEvent {
+  type: "approval_received";
+
+  /** Step index that was approved/rejected */
+  stepIndex: number;
+
+  /** Approval record ID */
+  approvalId: string;
+
+  /** The decision */
+  decision: "approved" | "rejected";
+
+  /** Who made the decision */
+  decidedBy?: string;
+}
+
+/**
+ * Callback function for plan execution events
+ */
+export type PlanEventListener = (event: PlanExecutionEvent) => void;
+
+/**
+ * Async callback function for plan execution events
+ */
+export type AsyncPlanEventListener = (event: PlanExecutionEvent) => Promise<void>;
+

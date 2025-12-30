@@ -17,3 +17,4 @@ COMMENT ON COLUMN "AgentPlan"."assumptions" IS 'Assumptions made during planning
 COMMENT ON COLUMN "AgentPlanStep"."description" IS 'Human-readable description of what this step does';
 COMMENT ON COLUMN "AgentPlanStep"."requiresApproval" IS 'Whether this step requires user approval before execution';
 
+

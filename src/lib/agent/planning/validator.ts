@@ -542,3 +542,4 @@ export function getAvailableToolNames(): string[] {
   return toolRegistry.names();
 }
 
+

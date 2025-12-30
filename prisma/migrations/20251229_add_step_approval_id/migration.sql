@@ -6,3 +6,4 @@ ALTER TABLE "AgentPlanStep" ADD COLUMN IF NOT EXISTS "approvalId" TEXT;
 -- Add index for efficient approval lookup
 CREATE INDEX IF NOT EXISTS "AgentPlanStep_approvalId_idx" ON "AgentPlanStep"("approvalId");
 
+
