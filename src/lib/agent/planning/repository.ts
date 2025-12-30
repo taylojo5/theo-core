@@ -643,6 +643,24 @@ async function buildStepIdToIndexMap(planId: string): Promise<Map<string, number
 
 /**
  * Map database plan to structured plan
+ * 
+ * ## Database to Domain Model Mapping
+ * 
+ * This function transforms the Prisma `AgentPlan` model into the domain
+ * `StructuredPlan` type used throughout the planning module.
+ * 
+ * Key field mappings:
+ * - `AgentPlanStep.stepOrder` → `StructuredStep.index`
+ * - `AgentPlan.currentStep` → `StructuredPlan.currentStepIndex`
+ * - `AgentPlanStep.dependsOn` (step IDs) → `StructuredStep.dependsOnIndices` (positions)
+ * 
+ * The `dependsOnIndices` field is derived by mapping step IDs to their
+ * array positions (after sorting by stepOrder). This allows algorithms
+ * like topological sort to work with simple integer indices.
+ * 
+ * @param dbPlan - Database plan with steps included
+ * @param overrideAssumptions - Optional pre-parsed assumptions (used during creation)
+ * @returns Domain model representation of the plan
  */
 function mapDbPlanToStructured(
   dbPlan: DbPlanWithSteps,
@@ -710,14 +728,32 @@ function mapDbPlanToStructured(
 
 /**
  * Map database step to structured step
- * @param dbStep - Database step record
- * @param stepIdToIndex - Map of step IDs to array indices for resolving dependsOnIndices
+ * 
+ * ## Field Mapping Details
+ * 
+ * | Database Field | Domain Field | Notes |
+ * |----------------|--------------|-------|
+ * | `stepOrder`    | `index`      | 0-based execution order |
+ * | `dependsOn`    | `dependsOn`  | Array of step UUIDs |
+ * | (derived)      | `dependsOnIndices` | Array of step indices |
+ * | `toolParams`   | `parameters` | JSON → Record mapping |
+ * | `rollbackAction` | `rollbackAction` | JSON → typed object |
+ * 
+ * The `dependsOnIndices` field is computed by looking up each step ID
+ * in the `stepIdToIndex` map, which contains the array position of each
+ * step after sorting by stepOrder.
+ * 
+ * @param dbStep - Database step record from Prisma
+ * @param stepIdToIndex - Map of step IDs to their 0-based array positions.
+ *   Required for computing `dependsOnIndices`. When undefined, `dependsOnIndices`
+ *   will be an empty array.
+ * @returns Domain model representation of the step
  */
 function mapDbStepToStructured(
   dbStep: DbStep,
   stepIdToIndex?: Map<string, number>
 ): StructuredStep {
-  // Parse rollback action
+  // Parse rollback action from JSON
   let rollbackAction: RollbackAction | undefined;
   if (dbStep.rollbackAction && typeof dbStep.rollbackAction === "object") {
     const rb = dbStep.rollbackAction as Record<string, unknown>;
@@ -729,8 +765,9 @@ function mapDbStepToStructured(
     }
   }
 
-  // Reconstruct dependsOnIndices from step IDs using the mapping
-  // dependsOn stores step IDs, dependsOnIndices stores array positions (for getExecutionOrder)
+  // Reconstruct dependsOnIndices from step IDs using the provided mapping.
+  // - dependsOn: array of step UUIDs (preserved from database)
+  // - dependsOnIndices: array of 0-based positions (derived for convenience)
   const dependsOnIndices: number[] = [];
   if (stepIdToIndex && dbStep.dependsOn) {
     for (const depId of dbStep.dependsOn) {
@@ -744,6 +781,7 @@ function mapDbStepToStructured(
   return {
     id: dbStep.id,
     planId: dbStep.planId,
+    // stepOrder becomes index - see StructuredStep documentation for details
     index: dbStep.stepOrder,
     toolName: dbStep.toolName,
     parameters: (dbStep.toolParams as Record<string, unknown>) || {},

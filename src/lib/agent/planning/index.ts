@@ -188,3 +188,84 @@ export {
   createApprovalRequestedEvent,
   createApprovalReceivedEvent,
 } from "./events";
+
+// ─────────────────────────────────────────────────────────────
+// State Management
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // State retrieval
+  getPlanState,
+  getPlanStateForUser,
+
+  // State updates
+  updatePlanState,
+  markPlanForResumption,
+
+  // Interrupted plan detection
+  findInterruptedPlans,
+  hasInterruptedPlans,
+  getInterruptedPlansSummary,
+
+  // Step state helpers
+  getNextExecutableStep,
+  getStepAwaitingApproval,
+  getRollbackableSteps,
+  canPlanContinue,
+
+  // Types
+  type PlanState,
+  type StepStateSnapshot,
+  type PlanStateUpdate,
+  type FindInterruptedPlansOptions,
+  type InterruptedPlansSummary,
+} from "./state";
+
+// ─────────────────────────────────────────────────────────────
+// Recovery
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Main recovery functions
+  determineRecoveryAction,
+  executeRecovery,
+
+  // Error classification
+  classifyError,
+  createStepFailure,
+
+  // Types
+  type StepFailure,
+  type StepErrorType,
+  type RecoveryResult,
+  type RecoveryOptions,
+} from "./recovery";
+
+// ─────────────────────────────────────────────────────────────
+// Rollback
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Main rollback functions
+  rollbackPlan,
+
+  // Rollback analysis
+  analyzeRollback,
+  analyzeRollbackForPlan,
+  canFullyRollback,
+  hasRollbackableSteps,
+
+  // Rollback action helpers
+  createDeleteRollback,
+  createRestoreRollback,
+  getStandardRollback,
+  STANDARD_ROLLBACKS,
+
+  // Types
+  type RollbackResult,
+  type RollbackError,
+  type RollbackOptions,
+  type RollbackAnalysis,
+  type RollbackableStep,
+  type NonRollbackableStep,
+} from "./rollback";

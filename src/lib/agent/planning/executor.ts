@@ -302,6 +302,82 @@ async function executeStep(
     toolName: step.toolName,
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Pre-execution validation (before marking step as executing)
+  // This ensures we don't transition to EXECUTING if validation fails
+  // ─────────────────────────────────────────────────────────────
+
+  // Validate output references before starting execution
+  const refErrors = validateOutputReferences(step, plan);
+  if (refErrors.length > 0) {
+    const errorMessage = `Invalid output references: ${refErrors.map((e) => e.message).join("; ")}`;
+    logger.warn("Step validation failed before execution", {
+      planId: plan.id,
+      stepIndex: step.index,
+      errors: refErrors,
+    });
+    
+    // Mark step as failed without ever transitioning to EXECUTING
+    await planRepository.failStep(step.id, errorMessage);
+    await emitter.emit(
+      createStepFailedEvent(
+        step.index,
+        step.toolName,
+        step.description,
+        errorMessage,
+        false, // Not retryable - this is a validation error
+        Date.now() - startTime
+      )
+    );
+    
+    return {
+      step,
+      success: false,
+      approvalRequested: false,
+      error: errorMessage,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  // Build a temporary plan with injected results for resolution
+  const planWithResults = buildPlanWithResults(plan, stepResults);
+
+  // Resolve step output references (pre-validate before execution)
+  const resolution = resolveStepOutputs(step, planWithResults);
+  if (!resolution.success) {
+    const errorMessage = `Failed to resolve step outputs: ${resolution.errors.map((e) => e.message).join("; ")}`;
+    logger.warn("Step output resolution failed before execution", {
+      planId: plan.id,
+      stepIndex: step.index,
+      errors: resolution.errors,
+    });
+    
+    // Mark step as failed without ever transitioning to EXECUTING
+    await planRepository.failStep(step.id, errorMessage);
+    await emitter.emit(
+      createStepFailedEvent(
+        step.index,
+        step.toolName,
+        step.description,
+        errorMessage,
+        false, // Not retryable - this is a resolution error
+        Date.now() - startTime
+      )
+    );
+    
+    return {
+      step,
+      success: false,
+      approvalRequested: false,
+      error: errorMessage,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Validation passed - now start execution
+  // ─────────────────────────────────────────────────────────────
+
   // Emit step starting event
   await emitter.emit(
     createStepStartingEvent(
@@ -312,28 +388,10 @@ async function executeStep(
     )
   );
 
-  // Update step status to executing
+  // Update step status to executing (only after validation passes)
   await planRepository.startStepExecution(step.id);
 
   try {
-    // Validate output references
-    const refErrors = validateOutputReferences(step, plan);
-    if (refErrors.length > 0) {
-      throw new Error(
-        `Invalid output references: ${refErrors.map((e) => e.message).join("; ")}`
-      );
-    }
-
-    // Build a temporary plan with injected results for resolution
-    const planWithResults = buildPlanWithResults(plan, stepResults);
-
-    // Resolve step output references
-    const resolution = resolveStepOutputs(step, planWithResults);
-    if (!resolution.success) {
-      throw new Error(
-        `Failed to resolve step outputs: ${resolution.errors.map((e) => e.message).join("; ")}`
-      );
-    }
 
     // Check if step requires approval
     if (step.requiresApproval && !options.skipApprovals) {
@@ -515,6 +573,8 @@ export async function resumePlan(
   approvalId: string,
   options: ExecutionOptions
 ): Promise<PlanExecutionResult> {
+  const startTime = Date.now();
+  
   logger.info("Resuming plan after approval", { planId, approvalId });
 
   // Load the plan
@@ -619,12 +679,14 @@ export async function resumePlan(
         await planRepository.completePlan(planId);
         const finalPlan = await planRepository.getById(planId);
         
+        const totalDurationMs = Date.now() - startTime;
+        
         await emitter.emit(
           createPlanCompletedEvent(
             finalPlan!.goal,
             finalPlan!.steps.filter(s => s.status === STEP_STATUS.COMPLETED).length,
             finalPlan!.steps.length,
-            0 // Duration not tracked in this path
+            totalDurationMs
           )
         );
 
@@ -636,7 +698,7 @@ export async function resumePlan(
           completedSteps: finalPlan!.steps.filter(s => s.status === STEP_STATUS.COMPLETED).length,
           failedSteps: finalPlan!.steps.filter(s => s.status === STEP_STATUS.FAILED).length,
           skippedSteps: finalPlan!.steps.filter(s => s.status === STEP_STATUS.SKIPPED).length,
-          durationMs: 0,
+          durationMs: totalDurationMs,
           stepResults,
         };
       }
@@ -660,7 +722,7 @@ export async function resumePlan(
         completedSteps: pausedPlan!.steps.filter(s => s.status === STEP_STATUS.COMPLETED).length,
         failedSteps: pausedPlan!.steps.filter(s => s.status === STEP_STATUS.FAILED).length,
         skippedSteps: pausedPlan!.steps.filter(s => s.status === STEP_STATUS.SKIPPED).length,
-        durationMs: stepResult.durationMs,
+        durationMs: Date.now() - startTime,
         stepResults,
       };
     } else {
@@ -691,7 +753,7 @@ export async function resumePlan(
         completedSteps: completedCount,
         failedSteps: failedCount,
         skippedSteps: skippedCount,
-        durationMs: stepResult.durationMs,
+        durationMs: Date.now() - startTime,
         stepResults,
         error: stepResult.error,
       };

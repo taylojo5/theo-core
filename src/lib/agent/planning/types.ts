@@ -131,15 +131,45 @@ export interface StructuredPlan {
 
 /**
  * A single step in a structured plan
+ * 
+ * ## Index vs stepOrder Mapping
+ * 
+ * This interface uses `index` to represent the step's position in execution order.
+ * In the database (`AgentPlanStep` model), this is stored as `stepOrder`.
+ * 
+ * The mapping is:
+ * - `StructuredStep.index` ← `AgentPlanStep.stepOrder`
+ * - Both are 0-based integers representing execution order
+ * - Steps are always sorted by this value when retrieved from the database
+ * 
+ * The `dependsOn` array contains step **IDs** (UUIDs), while `dependsOnIndices`
+ * contains the corresponding **index** values for convenience when processing
+ * execution order or output references.
+ * 
+ * @example
+ * ```typescript
+ * // A step at position 2 that depends on steps at positions 0 and 1
+ * const step: StructuredStep = {
+ *   index: 2,                        // Third step (0-based)
+ *   dependsOn: ["step-uuid-0", "step-uuid-1"],  // Step IDs
+ *   dependsOnIndices: [0, 1],        // Same dependencies by index
+ *   // ...
+ * };
+ * ```
  */
 export interface StructuredStep {
-  /** Unique step identifier */
+  /** Unique step identifier (UUID) */
   id: string;
 
   /** Plan this step belongs to */
   planId: string;
 
-  /** Order of this step (0-based) */
+  /**
+   * Execution order of this step (0-based).
+   * 
+   * Maps to `stepOrder` in the database. Steps are executed in ascending
+   * order of this value, respecting dependencies.
+   */
   index: number;
 
   /** Tool to execute */
@@ -148,10 +178,23 @@ export interface StructuredStep {
   /** Validated parameters for the tool */
   parameters: Record<string, unknown>;
 
-  /** IDs of steps this step depends on */
+  /**
+   * IDs of steps this step depends on.
+   * 
+   * These are the UUIDs of prerequisite steps that must complete
+   * before this step can execute. Use `dependsOnIndices` when you
+   * need the position-based indices instead.
+   */
   dependsOn: string[];
 
-  /** Indices of steps this depends on (for convenience) */
+  /**
+   * Indices of steps this depends on (derived from `dependsOn`).
+   * 
+   * Convenience field containing the `index` values of dependent steps.
+   * Useful for topological sorting and output reference resolution.
+   * 
+   * @see index for the mapping between index and stepOrder
+   */
   dependsOnIndices: number[];
 
   /** Description of what this step does */
