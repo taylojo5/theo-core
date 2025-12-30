@@ -743,6 +743,79 @@ export {
 } from "./response";
 
 // ─────────────────────────────────────────────────────────────
+// Approval System (LLM-First)
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Repository
+  approvalRepository,
+
+  // Service
+  approvalService,
+
+  // Expiration
+  runExpirationCheck as runApprovalExpirationCheck,
+
+  // Types
+  type AgentActionApproval,
+  type ApprovalCreateInput,
+  type ApprovalUpdateInput,
+  type ApprovalDisplayData,
+  type ApprovalDecision,
+  type ApprovalDecisionResult,
+} from "./approval";
+
+// ─────────────────────────────────────────────────────────────
+// User Autonomy & Approval Settings
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  type ApprovalMode,
+  type UserAutonomySettings,
+  type PartialAutonomySettings,
+  type CategoryApprovalSetting,
+  type ToolApprovalSetting,
+  type QuietHoursSettings,
+  type ApprovalRequirementResult,
+  type AutonomyPreset,
+
+  // Constants
+  APPROVAL_MODE_DESCRIPTIONS,
+  AUTONOMY_PRESET_DESCRIPTIONS,
+  DEFAULT_APPROVAL_MODE,
+  DEFAULT_CONFIDENCE_THRESHOLD,
+
+  // Type guards
+  isValidApprovalMode,
+  isFullAutonomy,
+  isValidConfidence,
+
+  // Default factories
+  getDefaultAutonomySettings,
+  getConservativeAutonomySettings,
+  getPermissiveAutonomySettings,
+  getAutonomyPreset,
+  validateAutonomySettings,
+
+  // Repository
+  autonomyRepository,
+
+  // Service functions
+  getAutonomySettings,
+  updateAutonomySettings,
+  resetAutonomySettings,
+  requiresApproval,
+  checkApprovalRequired,
+  isInQuietHours,
+  setToolAlwaysApprove,
+  setToolFullAutonomy,
+  disableTool,
+  enableTool,
+  autonomyService,
+} from "./autonomy";
+
+// ─────────────────────────────────────────────────────────────
 // Plan Generation & Structuring
 // ─────────────────────────────────────────────────────────────
 

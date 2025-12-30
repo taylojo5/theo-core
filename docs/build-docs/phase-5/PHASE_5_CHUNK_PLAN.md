@@ -188,7 +188,7 @@ F0A → F1B → F2C → F3D → LLM → T1R → T2Q → T3A → T4E → P1I → 
 ┌───────────────────────────────────────────────│───────────────────────────────┐
 │                            ROUTING            │                               │
 │                                               ▼                               │
-│                ✅[R1D] Decision ──▶ [R2F] Response                             │
+│                ✅[R1D] Decision ──▶ ✅[R2F] Response                          │
 │                                               │                               │
 │  Routes: execute / confirm / clarify / plan based on LLM confidence           │
 └───────────────────────────────────────────────│───────────────────────────────┘
@@ -198,12 +198,12 @@ F0A → F1B → F2C → F3D → LLM → T1R → T2Q → T3A → T4E → P1I → 
 ┌───────────────────────────────────────────────│───────────────────────────────┐
 │                            PLANNING           │                               │
 │                                               ▼                               │
-│       [L1G] Generation ──▶ [L2X] Execution ──▶ [L3S] State                    │
+│       ✅[L1G] Generation ──▶ ✅[L2X] Execution ──▶ ✅[L3S] State              │
 │                                               │                               │
 │  LLM.generatePlan() → validate → execute → pause at approvals → recover       │
 └───────────────────────────────────────────────│───────────────────────────────┘
                                                 │
-                                      ═══ CHECKPOINT 6 ═══
+                                      ═══ CHECKPOINT 6 ═══ ✅
                                                 │
 ┌───────────────────────────────────────────────│───────────────────────────────┐
 │                            APPROVAL           │                               │
