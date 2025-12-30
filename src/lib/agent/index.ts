@@ -741,3 +741,64 @@ export {
   // Serialization
   serializeForClient,
 } from "./response";
+
+// ─────────────────────────────────────────────────────────────
+// Plan Generation & Structuring
+// ─────────────────────────────────────────────────────────────
+
+export {
+  // Types (LLM types already exported from ./llm)
+  type PlanningContext,
+  type PlanConstraints,
+  type StructuredPlan,
+  type StructuredStep,
+  type StoredAssumption,
+  type RollbackAction,
+  type PlanValidationResult,
+  type ValidatedLLMPlan,
+  type ValidatedStep,
+  type PlanValidationError,
+  type PlanValidationWarning,
+  type PlanValidationErrorCode,
+  type PlanValidationWarningCode,
+  type CreatePlanInput,
+  type CreateStepInput,
+  type UpdatePlanStatusInput,
+  type UpdateStepStatusInput,
+  type PlanQueryOptions,
+  type PlanQueryResult,
+  type PlanEvent,
+  type PlanCreatedEvent,
+  type PlanValidationEvent,
+  type StepStartedEvent,
+  type StepCompletedEvent,
+  type StepFailedEvent,
+  type PlanPausedEvent,
+  type PlanCompletedEvent,
+  type PlanFailedEvent,
+  type PlanningErrorCode,
+
+  // Error class
+  PlanningError,
+
+  // Validation
+  validatePlan,
+  formatValidationErrorsForLLM,
+  canRetryPlanGeneration,
+  getAvailableToolNames,
+
+  // Structuring
+  structurePlan,
+  validatePlanOnly,
+  createPlanPreview,
+  markApprovalSteps,
+  getApprovalRequiredSteps,
+  getNextApprovalStep,
+  estimatePlanDuration,
+  summarizePlan,
+  canExecuteNextStep,
+  getExecutionOrder,
+
+  // Repository
+  planRepository,
+} from "./planning";

@@ -193,7 +193,7 @@ F0A → F1B → F2C → F3D → LLM → T1R → T2Q → T3A → T4E → P1I → 
 │  Routes: execute / confirm / clarify / plan based on LLM confidence           │
 └───────────────────────────────────────────────│───────────────────────────────┘
                                                 │
-                                      ═══ CHECKPOINT 5 ═══
+                                      ═══ CHECKPOINT 5 ═══ ✅
                                                 │
 ┌───────────────────────────────────────────────│───────────────────────────────┐
 │                            PLANNING           │                               │

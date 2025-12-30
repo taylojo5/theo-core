@@ -1331,6 +1331,11 @@ model AgentPlan {
   approvedAt       DateTime?
   approvedBy       String? // user ID or 'system'
 
+  // LLM Metadata
+  reasoning   String? @db.Text // LLM reasoning for why this plan structure was chosen
+  confidence  Float   @default(0.5) // LLM confidence in plan success (0.0-1.0)
+  assumptions Json    @default("[]") // Assumptions made during planning as JSON array
+
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -1358,12 +1363,15 @@ model AgentPlanStep {
   dependsOn String[] @default([]) // IDs of steps this step depends on
 
   // Action
-  toolName   String
-  toolParams Json // Parameters for the tool
+  toolName         String
+  toolParams       Json // Parameters for the tool
+  description      String  @default("") // Human-readable description of what this step does
+  requiresApproval Boolean @default(false) // Whether this step requires user approval
 
   // Status
   status       String  @default("pending") // pending, executing, completed, failed, skipped, rolled_back
   errorMessage String?
+  approvalId   String? // ID of ActionApproval when step is awaiting approval
 
   // Result
   result Json? // Execution result
