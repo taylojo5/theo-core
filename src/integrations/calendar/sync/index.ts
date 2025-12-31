@@ -12,17 +12,17 @@ export type {
   CalendarSyncType,
   CalendarSyncResult,
   SyncOperationError,
-  
+
   // Full sync types
   FullCalendarSyncOptions,
   FullSyncCheckpoint,
   FullSyncProgress,
-  
+
   // Incremental sync types
   IncrementalCalendarSyncOptions,
   IncrementalSyncProgress,
   EventChange,
-  
+
   // Status types
   SyncStatus,
   SyncState,
@@ -32,14 +32,12 @@ export type {
 // Job Definitions
 // ─────────────────────────────────────────────────────────────
 
-export {
-  CALENDAR_JOB_NAMES,
-} from "./jobs";
+export { CALENDAR_JOB_NAMES } from "./jobs";
 
 export type {
   // Job name type
   CalendarJobName,
-  
+
   // Job data types (canonical definitions)
   FullSyncJobData,
   IncrementalSyncJobData,
@@ -47,7 +45,7 @@ export type {
   RenewWebhookJobData,
   ExpireApprovalsJobData,
   BulkEventEmbedJobData,
-  
+
   // Job result types
   SyncJobResult,
   WebhookJobResult,
@@ -77,10 +75,7 @@ export type {
 // Full Sync
 // ─────────────────────────────────────────────────────────────
 
-export {
-  fullCalendarSync,
-  resumeFullSync,
-} from "./full-sync";
+export { fullCalendarSync, resumeFullSync } from "./full-sync";
 
 // ─────────────────────────────────────────────────────────────
 // Incremental Sync
@@ -120,7 +115,7 @@ export {
   scheduleIncrementalSync,
   scheduleWebhookProcessing,
   scheduleWebhookRenewal,
-  
+
   // Recurring job management
   startRecurringSync,
   stopRecurringSync,
@@ -128,19 +123,16 @@ export {
   stopWebhookRenewalScheduler,
   startApprovalExpirationScheduler,
   stopApprovalExpirationScheduler,
-  
+
   // Scheduler initialization
   initializeSchedulers,
   shutdownSchedulers,
-  
+
   // Utilities
   hasRecurringSyncActive,
 } from "./scheduler";
 
-export type {
-  CalendarJobQueue,
-  SchedulerConfig,
-} from "./scheduler";
+export type { CalendarJobQueue, SchedulerConfig } from "./scheduler";
 
 // ─────────────────────────────────────────────────────────────
 // Worker
@@ -159,14 +151,14 @@ import { schedulerLogger } from "../logger";
 
 /**
  * Create a queue adapter that wraps the BullMQ queue to match CalendarJobQueue interface.
- * 
+ *
  * This adapter is exported for use by API routes and other code that needs to
  * schedule calendar jobs (e.g., webhook handlers, connect endpoints).
- * 
+ *
  * @example
  * ```ts
  * import { getCalendarQueue, scheduleIncrementalSync } from '@/integrations/calendar';
- * 
+ *
  * const queue = getCalendarQueue();
  * await scheduleIncrementalSync(queue, userId);
  * ```
@@ -191,7 +183,10 @@ export function getCalendarQueue(): CalendarJobQueue {
     async removeRepeatable(name, repeatOpts) {
       const repeatableJobs = await queue.getRepeatableJobs();
       const job = repeatableJobs.find(
-        (j) => j.name === name && j.every !== null && String(j.every) === String(repeatOpts.every)
+        (j) =>
+          j.name === name &&
+          j.every !== null &&
+          String(j.every) === String(repeatOpts.every)
       );
       if (job) {
         await queue.removeRepeatableByKey(job.key);
@@ -240,7 +235,9 @@ export async function initializeCalendarSync(): Promise<void> {
 
     schedulerLogger.info("Calendar sync system initialized");
   } catch (error) {
-    schedulerLogger.error("Failed to initialize Calendar sync system", { error });
+    schedulerLogger.error("Failed to initialize Calendar sync system", {
+      error,
+    });
     throw error;
   }
 }
@@ -254,20 +251,17 @@ export {
   markEventEmbeddingProcessing,
   markEventEmbeddingCompleted,
   markEventEmbeddingFailed,
-  
+
   // Stats retrieval
   getEventEmbeddingStats,
   updateCalendarEmbeddingStatsInSyncState,
-  
+
   // Retry utilities
   resetFailedEventEmbeddings,
   getEventsNeedingEmbedding,
 } from "./embedding-status";
 
-export type {
-  EmbeddingStatus,
-  EmbeddingStats,
-} from "./embedding-status";
+export type { EmbeddingStatus, EmbeddingStats } from "./embedding-status";
 
 // ─────────────────────────────────────────────────────────────
 // Utilities
@@ -278,19 +272,19 @@ export {
   queueEventEmbeddings,
   queueFullSyncEmbeddings,
   queueIncrementalSyncEmbeddings,
-  
+
   // Checkpoint utilities
   saveCheckpoint,
   getCheckpoint,
   clearCheckpoint,
-  
+
   // Time range utilities
   getDefaultSyncTimeRange,
   formatDateForApi,
-  
+
   // Error utilities
   createSyncError,
-  
+
   // Statistics utilities
   updateEmbeddingStats,
 } from "./utils";

@@ -15,4 +15,3 @@ export {
   type Message,
   type MessageListProps,
 } from "./message-list";
-

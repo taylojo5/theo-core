@@ -28,4 +28,3 @@ interface SessionProviderProps {
 export function SessionProvider({ children }: SessionProviderProps) {
   return <NextAuthSessionProvider>{children}</NextAuthSessionProvider>;
 }
-

@@ -9,7 +9,11 @@ import { QUEUE_NAMES } from "@/lib/queue";
 import { fullCalendarSync } from "./full-sync";
 import { incrementalCalendarSync } from "./incremental-sync";
 import { expireOldApprovals } from "../actions/approval";
-import { CalendarError, CalendarErrorCode, isSyncTokenExpired } from "../errors";
+import {
+  CalendarError,
+  CalendarErrorCode,
+  isSyncTokenExpired,
+} from "../errors";
 import { workerLogger } from "../logger";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import {
@@ -63,7 +67,9 @@ type CalendarJobData =
 /**
  * Process a Calendar sync job
  */
-async function processCalendarSyncJob(job: Job<CalendarJobData>): Promise<void> {
+async function processCalendarSyncJob(
+  job: Job<CalendarJobData>
+): Promise<void> {
   const jobName = job.name;
   const startTime = Date.now();
 
@@ -135,7 +141,12 @@ async function processFullSync(job: Job<FullSyncJobData>): Promise<void> {
   };
 
   // Run the full sync
-  const result = await fullCalendarSync(userId, accessToken, options, onProgress);
+  const result = await fullCalendarSync(
+    userId,
+    accessToken,
+    options,
+    onProgress
+  );
 
   // Log the result
   workerLogger.info("Full sync completed", {
@@ -264,4 +275,3 @@ async function getAccessTokenForUser(userId: string): Promise<string | null> {
 
   return accessToken;
 }
-

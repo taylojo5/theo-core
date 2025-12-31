@@ -372,7 +372,9 @@ async function processContactSync(job: Job<ContactSyncJobData>): Promise<void> {
  * Process a metadata sync job
  * Syncs labels and contacts without syncing emails
  */
-async function processMetadataSync(job: Job<MetadataSyncJobData>): Promise<void> {
+async function processMetadataSync(
+  job: Job<MetadataSyncJobData>
+): Promise<void> {
   const { userId } = job.data;
 
   workerLogger.info("Syncing metadata (labels + contacts)", { userId });
@@ -388,7 +390,11 @@ async function processMetadataSync(job: Job<MetadataSyncJobData>): Promise<void>
   }
 
   // Progress callback
-  const onProgress = async (progress: { phase: string; labelsCount?: number; contactsProcessed?: number }) => {
+  const onProgress = async (progress: {
+    phase: string;
+    labelsCount?: number;
+    contactsProcessed?: number;
+  }) => {
     await job.updateProgress({
       phase: progress.phase,
       labelsCount: progress.labelsCount,

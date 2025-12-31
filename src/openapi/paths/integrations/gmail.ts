@@ -40,7 +40,9 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     responses: {
       200: {
         description: "Connection status",
-        content: { "application/json": { schema: GmailConnectionStatusSchema } },
+        content: {
+          "application/json": { schema: GmailConnectionStatusSchema },
+        },
       },
       401: { $ref: "#/components/responses/Unauthorized" },
     },
@@ -51,15 +53,22 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     path: "/api/integrations/gmail/connect",
     tags: ["Gmail"],
     summary: "Initiate Gmail connection",
-    description: "Start OAuth flow to connect Gmail. Returns params for client-side signIn().",
+    description:
+      "Start OAuth flow to connect Gmail. Returns params for client-side signIn().",
     security: protectedEndpoint,
     request: {
       body: {
         content: {
           "application/json": {
             schema: z.object({
-              force: z.boolean().optional().openapi({ description: "Force re-consent" }),
-              redirectUrl: z.string().optional().openapi({ description: "Redirect after OAuth" }),
+              force: z
+                .boolean()
+                .optional()
+                .openapi({ description: "Force re-consent" }),
+              redirectUrl: z
+                .string()
+                .optional()
+                .openapi({ description: "Redirect after OAuth" }),
             }),
           },
         },
@@ -82,7 +91,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     description: "Revoke Gmail permissions and delete synced data.",
     security: protectedEndpoint,
     responses: {
-      200: { description: "Gmail disconnected", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Gmail disconnected",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
     },
   });
@@ -96,7 +108,8 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     path: "/api/integrations/gmail/sync",
     tags: ["Gmail"],
     summary: "Trigger email sync",
-    description: "Schedule an email sync job. Supports auto, full, or incremental sync.",
+    description:
+      "Schedule an email sync job. Supports auto, full, or incremental sync.",
     security: protectedEndpoint,
     request: {
       body: { content: { "application/json": { schema: SyncTriggerSchema } } },
@@ -137,7 +150,11 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
         description: "Config updated",
         content: {
           "application/json": {
-            schema: z.object({ success: z.boolean(), message: z.string(), config: SyncConfigSchema }),
+            schema: z.object({
+              success: z.boolean(),
+              message: z.string(),
+              config: SyncConfigSchema,
+            }),
           },
         },
       },
@@ -153,7 +170,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       query: z.object({
-        stopRecurring: z.string().optional().openapi({ description: "Also stop recurring sync" }),
+        stopRecurring: z
+          .string()
+          .optional()
+          .openapi({ description: "Also stop recurring sync" }),
       }),
     },
     responses: {
@@ -181,7 +201,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     summary: "Get sync status",
     security: protectedEndpoint,
     responses: {
-      200: { description: "Sync status", content: { "application/json": { schema: SyncStatusSchema } } },
+      200: {
+        description: "Sync status",
+        content: { "application/json": { schema: SyncStatusSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
     },
   });
@@ -219,10 +242,16 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     summary: "Create draft",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: DraftCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: DraftCreateSchema } },
+      },
     },
     responses: {
-      201: { description: "Draft created", content: { "application/json": { schema: DraftSchema } } },
+      201: {
+        description: "Draft created",
+        content: { "application/json": { schema: DraftSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
     },
@@ -236,7 +265,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Draft details", content: { "application/json": { schema: DraftSchema } } },
+      200: {
+        description: "Draft details",
+        content: { "application/json": { schema: DraftSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -250,7 +282,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Draft deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Draft deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -265,14 +300,23 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     path: "/api/integrations/gmail/approvals",
     tags: ["Gmail"],
     summary: "List approvals",
-    description: "List email approval requests. Use `stats=true` to get counts only.",
+    description:
+      "List email approval requests. Use `stats=true` to get counts only.",
     security: protectedEndpoint,
     request: {
       query: z.object({
-        status: z.enum(["pending", "approved", "rejected", "expired", "sent"]).optional(),
-        pending: z.string().optional().openapi({ description: "Only pending approvals" }),
+        status: z
+          .enum(["pending", "approved", "rejected", "expired", "sent"])
+          .optional(),
+        pending: z
+          .string()
+          .optional()
+          .openapi({ description: "Only pending approvals" }),
         includeExpired: z.string().optional(),
-        stats: z.string().optional().openapi({ description: "Return stats only" }),
+        stats: z
+          .string()
+          .optional()
+          .openapi({ description: "Return stats only" }),
         limit: z.coerce.number().optional(),
         offset: z.coerce.number().optional(),
       }),
@@ -298,7 +342,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     description: "Create an email approval request (for AI-drafted emails).",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: ApprovalRequestSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: ApprovalRequestSchema } },
+      },
     },
     responses: {
       201: {
@@ -318,7 +365,10 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Approval details", content: { "application/json": { schema: ApprovalSchema } } },
+      200: {
+        description: "Approval details",
+        content: { "application/json": { schema: ApprovalSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -329,14 +379,21 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     path: "/api/integrations/gmail/approvals/{id}",
     tags: ["Gmail"],
     summary: "Approve or reject",
-    description: "Approve or reject an email. Approved emails are sent automatically.",
+    description:
+      "Approve or reject an email. Approved emails are sent automatically.",
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: ApprovalActionSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: ApprovalActionSchema } },
+      },
     },
     responses: {
-      200: { description: "Action completed", content: { "application/json": { schema: ApprovalSchema } } },
+      200: {
+        description: "Action completed",
+        content: { "application/json": { schema: ApprovalSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -352,7 +409,8 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     path: "/api/integrations/gmail/send",
     tags: ["Gmail"],
     summary: "Send email",
-    description: "Send an email directly or from a draft. Use `requireApproval=true` for approval flow.",
+    description:
+      "Send an email directly or from a draft. Use `requireApproval=true` for approval flow.",
     security: protectedEndpoint,
     request: {
       body: {
@@ -394,12 +452,18 @@ export function registerGmailPaths(registry: OpenAPIRegistry) {
     summary: "Get email thread",
     description: "Get a thread with all its messages.",
     security: protectedEndpoint,
-    request: { params: z.object({ id: z.string().openapi({ description: "Thread ID" }) }) },
+    request: {
+      params: z.object({
+        id: z.string().openapi({ description: "Thread ID" }),
+      }),
+    },
     responses: {
-      200: { description: "Thread with messages", content: { "application/json": { schema: ThreadSchema } } },
+      200: {
+        description: "Thread with messages",
+        content: { "application/json": { schema: ThreadSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
   });
 }
-

@@ -51,21 +51,26 @@ export default function GmailSettingsPage() {
   >();
 
   // Config state (separate from sync for the new config endpoint)
-  const [configData, setConfigData] = React.useState<{
-    syncConfigured: boolean;
-    syncLabels: string[];
-    excludeLabels: string[];
-    maxEmailAgeDays: number | null;
-    syncAttachments: boolean;
-  } | undefined>();
-  const [availableLabels, setAvailableLabels] = React.useState<Array<{
-    id: string;
-    gmailId: string;
-    name: string;
-    type: string;
-    messageCount: number;
-    unreadCount: number;
-  }>>([]);
+  const [configData, setConfigData] = React.useState<
+    | {
+        syncConfigured: boolean;
+        syncLabels: string[];
+        excludeLabels: string[];
+        maxEmailAgeDays: number | null;
+        syncAttachments: boolean;
+      }
+    | undefined
+  >();
+  const [availableLabels, setAvailableLabels] = React.useState<
+    Array<{
+      id: string;
+      gmailId: string;
+      name: string;
+      type: string;
+      messageCount: number;
+      unreadCount: number;
+    }>
+  >([]);
   const [metadataSynced, setMetadataSynced] = React.useState(false);
   const [metadataSyncing, setMetadataSyncing] = React.useState(false);
 
@@ -399,9 +404,12 @@ export default function GmailSettingsPage() {
 
   const handleCancelSync = async () => {
     try {
-      const res = await fetch("/api/integrations/gmail/sync?stopRecurring=true", {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        "/api/integrations/gmail/sync?stopRecurring=true",
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
@@ -504,19 +512,17 @@ export default function GmailSettingsPage() {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        throw new Error(
-          error.error || `Failed to save config (${res.status})`
-        );
+        throw new Error(error.error || `Failed to save config (${res.status})`);
       }
 
       const data = await res.json();
-      
+
       if (data.syncStarted) {
         toast.success("Email sync started! Your emails are being imported.");
       } else {
         toast.success("Sync configuration saved");
       }
-      
+
       // Refresh both config and sync status
       await Promise.all([fetchSyncConfig(), fetchSyncStatus()]);
     } catch (error) {
@@ -579,7 +585,8 @@ export default function GmailSettingsPage() {
 
             {/* Show remaining UI only after sync is configured OR when not connected */}
             {/* Don't show while loading config - wait until we know the configuration status */}
-            {(!isConnected || (configData?.syncConfigured && !loadingStates.config)) && (
+            {(!isConnected ||
+              (configData?.syncConfigured && !loadingStates.config)) && (
               <>
                 {/* Two Column Layout for Sync */}
                 <div className="grid gap-6 lg:grid-cols-2">

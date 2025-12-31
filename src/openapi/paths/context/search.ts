@@ -65,4 +65,3 @@ Rate limited to 30 requests/minute due to AI costs.
     },
   });
 }
-

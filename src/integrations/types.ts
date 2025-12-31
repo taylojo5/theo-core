@@ -107,4 +107,3 @@ export const RATE_LIMITS: Record<IntegrationProvider, RateLimitConfig> = {
     requestsPerMinute: 60,
   },
 };
-

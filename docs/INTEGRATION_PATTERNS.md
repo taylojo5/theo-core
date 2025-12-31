@@ -30,10 +30,10 @@ All Google OAuth integrations share a single OAuth provider (`google`) but manag
 
 ### Integrations Currently Implemented
 
-| Integration | Status | Reference |
-|------------|--------|-----------|
-| Gmail | ✅ Complete | Reference implementation |
-| Calendar | 🔧 Needs alignment | This document's focus |
+| Integration | Status             | Reference                |
+| ----------- | ------------------ | ------------------------ |
+| Gmail       | ✅ Complete        | Reference implementation |
+| Calendar    | 🔧 Needs alignment | This document's focus    |
 
 ---
 
@@ -96,8 +96,8 @@ Checks if scope upgrade is needed and returns auth parameters for the client.
 ```typescript
 // Request type
 interface ConnectRequest {
-  force?: boolean;          // Force re-consent even if connected
-  redirectUrl?: string;     // Where to redirect after OAuth
+  force?: boolean; // Force re-consent even if connected
+  redirectUrl?: string; // Where to redirect after OAuth
 }
 
 // Response type
@@ -201,7 +201,9 @@ const handleConnect = async () => {
     const res = await fetch("/api/integrations/{integration}/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ redirectUrl: "/settings/integrations/{integration}" }),
+      body: JSON.stringify({
+        redirectUrl: "/settings/integrations/{integration}",
+      }),
     });
 
     if (!res.ok) {
@@ -215,7 +217,10 @@ const handleConnect = async () => {
       // Use NextAuth's signIn() to properly handle PKCE
       await signIn(
         "google",
-        { callbackUrl: data.callbackUrl || "/settings/integrations/{integration}" },
+        {
+          callbackUrl:
+            data.callbackUrl || "/settings/integrations/{integration}",
+        },
         data.authorizationParams
       );
     } else if (data.alreadyConnected) {
@@ -238,6 +243,7 @@ await signIn("google", {
 ```
 
 **Why this is wrong**:
+
 1. Doesn't check if already connected (unnecessary OAuth flows)
 2. Doesn't merge with base scopes properly
 3. Doesn't set `access_type: "offline"` for refresh tokens
@@ -307,6 +313,7 @@ await fetch("/api/auth/revoke", {
 ```
 
 **Why this is wrong**:
+
 1. Revokes ALL Google access, not just the specific integration
 2. Doesn't properly clean up integration-specific scopes
 3. Doesn't clean up integration-specific database records
@@ -412,7 +419,6 @@ When adding a new integration or aligning an existing one:
   - [ ] GET for status check
   - [ ] POST for initiating connection
   - [ ] Rate limiting with `RATE_LIMITS.{integration}Connect`
-  
 - [ ] `/api/integrations/{integration}/disconnect`
   - [ ] DELETE for revocation
   - [ ] POST as alternative method
@@ -458,5 +464,3 @@ The Calendar integration currently has these deviations from the standard patter
 3. Add Calendar scope utilities to `scope-upgrade.ts`
 4. Update Calendar page to use new endpoints
 5. Add `calendarConnect` rate limit
-
-

@@ -184,7 +184,10 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     try {
       return await fn();
     } catch (error) {
-      if (this.isRateLimitError(error) && attempt < this.rateLimitConfig.maxRetries) {
+      if (
+        this.isRateLimitError(error) &&
+        attempt < this.rateLimitConfig.maxRetries
+      ) {
         const retryAfter = this.getRetryAfter(error);
         const delay = Math.min(
           retryAfter ??
@@ -312,4 +315,3 @@ export function createOpenAIProvider(
 ): OpenAIEmbeddingProvider {
   return new OpenAIEmbeddingProvider(config);
 }
-

@@ -205,4 +205,3 @@ export async function isSyncConfigured(userId: string): Promise<boolean> {
 export async function getAvailableLabels(userId: string) {
   return labelRepository.findAll(userId);
 }
-

@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     // Schedule the appropriate sync type (only if explicitly requested)
     let jobId: string | undefined;
     let metadataResult: { calendarsProcessed: number } | undefined;
-    
+
     if (syncType) {
       switch (syncType) {
         case "full":
@@ -180,14 +180,17 @@ export async function POST(request: NextRequest) {
           const accessToken = await getValidAccessToken(userId);
           if (!accessToken) {
             return NextResponse.json(
-              { error: "No valid access token available. Please reconnect Google Calendar." },
+              {
+                error:
+                  "No valid access token available. Please reconnect Google Calendar.",
+              },
               { status: 401, headers }
             );
           }
           metadataResult = await syncCalendarMetadata(userId, accessToken);
-          logger.info("Metadata sync completed", { 
-            userId, 
-            calendarsProcessed: metadataResult.calendarsProcessed 
+          logger.info("Metadata sync completed", {
+            userId,
+            calendarsProcessed: metadataResult.calendarsProcessed,
           });
           break;
       }
@@ -215,10 +218,10 @@ export async function POST(request: NextRequest) {
         syncType: syncType || null,
         recurring: isRecurring,
         currentStatus: currentSyncState?.syncStatus || "idle",
-        ...(metadataResult && { 
-          metadata: { 
-            calendarsProcessed: metadataResult.calendarsProcessed 
-          } 
+        ...(metadataResult && {
+          metadata: {
+            calendarsProcessed: metadataResult.calendarsProcessed,
+          },
         }),
       },
       { headers }
@@ -281,7 +284,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: stopRecurring ? "Sync stopped and recurring disabled" : "Sync stopped",
+        message: stopRecurring
+          ? "Sync stopped and recurring disabled"
+          : "Sync stopped",
         recurringStopped: stopRecurring,
       },
       { headers }

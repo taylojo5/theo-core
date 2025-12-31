@@ -55,7 +55,12 @@ export interface DeadlineWithRelations extends Deadline {
 // ─────────────────────────────────────────────────────────────
 
 /** Urgency level for deadlines */
-export type UrgencyLevel = "overdue" | "urgent" | "approaching" | "normal" | "distant";
+export type UrgencyLevel =
+  | "overdue"
+  | "urgent"
+  | "approaching"
+  | "normal"
+  | "distant";
 
 /** Deadline with calculated urgency */
 export interface DeadlineWithUrgency extends Deadline {
@@ -93,7 +98,10 @@ export interface IDeadlinesService {
 
   getById(userId: string, id: string): Promise<Deadline | null>;
 
-  getByIdWithRelations(userId: string, id: string): Promise<DeadlineWithRelations | null>;
+  getByIdWithRelations(
+    userId: string,
+    id: string
+  ): Promise<DeadlineWithRelations | null>;
 
   update(
     userId: string,
@@ -104,7 +112,11 @@ export interface IDeadlinesService {
 
   delete(userId: string, id: string, context?: ServiceContext): Promise<void>;
 
-  restore(userId: string, id: string, context?: ServiceContext): Promise<Deadline>;
+  restore(
+    userId: string,
+    id: string,
+    context?: ServiceContext
+  ): Promise<Deadline>;
 
   // Status transitions
   updateStatus(
@@ -114,9 +126,17 @@ export interface IDeadlinesService {
     context?: ServiceContext
   ): Promise<Deadline>;
 
-  complete(userId: string, id: string, context?: ServiceContext): Promise<Deadline>;
+  complete(
+    userId: string,
+    id: string,
+    context?: ServiceContext
+  ): Promise<Deadline>;
 
-  markMissed(userId: string, id: string, context?: ServiceContext): Promise<Deadline>;
+  markMissed(
+    userId: string,
+    id: string,
+    context?: ServiceContext
+  ): Promise<Deadline>;
 
   extend(
     userId: string,
@@ -125,7 +145,11 @@ export interface IDeadlinesService {
     context?: ServiceContext
   ): Promise<Deadline>;
 
-  reopen(userId: string, id: string, context?: ServiceContext): Promise<Deadline>;
+  reopen(
+    userId: string,
+    id: string,
+    context?: ServiceContext
+  ): Promise<Deadline>;
 
   // Query
   list(
@@ -148,7 +172,11 @@ export interface IDeadlinesService {
   // Urgency queries
   getOverdue(userId: string, limit?: number): Promise<Deadline[]>;
 
-  getApproaching(userId: string, days?: number, limit?: number): Promise<Deadline[]>;
+  getApproaching(
+    userId: string,
+    days?: number,
+    limit?: number
+  ): Promise<Deadline[]>;
 
   getByUrgency(
     userId: string,
@@ -212,4 +240,3 @@ export type {
   DeadlineStatus,
   DeadlineType,
 };
-

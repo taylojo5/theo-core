@@ -148,8 +148,7 @@ export async function GET(request: NextRequest) {
     logger.error("Failed to list events", { userId }, error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to list events",
+        error: error instanceof Error ? error.message : "Failed to list events",
       },
       { status: 500, headers }
     );

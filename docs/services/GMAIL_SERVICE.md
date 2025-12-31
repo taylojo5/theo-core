@@ -135,7 +135,8 @@ const result = await checkGmailScopes(userId);
 // If scopes are missing, trigger upgrade via NextAuth signIn (handles PKCE properly)
 if (!result.hasRequiredScopes) {
   const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
-  signIn("google",
+  signIn(
+    "google",
     { callbackUrl: "/settings/integrations/gmail" },
     {
       scope: scopeString,

@@ -88,11 +88,11 @@ The Calendar integration enables Theo to:
 
 ### Required Scopes
 
-| Scope                                                  | Purpose             |
-| ------------------------------------------------------ | ------------------- |
-| `https://www.googleapis.com/auth/calendar.readonly`    | Read calendar data  |
-| `https://www.googleapis.com/auth/calendar.events`      | Manage events       |
-| `https://www.googleapis.com/auth/calendar.settings.readonly` | Read settings |
+| Scope                                                        | Purpose            |
+| ------------------------------------------------------------ | ------------------ |
+| `https://www.googleapis.com/auth/calendar.readonly`          | Read calendar data |
+| `https://www.googleapis.com/auth/calendar.events`            | Manage events      |
+| `https://www.googleapis.com/auth/calendar.settings.readonly` | Read settings      |
 
 ### Scope Management
 
@@ -391,7 +391,11 @@ import {
   executeEventDeletion,
 } from "@/integrations/calendar";
 
-const approval = await requestEventDeletion(userId, eventId, "Meeting cancelled");
+const approval = await requestEventDeletion(
+  userId,
+  eventId,
+  "Meeting cancelled"
+);
 
 // After user approves
 await executeEventDeletion(approval.id);
@@ -472,6 +476,7 @@ POST /api/integrations/calendar/connect
 Initiate Calendar connection. Returns OAuth parameters for client-side signIn().
 
 Request (optional):
+
 ```json
 {
   "force": false,
@@ -514,6 +519,7 @@ POST /api/integrations/calendar/sync
 Trigger sync (full or incremental).
 
 Request:
+
 ```json
 {
   "type": "full",
@@ -530,6 +536,7 @@ GET /api/integrations/calendar/events
 List events with filters.
 
 Query parameters:
+
 - `startDate` - Filter events starting after this date
 - `endDate` - Filter events ending before this date
 - `calendarId` - Filter by calendar
@@ -581,6 +588,7 @@ POST /api/integrations/calendar/approvals/[id]
 Approve or reject.
 
 Request:
+
 ```json
 {
   "action": "approve"
@@ -588,6 +596,7 @@ Request:
 ```
 
 Or:
+
 ```json
 {
   "action": "reject",
@@ -616,24 +625,24 @@ model Calendar {
   id               String  @id @default(cuid())
   userId           String
   googleCalendarId String
-  
+
   name             String
   description      String?
   timeZone         String?
-  
+
   isPrimary        Boolean @default(false)
   isOwner          Boolean @default(false)
   accessRole       String
-  
+
   backgroundColor  String?
   foregroundColor  String?
-  
+
   isSelected       Boolean @default(true)
   isHidden         Boolean @default(false)
-  
+
   user   User    @relation(...)
   events Event[]
-  
+
   @@unique([userId, googleCalendarId])
 }
 ```
@@ -646,29 +655,29 @@ Tracks sync progress and webhook configuration:
 model CalendarSyncState {
   id     String @id @default(cuid())
   userId String @unique
-  
+
   syncToken           String?
   syncTokenSetAt      DateTime?
   lastSyncAt          DateTime?
   lastFullSyncAt      DateTime?
-  
+
   fullSyncPageToken   String?
   fullSyncProgress    Int       @default(0)
   fullSyncStartedAt   DateTime?
-  
+
   syncStatus          String    @default("idle")
   syncError           String?
-  
+
   eventCount          Int       @default(0)
   calendarCount       Int       @default(0)
-  
+
   webhookChannelId    String?
   webhookResourceId   String?
   webhookExpiration   DateTime?
-  
+
   syncCalendarIds     String[]  @default([])
   excludeCalendarIds  String[]  @default([])
-  
+
   user User @relation(...)
 }
 ```
@@ -681,28 +690,28 @@ Stores event action approval requests:
 model CalendarApproval {
   id          String  @id @default(cuid())
   userId      String
-  
+
   actionType  String  // create, update, delete, respond
   calendarId  String
   eventId     String?
-  
+
   eventSnapshot Json
-  
+
   status      String  @default("pending")
-  
+
   requestedAt DateTime  @default(now())
   requestedBy String?
   expiresAt   DateTime?
   decidedAt   DateTime?
   decidedBy   String?
-  
+
   resultEventId String?
   errorMessage  String?
   notes         String?  @db.Text
   metadata      Json     @default("{}")
-  
+
   user User @relation(...)
-  
+
   @@index([userId, status])
   @@index([expiresAt])
 }
@@ -715,28 +724,28 @@ The existing Event model is extended with Calendar-specific fields:
 ```prisma
 model Event {
   // ... existing fields ...
-  
+
   // Google Calendar fields
   googleEventId     String?
   googleCalendarId  String?
   calendarId        String?
   recurringEventId  String?
-  
+
   recurrence        Json?
   attendees         Json?
   organizer         Json?
   creator           Json?
   conferenceData    Json?
   reminders         Json?
-  
+
   iCalUID           String?
   sequence          Int       @default(0)
   etag              String?
   htmlLink          String?
   hangoutLink       String?
-  
+
   calendar Calendar? @relation(...)
-  
+
   @@index([googleEventId])
   @@index([googleCalendarId])
 }
@@ -852,10 +861,10 @@ tests/integrations/calendar/
 
 Calendar API has quotas that must be respected:
 
-| Limit Type              | Value                |
-| ----------------------- | -------------------- |
-| Per-user per second     | 100 quota units      |
-| Per-user per minute     | 1500 quota units     |
+| Limit Type          | Value            |
+| ------------------- | ---------------- |
+| Per-user per second | 100 quota units  |
+| Per-user per minute | 1500 quota units |
 
 Different operations consume different quota units:
 
@@ -893,13 +902,13 @@ await logAuditEntry({
 
 ### Test Files
 
-| File                 | Description              | Tests |
-| -------------------- | ------------------------ | ----- |
-| `mappers.test.ts`    | Data mapping functions   | ~80   |
-| `actions.test.ts`    | Event CRUD operations    | ~50   |
-| `sync.test.ts`       | Sync pipeline tests      | ~40   |
-| `webhook.test.ts`    | Webhook handling         | ~30   |
-| **Total**            |                          | ~200  |
+| File              | Description            | Tests |
+| ----------------- | ---------------------- | ----- |
+| `mappers.test.ts` | Data mapping functions | ~80   |
+| `actions.test.ts` | Event CRUD operations  | ~50   |
+| `sync.test.ts`    | Sync pipeline tests    | ~40   |
+| `webhook.test.ts` | Webhook handling       | ~30   |
+| **Total**         |                        | ~200  |
 
 ### Running Tests
 
@@ -920,11 +929,11 @@ npm test -- tests/integrations/calendar/ --coverage
 
 ### Sync Performance
 
-| Metric               | Target       | Actual      |
-| -------------------- | ------------ | ----------- |
-| Full sync (500 events) | < 2 minutes | ~90 seconds |
-| Incremental sync     | < 30 seconds | ~10 seconds |
-| Webhook processing   | < 5 seconds  | ~2 seconds  |
+| Metric                 | Target       | Actual      |
+| ---------------------- | ------------ | ----------- |
+| Full sync (500 events) | < 2 minutes  | ~90 seconds |
+| Incremental sync       | < 30 seconds | ~10 seconds |
+| Webhook processing     | < 5 seconds  | ~2 seconds  |
 
 ### Optimizations Applied
 
@@ -966,13 +975,13 @@ const calendarTools = {
 
 ### Additional Features
 
-| Feature | Description | Priority |
-| ------- | ----------- | -------- |
-| Multi-Calendar Actions | Create events across multiple calendars | Medium |
-| Recurring Event Editing | Edit specific instances or entire series | Medium |
-| Calendar Sharing | Share calendars with other Theo users | Low |
-| External Calendar Sync | Sync non-Google calendars (Outlook, iCal) | Low |
-| Smart Scheduling | AI-powered optimal meeting time suggestions | Future |
+| Feature                 | Description                                 | Priority |
+| ----------------------- | ------------------------------------------- | -------- |
+| Multi-Calendar Actions  | Create events across multiple calendars     | Medium   |
+| Recurring Event Editing | Edit specific instances or entire series    | Medium   |
+| Calendar Sharing        | Share calendars with other Theo users       | Low      |
+| External Calendar Sync  | Sync non-Google calendars (Outlook, iCal)   | Low      |
+| Smart Scheduling        | AI-powered optimal meeting time suggestions | Future   |
 
 ---
 
@@ -1005,24 +1014,24 @@ Calendar Cluster (Future)
 
 These remain in the core platform (shared infrastructure):
 
-| Component | Reason |
-| --------- | ------ |
-| `src/lib/auth/` | Authentication is a platform concern |
-| `src/lib/rate-limit/` | Rate limiting infrastructure is shared |
-| `src/lib/queue/` | BullMQ queue infrastructure is shared |
-| `src/lib/db/` | Database client (though Calendar may get its own) |
-| `src/services/audit/` | Audit logging is a platform concern |
-| `prisma/schema.prisma` | Core models (User, Account) stay in core |
+| Component              | Reason                                            |
+| ---------------------- | ------------------------------------------------- |
+| `src/lib/auth/`        | Authentication is a platform concern              |
+| `src/lib/rate-limit/`  | Rate limiting infrastructure is shared            |
+| `src/lib/queue/`       | BullMQ queue infrastructure is shared             |
+| `src/lib/db/`          | Database client (though Calendar may get its own) |
+| `src/services/audit/`  | Audit logging is a platform concern               |
+| `prisma/schema.prisma` | Core models (User, Account) stay in core          |
 
 ### Cross-Integration Pattern Differences
 
 Calendar and Gmail have similar patterns but intentionally separate implementations:
 
-| Aspect | Calendar | Gmail | Reason for Difference |
-| ------ | -------- | ----- | -------------------- |
-| Approval Status | `executed` | `sent` | Semantic: Calendar executes actions, Gmail sends messages |
-| Response Shape | `canRead, canWrite` | `hasRequiredScopes` | Calendar has granular scopes |
-| Audit Types | `calendar_action_*` | `create`, `send` | Calendar uses descriptive prefixes |
+| Aspect          | Calendar            | Gmail               | Reason for Difference                                     |
+| --------------- | ------------------- | ------------------- | --------------------------------------------------------- |
+| Approval Status | `executed`          | `sent`              | Semantic: Calendar executes actions, Gmail sends messages |
+| Response Shape  | `canRead, canWrite` | `hasRequiredScopes` | Calendar has granular scopes                              |
+| Audit Types     | `calendar_action_*` | `create`, `send`    | Calendar uses descriptive prefixes                        |
 
 These differences are **intentional** and should not be normalized.
 
@@ -1048,4 +1057,3 @@ When extracting Calendar to its own cluster:
 - [INTEGRATIONS_GUIDE.md](../INTEGRATIONS_GUIDE.md) - General integration patterns
 - [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) - Database models
 - [GMAIL_SERVICE.md](./GMAIL_SERVICE.md) - Gmail integration (similar patterns)
-

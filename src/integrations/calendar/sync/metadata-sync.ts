@@ -4,10 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createCalendarClient } from "../client";
-import {
-  calendarRepository,
-  calendarSyncStateRepository,
-} from "../repository";
+import { calendarRepository, calendarSyncStateRepository } from "../repository";
 import { mapGoogleCalendarToDb } from "../mappers";
 import { syncLogger } from "../logger";
 import { logAuditEntry } from "@/services/audit";
@@ -58,10 +55,10 @@ export interface CalendarMetadataInfo {
 /**
  * Access roles that allow reading event details (title, description, etc.)
  * These are the only roles where event sync provides semantic value.
- * 
+ *
  * - owner: Full access, can read all event details
  * - reader: Can read event details but not modify
- * 
+ *
  * NOT included:
  * - writer: Can create/edit events but access to event details varies
  * - freeBusyReader: Only sees free/busy status, no event details
@@ -72,7 +69,9 @@ export const SYNCABLE_ACCESS_ROLES = ["owner", "reader"] as const;
  * Check if a calendar's access role allows syncing event details
  */
 export function canSyncEventDetails(accessRole: string): boolean {
-  return SYNCABLE_ACCESS_ROLES.includes(accessRole as typeof SYNCABLE_ACCESS_ROLES[number]);
+  return SYNCABLE_ACCESS_ROLES.includes(
+    accessRole as (typeof SYNCABLE_ACCESS_ROLES)[number]
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -81,12 +80,12 @@ export function canSyncEventDetails(accessRole: string): boolean {
 
 /**
  * Sync only calendar metadata (calendar list, no events)
- * 
+ *
  * This is used for initial setup after connecting Google Calendar.
  * It fetches the user's calendar list and stores it in the database,
  * but does NOT sync any events. Events are synced only after the user
  * explicitly enables sync for specific calendars.
- * 
+ *
  * @param userId - User ID to sync for
  * @param accessToken - OAuth access token
  * @returns Sync result with calendar information
@@ -96,7 +95,7 @@ export async function syncCalendarMetadata(
   accessToken: string
 ): Promise<CalendarMetadataSyncResult> {
   const startTime = Date.now();
-  
+
   const result: CalendarMetadataSyncResult = {
     calendarsProcessed: 0,
     syncableCalendars: 0,
@@ -128,12 +127,12 @@ export async function syncCalendarMetadata(
       try {
         // Map to database format (isSelected defaults to false)
         const input = mapGoogleCalendarToDb(googleCal, userId);
-        
+
         // Upsert calendar to database
         await calendarRepository.upsert(input);
-        
+
         result.calendarsProcessed++;
-        
+
         // Track syncable vs limited access calendars
         if (canSyncEventDetails(googleCal.accessRole)) {
           result.syncableCalendars++;
@@ -141,9 +140,12 @@ export async function syncCalendarMetadata(
           result.limitedCalendars++;
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        result.errors.push(`Failed to sync calendar ${googleCal.summary}: ${errorMessage}`);
-        
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        result.errors.push(
+          `Failed to sync calendar ${googleCal.summary}: ${errorMessage}`
+        );
+
         syncLogger.warn("Failed to sync calendar", {
           userId,
           calendarId: googleCal.id,
@@ -186,13 +188,12 @@ export async function syncCalendarMetadata(
     });
 
     return result;
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Update sync state with error
     await calendarSyncStateRepository.setError(userId, errorMessage);
-    
+
     // Audit log for failure
     await logAuditEntry({
       userId,
@@ -218,7 +219,7 @@ export async function syncCalendarMetadata(
 
 /**
  * Get calendar list with sync eligibility information
- * 
+ *
  * @param userId - User ID
  * @returns List of calendars with canSyncEvents flag
  */
@@ -226,7 +227,7 @@ export async function getCalendarsWithSyncEligibility(
   userId: string
 ): Promise<CalendarMetadataInfo[]> {
   const calendars = await calendarRepository.findByUser(userId);
-  
+
   return calendars.map((cal) => ({
     id: cal.id,
     googleCalendarId: cal.googleCalendarId,
@@ -245,7 +246,7 @@ export async function getCalendarsWithSyncEligibility(
 
 /**
  * Enable event sync for a calendar
- * 
+ *
  * @param userId - User ID
  * @param calendarId - Calendar database ID
  * @returns Updated calendar or null if not found/not allowed
@@ -255,11 +256,11 @@ export async function enableCalendarSync(
   calendarId: string
 ): Promise<CalendarMetadataInfo | null> {
   const calendar = await calendarRepository.findById(calendarId);
-  
+
   if (!calendar || calendar.userId !== userId) {
     return null;
   }
-  
+
   // Check if calendar can sync events
   if (!canSyncEventDetails(calendar.accessRole)) {
     syncLogger.warn("Cannot enable sync for calendar with limited access", {
@@ -269,16 +270,16 @@ export async function enableCalendarSync(
     });
     return null;
   }
-  
+
   // Update isSelected to true
   const result = await calendarRepository.updateWithResult(calendarId, {
     isSelected: true,
   });
-  
+
   if (!result.success) {
     return null;
   }
-  
+
   return {
     id: result.data.id,
     googleCalendarId: result.data.googleCalendarId,
@@ -297,7 +298,7 @@ export async function enableCalendarSync(
 
 /**
  * Disable event sync for a calendar
- * 
+ *
  * @param userId - User ID
  * @param calendarId - Calendar database ID
  * @returns Updated calendar or null if not found
@@ -307,20 +308,20 @@ export async function disableCalendarSync(
   calendarId: string
 ): Promise<CalendarMetadataInfo | null> {
   const calendar = await calendarRepository.findById(calendarId);
-  
+
   if (!calendar || calendar.userId !== userId) {
     return null;
   }
-  
+
   // Update isSelected to false
   const result = await calendarRepository.updateWithResult(calendarId, {
     isSelected: false,
   });
-  
+
   if (!result.success) {
     return null;
   }
-  
+
   return {
     id: result.data.id,
     googleCalendarId: result.data.googleCalendarId,
@@ -344,4 +345,3 @@ export async function countEnabledCalendars(userId: string): Promise<number> {
   const calendars = await calendarRepository.findSelected(userId);
   return calendars.length;
 }
-

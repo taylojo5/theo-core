@@ -206,4 +206,3 @@ export interface SyncState {
 // NOTE: Job data types are defined in ./jobs.ts to avoid duplication.
 // Import from there for FullSyncJobData, IncrementalSyncJobData,
 // ProcessWebhookJobData, ExpireApprovalsJobData, RenewWebhookJobData, etc.
-

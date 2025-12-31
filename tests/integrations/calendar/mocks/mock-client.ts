@@ -148,7 +148,9 @@ export class MockCalendarClient {
     return createMockCalendarListResponse(calendars);
   }
 
-  private async _getCalendar(calendarId: string): Promise<GoogleCalendar | null> {
+  private async _getCalendar(
+    calendarId: string
+  ): Promise<GoogleCalendar | null> {
     await this.maybeDelay();
     await this.maybeSimulateError("getCalendar");
 
@@ -159,7 +161,9 @@ export class MockCalendarClient {
   // Event Operations
   // ─────────────────────────────────────────────────────────────
 
-  private async _listEvents(options?: ListEventsOptions): Promise<EventListResponse> {
+  private async _listEvents(
+    options?: ListEventsOptions
+  ): Promise<EventListResponse> {
     await this.maybeDelay();
     await this.maybeSimulateError("listEvents");
 
@@ -256,7 +260,9 @@ export class MockCalendarClient {
           key: { type: "hangoutsMeet" },
           name: "Google Meet",
         },
-        entryPoints: [{ entryPointType: "video", uri: `https://meet.google.com/${meetId}` }],
+        entryPoints: [
+          { entryPointType: "video", uri: `https://meet.google.com/${meetId}` },
+        ],
       };
     }
 
@@ -316,7 +322,10 @@ export class MockCalendarClient {
     return updated;
   }
 
-  private async _deleteEvent(calendarId: string, eventId: string): Promise<void> {
+  private async _deleteEvent(
+    calendarId: string,
+    eventId: string
+  ): Promise<void> {
     await this.maybeDelay();
     await this.maybeSimulateError("deleteEvent");
 
@@ -387,7 +396,10 @@ export class MockCalendarClient {
     return watch;
   }
 
-  private async _stopWatch(channelId: string, resourceId: string): Promise<void> {
+  private async _stopWatch(
+    channelId: string,
+    resourceId: string
+  ): Promise<void> {
     await this.maybeDelay();
     await this.maybeSimulateError("stopWatch");
 
@@ -468,5 +480,3 @@ export function createMockCalendarClient(
 ): MockCalendarClient {
   return new MockCalendarClient(options);
 }
-
-

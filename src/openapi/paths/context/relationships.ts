@@ -22,14 +22,17 @@ export function registerRelationshipsPaths(registry: OpenAPIRegistry) {
     path: "/api/context/relationships",
     tags: ["Context - Relationships"],
     summary: "List relationships",
-    description: "Retrieve relationships between entities. Filter by entity type/ID or relationship type.",
+    description:
+      "Retrieve relationships between entities. Filter by entity type/ID or relationship type.",
     security: protectedEndpoint,
     request: { query: RelationshipListQuerySchema },
     responses: {
       200: {
         description: "Paginated list of relationships",
         headers: rateLimitHeaders,
-        content: { "application/json": { schema: PaginatedRelationshipsSchema } },
+        content: {
+          "application/json": { schema: PaginatedRelationshipsSchema },
+        },
       },
       401: { $ref: "#/components/responses/Unauthorized" },
       429: { $ref: "#/components/responses/RateLimited" },
@@ -42,10 +45,14 @@ export function registerRelationshipsPaths(registry: OpenAPIRegistry) {
     path: "/api/context/relationships",
     tags: ["Context - Relationships"],
     summary: "Create relationship",
-    description: "Create a relationship between two entities (e.g., person works_at place).",
+    description:
+      "Create a relationship between two entities (e.g., person works_at place).",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: RelationshipCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: RelationshipCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -66,10 +73,15 @@ export function registerRelationshipsPaths(registry: OpenAPIRegistry) {
     summary: "Get relationship by ID",
     security: protectedEndpoint,
     request: {
-      params: z.object({ id: z.string().openapi({ example: "clx1234567890abcdef" }) }),
+      params: z.object({
+        id: z.string().openapi({ example: "clx1234567890abcdef" }),
+      }),
     },
     responses: {
-      200: { description: "Relationship details", content: { "application/json": { schema: RelationshipSchema } } },
+      200: {
+        description: "Relationship details",
+        content: { "application/json": { schema: RelationshipSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -84,10 +96,16 @@ export function registerRelationshipsPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: RelationshipUpdateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: RelationshipUpdateSchema } },
+      },
     },
     responses: {
-      200: { description: "Relationship updated", content: { "application/json": { schema: RelationshipSchema } } },
+      200: {
+        description: "Relationship updated",
+        content: { "application/json": { schema: RelationshipSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -104,10 +122,12 @@ export function registerRelationshipsPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Relationship deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Relationship deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
   });
 }
-

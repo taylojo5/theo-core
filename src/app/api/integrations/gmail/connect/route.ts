@@ -100,7 +100,7 @@ export async function POST(
     const syncIsConfigured = await isSyncConfigured(userId);
     // Check if metadata (labels + contacts) has been synced
     const metadataIsSynced = await hasMetadataSynced(userId);
-    
+
     try {
       if (syncIsConfigured) {
         // Sync is configured - ensure recurring sync is running
@@ -116,7 +116,9 @@ export async function POST(
         // Sync not configured and metadata not synced - trigger metadata sync
         // This lets the user configure which labels to sync
         await triggerMetadataSync(userId);
-        apiLogger.info("Triggered metadata sync for new connection", { userId });
+        apiLogger.info("Triggered metadata sync for new connection", {
+          userId,
+        });
       }
     } catch (error) {
       // Log but don't fail the request if sync scheduling fails

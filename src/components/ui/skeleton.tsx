@@ -1,18 +1,15 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn(
-        "animate-pulse rounded-md bg-muted",
-        className
-      )}
+      className={cn("bg-muted animate-pulse rounded-md", className)}
       {...props}
     />
-  )
+  );
 }
 
 // Pre-built skeleton patterns for common use cases
@@ -27,38 +24,23 @@ function SkeletonText({
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
-          className={cn(
-            "h-4",
-            i === lines - 1 ? "w-3/4" : "w-full"
-          )}
+          className={cn("h-4", i === lines - 1 ? "w-3/4" : "w-full")}
         />
       ))}
     </div>
-  )
+  );
 }
 
-function SkeletonAvatar({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function SkeletonAvatar({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <Skeleton
-      className={cn("size-10 rounded-full", className)}
-      {...props}
-    />
-  )
+    <Skeleton className={cn("size-10 rounded-full", className)} {...props} />
+  );
 }
 
-function SkeletonCard({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function SkeletonCard({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(
-        "rounded-xl border bg-card p-6 shadow-sm",
-        className
-      )}
+      className={cn("bg-card rounded-xl border p-6 shadow-sm", className)}
       {...props}
     >
       <div className="flex items-center gap-4">
@@ -72,7 +54,7 @@ function SkeletonCard({
         <SkeletonText lines={2} />
       </div>
     </div>
-  )
+  );
 }
 
 function SkeletonMessage({
@@ -90,12 +72,17 @@ function SkeletonMessage({
       {...props}
     >
       <SkeletonAvatar className="size-8 shrink-0" />
-      <div className={cn("max-w-[70%] space-y-2", align === "right" && "items-end")}>
+      <div
+        className={cn(
+          "max-w-[70%] space-y-2",
+          align === "right" && "items-end"
+        )}
+      >
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-16 w-48 rounded-2xl" />
       </div>
     </div>
-  )
+  );
 }
 
 export {
@@ -104,5 +91,4 @@ export {
   SkeletonAvatar,
   SkeletonCard,
   SkeletonMessage,
-}
-
+};

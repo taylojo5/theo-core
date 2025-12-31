@@ -63,27 +63,27 @@ Design this integration as a **self-contained module** with clear boundaries (AP
 
 ### Token Types
 
-| Type | Use Case | Scopes |
-| --- | --- | --- |
+| Type       | Use Case                                       | Scopes                                            |
+| ---------- | ---------------------------------------------- | ------------------------------------------------- |
 | User Token | Act as user (preferred for personal assistant) | `chat:write`, `users:read`, `channels:read`, etc. |
-| Bot Token | App-level actions, events | `app_mentions:read`, `chat:write`, `users:read` |
+| Bot Token  | App-level actions, events                      | `app_mentions:read`, `chat:write`, `users:read`   |
 
 ### Required Scopes (User Token)
 
-| Scope | Purpose |
-| --- | --- |
-| `channels:read` | List public channels |
-| `channels:history` | Read public channel messages |
-| `groups:read` | List private channels |
-| `groups:history` | Read private channel messages |
-| `im:read` | List direct messages |
-| `im:history` | Read DM history |
-| `mpim:read` | List group DMs |
-| `mpim:history` | Read group DM history |
-| `users:read` | List workspace users |
-| `users:read.email` | Get user email addresses |
-| `chat:write` | Send messages |
-| `reactions:write` | Add emoji reactions |
+| Scope              | Purpose                       |
+| ------------------ | ----------------------------- |
+| `channels:read`    | List public channels          |
+| `channels:history` | Read public channel messages  |
+| `groups:read`      | List private channels         |
+| `groups:history`   | Read private channel messages |
+| `im:read`          | List direct messages          |
+| `im:history`       | Read DM history               |
+| `mpim:read`        | List group DMs                |
+| `mpim:history`     | Read group DM history         |
+| `users:read`       | List workspace users          |
+| `users:read.email` | Get user email addresses      |
+| `chat:write`       | Send messages                 |
+| `reactions:write`  | Add emoji reactions           |
 
 ### OAuth Flow
 
@@ -105,127 +105,127 @@ Design this integration as a **self-contained module** with clear boundaries (AP
 
 Tracks sync progress per user.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User (unique) |
-| teamId | string | Slack workspace ID |
-| teamName | string | Workspace name |
-| lastSyncAt | datetime? | Last successful sync |
-| lastFullSyncAt | datetime? | Last full sync |
-| syncStatus | enum | `idle`, `syncing`, `error` |
-| syncError | string? | Error message if failed |
-| userCount | int | Total users synced |
-| channelCount | int | Total channels synced |
-| messageCount | int | Total messages synced |
-| socketConnected | boolean | Real-time connection active |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field           | Type      | Description                 |
+| --------------- | --------- | --------------------------- |
+| id              | string    | Unique identifier           |
+| userId          | string    | FK to User (unique)         |
+| teamId          | string    | Slack workspace ID          |
+| teamName        | string    | Workspace name              |
+| lastSyncAt      | datetime? | Last successful sync        |
+| lastFullSyncAt  | datetime? | Last full sync              |
+| syncStatus      | enum      | `idle`, `syncing`, `error`  |
+| syncError       | string?   | Error message if failed     |
+| userCount       | int       | Total users synced          |
+| channelCount    | int       | Total channels synced       |
+| messageCount    | int       | Total messages synced       |
+| socketConnected | boolean   | Real-time connection active |
+| createdAt       | datetime  |                             |
+| updatedAt       | datetime  |                             |
 
 ### SlackWorkspace
 
 Stores workspace metadata.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| teamId | string | Slack team/workspace ID |
-| teamName | string | Workspace display name |
-| teamDomain | string | Workspace URL subdomain |
-| teamIcon | string? | Workspace icon URL |
-| enterpriseId | string? | Enterprise Grid ID if applicable |
-| isActive | boolean | Currently connected |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field        | Type     | Description                      |
+| ------------ | -------- | -------------------------------- |
+| id           | string   | Unique identifier                |
+| userId       | string   | FK to User                       |
+| teamId       | string   | Slack team/workspace ID          |
+| teamName     | string   | Workspace display name           |
+| teamDomain   | string   | Workspace URL subdomain          |
+| teamIcon     | string?  | Workspace icon URL               |
+| enterpriseId | string?  | Enterprise Grid ID if applicable |
+| isActive     | boolean  | Currently connected              |
+| createdAt    | datetime |                                  |
+| updatedAt    | datetime |                                  |
 
 ### SlackChannel
 
 Stores synced channels.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| workspaceId | string | FK to SlackWorkspace |
-| slackChannelId | string | Slack's channel ID |
-| name | string | Channel name |
-| type | enum | `public`, `private`, `dm`, `mpim` |
-| topic | string? | Channel topic |
-| purpose | string? | Channel purpose |
-| isMember | boolean | User is a member |
-| isArchived | boolean | Channel is archived |
-| memberCount | int? | Number of members |
-| lastMessageTs | string? | Latest message timestamp |
-| syncEnabled | boolean | Sync messages for this channel |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field          | Type     | Description                       |
+| -------------- | -------- | --------------------------------- |
+| id             | string   | Unique identifier                 |
+| userId         | string   | FK to User                        |
+| workspaceId    | string   | FK to SlackWorkspace              |
+| slackChannelId | string   | Slack's channel ID                |
+| name           | string   | Channel name                      |
+| type           | enum     | `public`, `private`, `dm`, `mpim` |
+| topic          | string?  | Channel topic                     |
+| purpose        | string?  | Channel purpose                   |
+| isMember       | boolean  | User is a member                  |
+| isArchived     | boolean  | Channel is archived               |
+| memberCount    | int?     | Number of members                 |
+| lastMessageTs  | string?  | Latest message timestamp          |
+| syncEnabled    | boolean  | Sync messages for this channel    |
+| createdAt      | datetime |                                   |
+| updatedAt      | datetime |                                   |
 
 ### SlackMessage
 
 Stores synced messages (selective sync based on importance).
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| channelId | string | FK to SlackChannel |
-| slackMessageTs | string | Slack's message timestamp (unique ID) |
-| slackUserId | string | Sender's Slack user ID |
-| text | string | Message content |
-| threadTs | string? | Parent thread timestamp |
-| isThreadReply | boolean | Is a reply in a thread |
-| hasAttachments | boolean | Contains files/attachments |
-| hasReactions | boolean | Has emoji reactions |
-| reactions | json | Array of reactions |
-| mentions | string[] | Mentioned user IDs |
-| isImportant | boolean | Marked important for context |
-| embeddingStatus | enum | `pending`, `completed`, `skipped` |
-| createdAt | datetime | When synced |
-| messageAt | datetime | Original message time |
+| Field           | Type     | Description                           |
+| --------------- | -------- | ------------------------------------- |
+| id              | string   | Unique identifier                     |
+| userId          | string   | FK to User                            |
+| channelId       | string   | FK to SlackChannel                    |
+| slackMessageTs  | string   | Slack's message timestamp (unique ID) |
+| slackUserId     | string   | Sender's Slack user ID                |
+| text            | string   | Message content                       |
+| threadTs        | string?  | Parent thread timestamp               |
+| isThreadReply   | boolean  | Is a reply in a thread                |
+| hasAttachments  | boolean  | Contains files/attachments            |
+| hasReactions    | boolean  | Has emoji reactions                   |
+| reactions       | json     | Array of reactions                    |
+| mentions        | string[] | Mentioned user IDs                    |
+| isImportant     | boolean  | Marked important for context          |
+| embeddingStatus | enum     | `pending`, `completed`, `skipped`     |
+| createdAt       | datetime | When synced                           |
+| messageAt       | datetime | Original message time                 |
 
 ### SlackUser
 
 Stores workspace users for mapping to Person entities.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User (Theo user) |
-| workspaceId | string | FK to SlackWorkspace |
-| slackUserId | string | Slack's user ID |
-| username | string | Slack username |
-| displayName | string | Display name |
-| realName | string? | Full name |
-| email | string? | Email address |
-| avatarUrl | string? | Profile picture URL |
-| title | string? | Job title |
-| isBot | boolean | Is a bot user |
-| isDeleted | boolean | Deactivated account |
-| personId | string? | FK to Person (linked entity) |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field       | Type     | Description                  |
+| ----------- | -------- | ---------------------------- |
+| id          | string   | Unique identifier            |
+| userId      | string   | FK to User (Theo user)       |
+| workspaceId | string   | FK to SlackWorkspace         |
+| slackUserId | string   | Slack's user ID              |
+| username    | string   | Slack username               |
+| displayName | string   | Display name                 |
+| realName    | string?  | Full name                    |
+| email       | string?  | Email address                |
+| avatarUrl   | string?  | Profile picture URL          |
+| title       | string?  | Job title                    |
+| isBot       | boolean  | Is a bot user                |
+| isDeleted   | boolean  | Deactivated account          |
+| personId    | string?  | FK to Person (linked entity) |
+| createdAt   | datetime |                              |
+| updatedAt   | datetime |                              |
 
 ### SlackMessageApproval
 
 For agent-initiated message actions.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| actionType | enum | `send`, `reply`, `react`, `status` |
-| channelId | string | Target channel |
-| threadTs | string? | Thread to reply to |
-| content | string | Message text |
-| blocks | json? | Rich message blocks |
-| status | enum | `pending`, `approved`, `rejected`, `expired`, `sent` |
-| requestedAt | datetime | When requested |
-| expiresAt | datetime? | Auto-expiration |
-| decidedAt | datetime? | When user decided |
-| sentMessageTs | string? | Resulting message timestamp |
-| errorMessage | string? | Error if failed |
-| metadata | json | Additional context |
+| Field         | Type      | Description                                          |
+| ------------- | --------- | ---------------------------------------------------- |
+| id            | string    | Unique identifier                                    |
+| userId        | string    | FK to User                                           |
+| actionType    | enum      | `send`, `reply`, `react`, `status`                   |
+| channelId     | string    | Target channel                                       |
+| threadTs      | string?   | Thread to reply to                                   |
+| content       | string    | Message text                                         |
+| blocks        | json?     | Rich message blocks                                  |
+| status        | enum      | `pending`, `approved`, `rejected`, `expired`, `sent` |
+| requestedAt   | datetime  | When requested                                       |
+| expiresAt     | datetime? | Auto-expiration                                      |
+| decidedAt     | datetime? | When user decided                                    |
+| sentMessageTs | string?   | Resulting message timestamp                          |
+| errorMessage  | string?   | Error if failed                                      |
+| metadata      | json      | Additional context                                   |
 
 ---
 
@@ -235,58 +235,58 @@ For agent-initiated message actions.
 
 Wrapper over Slack Web API with rate limiting.
 
-| Method | Description |
-| --- | --- |
-| `listUsers()` | List all workspace users |
-| `listChannels()` | List channels user has access to |
-| `getChannelInfo(channelId)` | Get channel details |
-| `getChannelHistory(channelId, options)` | Get message history |
-| `sendMessage(params)` | Send a message |
-| `replyToThread(channel, threadTs, text)` | Reply in thread |
-| `addReaction(channel, timestamp, emoji)` | Add emoji reaction |
-| `setStatus(text, emoji, expiration?)` | Set user status |
-| `getUserInfo(userId)` | Get user profile |
+| Method                                   | Description                      |
+| ---------------------------------------- | -------------------------------- |
+| `listUsers()`                            | List all workspace users         |
+| `listChannels()`                         | List channels user has access to |
+| `getChannelInfo(channelId)`              | Get channel details              |
+| `getChannelHistory(channelId, options)`  | Get message history              |
+| `sendMessage(params)`                    | Send a message                   |
+| `replyToThread(channel, threadTs, text)` | Reply in thread                  |
+| `addReaction(channel, timestamp, emoji)` | Add emoji reaction               |
+| `setStatus(text, emoji, expiration?)`    | Set user status                  |
+| `getUserInfo(userId)`                    | Get user profile                 |
 
 ### SlackRepository
 
 Database operations for Slack data.
 
-| Method | Description |
-| --- | --- |
-| `upsertWorkspace(input)` | Create or update workspace |
-| `upsertChannel(input)` | Create or update channel |
-| `upsertMessage(input)` | Create or update message |
-| `upsertUser(input)` | Create or update Slack user |
-| `linkUserToPerson(slackUserId, personId)` | Link to Person entity |
-| `findChannelsByType(userId, type)` | Query channels |
-| `findRecentMessages(userId, hours)` | Get recent messages |
-| `findMentions(userId)` | Get messages mentioning user |
+| Method                                    | Description                  |
+| ----------------------------------------- | ---------------------------- |
+| `upsertWorkspace(input)`                  | Create or update workspace   |
+| `upsertChannel(input)`                    | Create or update channel     |
+| `upsertMessage(input)`                    | Create or update message     |
+| `upsertUser(input)`                       | Create or update Slack user  |
+| `linkUserToPerson(slackUserId, personId)` | Link to Person entity        |
+| `findChannelsByType(userId, type)`        | Query channels               |
+| `findRecentMessages(userId, hours)`       | Get recent messages          |
+| `findMentions(userId)`                    | Get messages mentioning user |
 
 ### SlackSyncService
 
 Handles sync operations.
 
-| Method | Description |
-| --- | --- |
-| `fullSync(userId)` | Full workspace import |
-| `syncUsers(userId)` | Sync workspace users |
-| `syncChannels(userId)` | Sync channel list |
-| `syncChannelHistory(userId, channelId)` | Sync channel messages |
-| `processSlackEvent(event)` | Handle real-time events |
+| Method                                  | Description             |
+| --------------------------------------- | ----------------------- |
+| `fullSync(userId)`                      | Full workspace import   |
+| `syncUsers(userId)`                     | Sync workspace users    |
+| `syncChannels(userId)`                  | Sync channel list       |
+| `syncChannelHistory(userId, channelId)` | Sync channel messages   |
+| `processSlackEvent(event)`              | Handle real-time events |
 
 ### SlackActions
 
 Agent-facing actions with approval workflow.
 
-| Method | Description |
-| --- | --- |
-| `requestMessageSend(params)` | Request to send message |
-| `requestThreadReply(params)` | Request to reply in thread |
-| `requestReaction(params)` | Request to add reaction |
-| `requestStatusUpdate(params)` | Request status change |
-| `approveAction(approvalId)` | User approves |
-| `rejectAction(approvalId, notes)` | User rejects |
-| `executeApprovedAction(approvalId)` | Execute after approval |
+| Method                              | Description                |
+| ----------------------------------- | -------------------------- |
+| `requestMessageSend(params)`        | Request to send message    |
+| `requestThreadReply(params)`        | Request to reply in thread |
+| `requestReaction(params)`           | Request to add reaction    |
+| `requestStatusUpdate(params)`       | Request status change      |
+| `approveAction(approvalId)`         | User approves              |
+| `rejectAction(approvalId, notes)`   | User rejects               |
+| `executeApprovedAction(approvalId)` | Execute after approval     |
 
 ---
 
@@ -316,26 +316,26 @@ Initial import of workspace data.
 
 Not all messages are valuable context. Prioritize:
 
-| Priority | Criteria | Action |
-| --- | --- | --- |
-| High | User mentioned | Sync + embed |
-| High | User replied | Sync + embed |
-| High | User reacted | Sync |
-| Medium | Recent (24h) | Sync |
-| Low | Old, no interaction | Skip |
+| Priority | Criteria            | Action       |
+| -------- | ------------------- | ------------ |
+| High     | User mentioned      | Sync + embed |
+| High     | User replied        | Sync + embed |
+| High     | User reacted        | Sync         |
+| Medium   | Recent (24h)        | Sync         |
+| Low      | Old, no interaction | Skip         |
 
 ### Real-Time Events (Socket Mode)
 
 Optional real-time updates via Slack Socket Mode.
 
-| Event | Handler |
-| --- | --- |
-| `message` | Add to message store |
-| `reaction_added` | Update message reactions |
-| `channel_created` | Add to channel list |
-| `member_joined_channel` | Update membership |
-| `user_change` | Update user info |
-| `app_mention` | High-priority context |
+| Event                   | Handler                  |
+| ----------------------- | ------------------------ |
+| `message`               | Add to message store     |
+| `reaction_added`        | Update message reactions |
+| `channel_created`       | Add to channel list      |
+| `member_joined_channel` | Update membership        |
+| `user_change`           | Update user info         |
+| `app_mention`           | High-priority context    |
 
 ---
 
@@ -343,12 +343,12 @@ Optional real-time updates via Slack Socket Mode.
 
 Slack API has tiered rate limits:
 
-| Tier | Limit | Methods |
-| --- | --- | --- |
-| Tier 1 | 1 req/min | `admin.*` |
-| Tier 2 | 20 req/min | `chat.postMessage` |
-| Tier 3 | 50 req/min | `conversations.list` |
-| Tier 4 | 100 req/min | `users.list` |
+| Tier   | Limit       | Methods              |
+| ------ | ----------- | -------------------- |
+| Tier 1 | 1 req/min   | `admin.*`            |
+| Tier 2 | 20 req/min  | `chat.postMessage`   |
+| Tier 3 | 50 req/min  | `conversations.list` |
+| Tier 4 | 100 req/min | `users.list`         |
 
 ### Implementation
 
@@ -376,14 +376,14 @@ When syncing Slack users, link to existing Person entities:
 
 Slack provides additional context for People:
 
-| Slack Field | Person Field |
-| --- | --- |
-| `profile.email` | email |
-| `profile.display_name` | name |
-| `profile.real_name` | name (fallback) |
-| `profile.image_*` | avatarUrl |
-| `profile.title` | title |
-| `tz` | timezone |
+| Slack Field            | Person Field    |
+| ---------------------- | --------------- |
+| `profile.email`        | email           |
+| `profile.display_name` | name            |
+| `profile.real_name`    | name (fallback) |
+| `profile.image_*`      | avatarUrl       |
+| `profile.title`        | title           |
+| `tz`                   | timezone        |
 
 ---
 
@@ -391,43 +391,43 @@ Slack provides additional context for People:
 
 ### Workspace Management
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/slack/workspaces` | List connected workspaces |
-| DELETE | `/api/integrations/slack/workspaces/:id` | Disconnect workspace |
-| POST | `/api/integrations/slack/sync` | Trigger sync |
-| GET | `/api/integrations/slack/status` | Get sync status |
+| Method | Path                                     | Description               |
+| ------ | ---------------------------------------- | ------------------------- |
+| GET    | `/api/integrations/slack/workspaces`     | List connected workspaces |
+| DELETE | `/api/integrations/slack/workspaces/:id` | Disconnect workspace      |
+| POST   | `/api/integrations/slack/sync`           | Trigger sync              |
+| GET    | `/api/integrations/slack/status`         | Get sync status           |
 
 ### Channel Management
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/slack/channels` | List channels |
-| PATCH | `/api/integrations/slack/channels/:id` | Update sync settings |
-| GET | `/api/integrations/slack/channels/:id/messages` | Get channel messages |
+| Method | Path                                            | Description          |
+| ------ | ----------------------------------------------- | -------------------- |
+| GET    | `/api/integrations/slack/channels`              | List channels        |
+| PATCH  | `/api/integrations/slack/channels/:id`          | Update sync settings |
+| GET    | `/api/integrations/slack/channels/:id/messages` | Get channel messages |
 
 ### Message Actions
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/integrations/slack/messages` | Send message (with approval) |
-| POST | `/api/integrations/slack/messages/:id/reply` | Reply to thread |
-| POST | `/api/integrations/slack/messages/:id/react` | Add reaction |
+| Method | Path                                         | Description                  |
+| ------ | -------------------------------------------- | ---------------------------- |
+| POST   | `/api/integrations/slack/messages`           | Send message (with approval) |
+| POST   | `/api/integrations/slack/messages/:id/reply` | Reply to thread              |
+| POST   | `/api/integrations/slack/messages/:id/react` | Add reaction                 |
 
 ### Approval Workflow
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/slack/approvals` | List pending approvals |
-| POST | `/api/integrations/slack/approvals/:id/approve` | Approve action |
-| POST | `/api/integrations/slack/approvals/:id/reject` | Reject action |
+| Method | Path                                            | Description            |
+| ------ | ----------------------------------------------- | ---------------------- |
+| GET    | `/api/integrations/slack/approvals`             | List pending approvals |
+| POST   | `/api/integrations/slack/approvals/:id/approve` | Approve action         |
+| POST   | `/api/integrations/slack/approvals/:id/reject`  | Reject action          |
 
 ### OAuth
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/slack/auth` | Start OAuth flow |
-| GET | `/api/integrations/slack/callback` | OAuth callback |
+| Method | Path                               | Description      |
+| ------ | ---------------------------------- | ---------------- |
+| GET    | `/api/integrations/slack/auth`     | Start OAuth flow |
+| GET    | `/api/integrations/slack/callback` | OAuth callback   |
 
 ---
 
@@ -435,15 +435,15 @@ Slack provides additional context for People:
 
 ### Agent Tools
 
-| Tool | Description |
-| --- | --- |
-| `search_slack_messages` | Search message history |
-| `list_slack_channels` | Get available channels |
-| `get_slack_thread` | Get full thread context |
-| `send_slack_message` | Send message (requires approval) |
-| `reply_to_slack_thread` | Reply in thread (requires approval) |
-| `get_slack_user_context` | Get info about Slack user |
-| `find_slack_user` | Find user by name/email |
+| Tool                     | Description                         |
+| ------------------------ | ----------------------------------- |
+| `search_slack_messages`  | Search message history              |
+| `list_slack_channels`    | Get available channels              |
+| `get_slack_thread`       | Get full thread context             |
+| `send_slack_message`     | Send message (requires approval)    |
+| `reply_to_slack_thread`  | Reply in thread (requires approval) |
+| `get_slack_user_context` | Get info about Slack user           |
+| `find_slack_user`        | Find user by name/email             |
 
 ### Context Enrichment
 
@@ -477,14 +477,14 @@ Slack data enriches agent context:
 
 ### Error Types
 
-| Error | Cause | Recovery |
-| --- | --- | --- |
-| `token_revoked` | User revoked access | Prompt re-authentication |
-| `missing_scope` | Need additional permissions | Prompt scope upgrade |
-| `channel_not_found` | Channel deleted/archived | Remove from sync |
-| `not_in_channel` | User left channel | Update membership |
-| `ratelimited` | Rate limit exceeded | Exponential backoff |
-| `user_not_found` | User deactivated | Mark as deleted |
+| Error               | Cause                       | Recovery                 |
+| ------------------- | --------------------------- | ------------------------ |
+| `token_revoked`     | User revoked access         | Prompt re-authentication |
+| `missing_scope`     | Need additional permissions | Prompt scope upgrade     |
+| `channel_not_found` | Channel deleted/archived    | Remove from sync         |
+| `not_in_channel`    | User left channel           | Update membership        |
+| `ratelimited`       | Rate limit exceeded         | Exponential backoff      |
+| `user_not_found`    | User deactivated            | Mark as deleted          |
 
 ### Token Refresh
 
@@ -508,12 +508,12 @@ Slack user tokens don't expire but can be revoked. Handle:
 
 ### Retention
 
-| Data Type | Retention |
-| --- | --- |
-| Messages | 30 days default, configurable |
-| Users | Indefinite (Person entities) |
-| Channels | Until disconnected |
-| Embeddings | Same as messages |
+| Data Type  | Retention                     |
+| ---------- | ----------------------------- |
+| Messages   | 30 days default, configurable |
+| Users      | Indefinite (Person entities)  |
+| Channels   | Until disconnected            |
+| Embeddings | Same as messages              |
 
 ---
 
@@ -578,13 +578,13 @@ Slack user tokens don't expire but can be revoked. Handle:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| OAuth success rate | >95% | Successful connections |
-| Sync latency | <60s | Full initial sync |
-| User matching rate | >80% | Slack users linked to Person |
-| Message relevance | >70% | Synced messages used in context |
-| Action approval rate | >60% | Slack actions approved |
+| Metric               | Target | Description                     |
+| -------------------- | ------ | ------------------------------- |
+| OAuth success rate   | >95%   | Successful connections          |
+| Sync latency         | <60s   | Full initial sync               |
+| User matching rate   | >80%   | Slack users linked to Person    |
+| Message relevance    | >70%   | Synced messages used in context |
+| Action approval rate | >60%   | Slack actions approved          |
 
 ---
 
@@ -655,6 +655,7 @@ Slack user tokens don't expire but can be revoked. Handle:
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -663,4 +664,3 @@ Slack user tokens don't expire but can be revoked. Handle:
   "message": "I've drafted a Slack reply. Please review and approve."
 }
 ```
-

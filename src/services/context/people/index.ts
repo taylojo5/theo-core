@@ -46,4 +46,3 @@ export {
   searchPeople,
   upsertPeopleFromSource,
 } from "./people-service";
-

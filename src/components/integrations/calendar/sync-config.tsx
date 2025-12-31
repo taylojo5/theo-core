@@ -50,7 +50,10 @@ export interface CalendarSyncConfigProps {
   isConnected?: boolean;
   /** Whether calendar metadata has been synced */
   metadataSynced?: boolean;
-  onSave: (config: { enabledCalendarIds?: string[]; enableRecurring?: boolean }) => Promise<void>;
+  onSave: (config: {
+    enabledCalendarIds?: string[];
+    enableRecurring?: boolean;
+  }) => Promise<void>;
   className?: string;
 }
 
@@ -70,10 +73,12 @@ export function CalendarSyncConfigPanel({
   // Start in editing mode if sync not configured (first-time setup)
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [selectedCalendarIds, setSelectedCalendarIds] = React.useState<string[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = React.useState<
+    string[]
+  >([]);
 
   const isSetupMode = !config?.syncConfigured;
-  
+
   // Filter to only syncable calendars
   const syncableCalendars = calendars.filter((c) => c.canSyncEvents);
   const unsyncableCalendars = calendars.filter((c) => !c.canSyncEvents);
@@ -97,7 +102,7 @@ export function CalendarSyncConfigPanel({
     if (selectedCalendarIds.length === 0) {
       return; // Button should be disabled anyway
     }
-    
+
     setIsSaving(true);
     try {
       await onSave({ enabledCalendarIds: selectedCalendarIds });
@@ -144,7 +149,13 @@ export function CalendarSyncConfigPanel({
   }
 
   return (
-    <Card className={cn("relative", isSetupMode && "ring-2 ring-blue-500 ring-offset-2", className)}>
+    <Card
+      className={cn(
+        "relative",
+        isSetupMode && "ring-2 ring-blue-500 ring-offset-2",
+        className
+      )}
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -158,7 +169,7 @@ export function CalendarSyncConfigPanel({
               )}
             </CardTitle>
             <CardDescription>
-              {isSetupMode 
+              {isSetupMode
                 ? "Select which calendars you want to sync events from. Only calendars with reader or owner access can sync event details."
                 : "Customize which calendars are synced"}
             </CardDescription>
@@ -185,9 +196,7 @@ export function CalendarSyncConfigPanel({
         ) : !metadataSynced && isSetupMode ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Spinner size="default" className="mb-4" />
-            <p className="text-muted-foreground">
-              Loading your calendars...
-            </p>
+            <p className="text-muted-foreground">Loading your calendars...</p>
             <p className="text-muted-foreground text-sm">
               This may take a moment
             </p>
@@ -206,7 +215,7 @@ export function CalendarSyncConfigPanel({
                     Select at least one calendar to import events from.
                   </p>
                 </div>
-                
+
                 {/* Show validation message if no calendars selected in edit mode */}
                 {isEditing && selectedCalendarIds.length === 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
@@ -216,16 +225,18 @@ export function CalendarSyncConfigPanel({
                     </p>
                   </div>
                 )}
-                
+
                 <div className="space-y-2">
                   {syncableCalendars.map((calendar) => {
-                    const isSelected = selectedCalendarIds.includes(calendar.id);
+                    const isSelected = selectedCalendarIds.includes(
+                      calendar.id
+                    );
                     return (
                       <div
                         key={calendar.id}
                         className={cn(
                           "flex items-center gap-3 rounded-lg border p-3 transition-colors",
-                          isEditing && "cursor-pointer hover:bg-muted/50",
+                          isEditing && "hover:bg-muted/50 cursor-pointer",
                           isSelected && "border-primary bg-primary/5"
                         )}
                         onClick={() => isEditing && toggleCalendar(calendar.id)}
@@ -234,11 +245,12 @@ export function CalendarSyncConfigPanel({
                         <div
                           className="size-3 shrink-0 rounded-full"
                           style={{
-                            backgroundColor: calendar.backgroundColor || "#4285F4",
+                            backgroundColor:
+                              calendar.backgroundColor || "#4285F4",
                             border: "1px solid rgba(0,0,0,0.1)",
                           }}
                         />
-                        
+
                         {/* Calendar info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -246,16 +258,21 @@ export function CalendarSyncConfigPanel({
                               {calendar.name}
                             </span>
                             {calendar.isPrimary && (
-                              <Badge variant="outline" className="shrink-0 text-xs">
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs"
+                              >
                                 Primary
                               </Badge>
                             )}
                           </div>
                           <p className="text-muted-foreground text-xs">
-                            {calendar.accessRole === "owner" ? "Owner" : "Can view"}
+                            {calendar.accessRole === "owner"
+                              ? "Owner"
+                              : "Can view"}
                           </p>
                         </div>
-                        
+
                         {/* Selection indicator */}
                         {isEditing ? (
                           <div
@@ -288,7 +305,9 @@ export function CalendarSyncConfigPanel({
                 <details className="group">
                   <summary className="text-muted-foreground flex cursor-pointer items-center gap-2 text-xs">
                     <ChevronIcon className="size-4 transition-transform group-open:rotate-90" />
-                    {unsyncableCalendars.length} calendar{unsyncableCalendars.length === 1 ? "" : "s"} with limited access
+                    {unsyncableCalendars.length} calendar
+                    {unsyncableCalendars.length === 1 ? "" : "s"} with limited
+                    access
                   </summary>
                   <div className="mt-2 space-y-2 pl-6">
                     {unsyncableCalendars.map((calendar) => (
@@ -299,25 +318,29 @@ export function CalendarSyncConfigPanel({
                         <div
                           className="size-3 shrink-0 rounded-full"
                           style={{
-                            backgroundColor: calendar.backgroundColor || "#4285F4",
+                            backgroundColor:
+                              calendar.backgroundColor || "#4285F4",
                             border: "1px solid rgba(0,0,0,0.1)",
                           }}
                         />
                         <div className="min-w-0 flex-1">
-                          <span className="truncate text-sm">{calendar.name}</span>
+                          <span className="truncate text-sm">
+                            {calendar.name}
+                          </span>
                           <p className="text-muted-foreground text-xs">
                             {calendar.accessRole === "freeBusyReader"
                               ? "Free/Busy only"
                               : calendar.accessRole === "writer"
-                              ? "Can edit (no read access)"
-                              : calendar.accessRole}
+                                ? "Can edit (no read access)"
+                                : calendar.accessRole}
                           </p>
                         </div>
-                        <LockIcon className="size-4 text-muted-foreground" />
+                        <LockIcon className="text-muted-foreground size-4" />
                       </div>
                     ))}
                     <p className="text-muted-foreground text-xs">
-                      These calendars cannot sync event details because they don&apos;t have reader or owner access.
+                      These calendars cannot sync event details because they
+                      don&apos;t have reader or owner access.
                     </p>
                   </div>
                 </details>
@@ -328,8 +351,11 @@ export function CalendarSyncConfigPanel({
             {!isEditing && selectedCalendarIds.length > 0 && (
               <div className="rounded-lg border p-3">
                 <p className="text-sm">
-                  <span className="font-medium">{selectedCalendarIds.length}</span>{" "}
-                  calendar{selectedCalendarIds.length === 1 ? "" : "s"} configured for sync
+                  <span className="font-medium">
+                    {selectedCalendarIds.length}
+                  </span>{" "}
+                  calendar{selectedCalendarIds.length === 1 ? "" : "s"}{" "}
+                  configured for sync
                 </p>
               </div>
             )}
@@ -346,8 +372,8 @@ export function CalendarSyncConfigPanel({
                     Cancel
                   </Button>
                 )}
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={isSaving || !canSave}
                   className={isSetupMode ? "w-full sm:w-auto" : ""}
                 >
@@ -507,4 +533,3 @@ function LockIcon({ className }: { className?: string }) {
 }
 
 export default CalendarSyncConfigPanel;
-

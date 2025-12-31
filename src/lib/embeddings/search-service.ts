@@ -374,4 +374,3 @@ export async function hasEmbedding(
 ): Promise<boolean> {
   return getSemanticSearchService().hasEmbedding(userId, entityType, entityId);
 }
-

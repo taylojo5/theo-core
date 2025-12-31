@@ -231,7 +231,9 @@ export function CalendarSyncStatus({
             {/* Sync Info */}
             <div className="text-muted-foreground grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-foreground font-medium">Last Full Sync:</span>
+                <span className="text-foreground font-medium">
+                  Last Full Sync:
+                </span>
                 <p>
                   {data?.lastFullSyncAt
                     ? formatTimeAgo(new Date(data.lastFullSyncAt))
@@ -303,7 +305,10 @@ interface StatusBadgeProps {
 function StatusBadge({ status }: StatusBadgeProps) {
   const config: Record<
     SyncStatusType,
-    { label: string; variant: "default" | "success" | "warning" | "destructive" | "secondary" }
+    {
+      label: string;
+      variant: "default" | "success" | "warning" | "destructive" | "secondary";
+    }
   > = {
     idle: { label: "Idle", variant: "secondary" },
     syncing: { label: "Syncing", variant: "default" },
@@ -351,9 +356,7 @@ function StatBox({
         <span className="text-xs">{label}</span>
       </div>
       <p className="text-lg font-semibold">{value}</p>
-      {subValue && (
-        <p className="text-muted-foreground text-xs">{subValue}</p>
-      )}
+      {subValue && <p className="text-muted-foreground text-xs">{subValue}</p>}
     </div>
   );
 }
@@ -507,4 +510,3 @@ function RecurringIcon({ className }: { className?: string }) {
 }
 
 export default CalendarSyncStatus;
-

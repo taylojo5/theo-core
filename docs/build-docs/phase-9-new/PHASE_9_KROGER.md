@@ -10,7 +10,8 @@
 
 Integrate Kroger's API to enable Theo to assist with meal planning, recipe management, and grocery cart building — while **never placing orders or handling checkout**.
 
-> **See also**: 
+> **See also**:
+>
 > - [Grocery Integration Contract](../ideas/[IDEA]%20-%20grocery-integration-contract.md) for universal constraints
 > - [Kroger Grocery Integration](../ideas/[IDEA]%20-%20kroger-grocery-integration.md) for detailed design
 
@@ -47,20 +48,21 @@ Design this integration as a **self-contained module** with clear boundaries to 
 
 Theo **must never**:
 
-| Forbidden Action | Reason |
-| --- | --- |
-| Place an order | User control |
-| Select pickup/delivery slots | User decision |
-| Apply payment methods | Security |
-| Apply coupons/tips | User control |
-| Submit checkout | Purchasing authority |
-| Silently substitute items | Transparency |
+| Forbidden Action             | Reason               |
+| ---------------------------- | -------------------- |
+| Place an order               | User control         |
+| Select pickup/delivery slots | User decision        |
+| Apply payment methods        | Security             |
+| Apply coupons/tips           | User control         |
+| Submit checkout              | Purchasing authority |
+| Silently substitute items    | Transparency         |
 
 ### Rate Limit Constraint
 
 > **Kroger API limit: 10,000 calls/day**
 
 Implement aggressive caching:
+
 - Store product data with 7-30 day TTL
 - Always check local DB before API calls
 - Cache search results by query
@@ -116,10 +118,10 @@ CART_READY_FOR_REVIEW  ← terminal (no transitions past this)
 
 ### Required Scopes
 
-| Scope | Purpose |
-| --- | --- |
-| `product.compact` | Product search and details |
-| `cart.basic:write` | Add/remove cart items |
+| Scope              | Purpose                    |
+| ------------------ | -------------------------- |
+| `product.compact`  | Product search and details |
+| `cart.basic:write` | Add/remove cart items      |
 
 ### OAuth Flow
 
@@ -150,180 +152,180 @@ Kroger's catalog and pricing are **store-scoped**. Theo must:
 
 Stores OAuth credentials per user.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| accessToken | string | Encrypted access token |
-| refreshToken | string? | Encrypted refresh token |
-| tokenExpiresAt | datetime | Token expiration |
-| scopes | string[] | Granted scopes |
-| storeId | string? | Preferred store |
-| storeName | string? | Store display name |
-| storeAddress | string? | Store location |
-| fulfillmentMode | enum? | `pickup`, `delivery` |
-| isActive | boolean | Connection active |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field           | Type     | Description             |
+| --------------- | -------- | ----------------------- |
+| id              | string   | Unique identifier       |
+| userId          | string   | FK to User              |
+| accessToken     | string   | Encrypted access token  |
+| refreshToken    | string?  | Encrypted refresh token |
+| tokenExpiresAt  | datetime | Token expiration        |
+| scopes          | string[] | Granted scopes          |
+| storeId         | string?  | Preferred store         |
+| storeName       | string?  | Store display name      |
+| storeAddress    | string?  | Store location          |
+| fulfillmentMode | enum?    | `pickup`, `delivery`    |
+| isActive        | boolean  | Connection active       |
+| createdAt       | datetime |                         |
+| updatedAt       | datetime |                         |
 
 ### KrogerProduct (Cache)
 
 Cached product data with long TTL.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| krogerProductId | string | Kroger's product ID |
-| upc | string? | Universal Product Code |
-| name | string | Product name |
-| description | string? | Product description |
-| brand | string? | Brand name |
-| category | string? | Product category |
-| size | string? | Package size |
-| price | decimal? | Current price |
-| priceUnit | string? | Price unit (per oz, each) |
-| imageUrl | string? | Product image |
-| storeId | string? | Store scope for pricing |
-| isAvailable | boolean | In stock |
-| lastVerifiedAt | datetime | Last API verification |
-| expiresAt | datetime | Cache expiration |
-| metadata | json | Additional data |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field           | Type     | Description               |
+| --------------- | -------- | ------------------------- |
+| id              | string   | Unique identifier         |
+| krogerProductId | string   | Kroger's product ID       |
+| upc             | string?  | Universal Product Code    |
+| name            | string   | Product name              |
+| description     | string?  | Product description       |
+| brand           | string?  | Brand name                |
+| category        | string?  | Product category          |
+| size            | string?  | Package size              |
+| price           | decimal? | Current price             |
+| priceUnit       | string?  | Price unit (per oz, each) |
+| imageUrl        | string?  | Product image             |
+| storeId         | string?  | Store scope for pricing   |
+| isAvailable     | boolean  | In stock                  |
+| lastVerifiedAt  | datetime | Last API verification     |
+| expiresAt       | datetime | Cache expiration          |
+| metadata        | json     | Additional data           |
+| createdAt       | datetime |                           |
+| updatedAt       | datetime |                           |
 
 ### KrogerSearchCache
 
 Cached search results.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| queryHash | string | Hash of search query |
-| query | string | Original query |
-| storeId | string? | Store scope |
-| productIds | string[] | Matching product IDs |
-| resultCount | int | Total results |
-| expiresAt | datetime | Cache expiration |
-| createdAt | datetime | |
+| Field       | Type     | Description          |
+| ----------- | -------- | -------------------- |
+| id          | string   | Unique identifier    |
+| queryHash   | string   | Hash of search query |
+| query       | string   | Original query       |
+| storeId     | string?  | Store scope          |
+| productIds  | string[] | Matching product IDs |
+| resultCount | int      | Total results        |
+| expiresAt   | datetime | Cache expiration     |
+| createdAt   | datetime |                      |
 
 ### Recipe
 
 User's saved recipes for meal planning.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| name | string | Recipe name |
-| source | string? | URL, cookbook, "custom" |
-| description | string? | Recipe description |
-| servings | int | Default servings |
-| prepTimeMinutes | int? | Prep time |
-| cookTimeMinutes | int? | Cook time |
-| ingredients | json | Array of RecipeIngredient |
-| instructions | string? | Cooking instructions |
-| tags | string[] | Cuisine, diet labels |
-| imageUrl | string? | Recipe image |
-| lastMadeAt | datetime? | Last time made |
-| timesUsed | int | Usage count |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field           | Type      | Description               |
+| --------------- | --------- | ------------------------- |
+| id              | string    | Unique identifier         |
+| userId          | string    | FK to User                |
+| name            | string    | Recipe name               |
+| source          | string?   | URL, cookbook, "custom"   |
+| description     | string?   | Recipe description        |
+| servings        | int       | Default servings          |
+| prepTimeMinutes | int?      | Prep time                 |
+| cookTimeMinutes | int?      | Cook time                 |
+| ingredients     | json      | Array of RecipeIngredient |
+| instructions    | string?   | Cooking instructions      |
+| tags            | string[]  | Cuisine, diet labels      |
+| imageUrl        | string?   | Recipe image              |
+| lastMadeAt      | datetime? | Last time made            |
+| timesUsed       | int       | Usage count               |
+| createdAt       | datetime  |                           |
+| updatedAt       | datetime  |                           |
 
 ### RecipeIngredient (embedded JSON)
 
-| Field | Type | Description |
-| --- | --- | --- |
-| name | string | Ingredient name (normalized) |
-| quantity | number | Amount needed |
-| unit | string | Measurement unit |
-| notes | string? | "optional", "to taste" |
-| category | string? | produce, dairy, pantry |
-| preferredProductId | string? | Saved product match |
+| Field              | Type    | Description                  |
+| ------------------ | ------- | ---------------------------- |
+| name               | string  | Ingredient name (normalized) |
+| quantity           | number  | Amount needed                |
+| unit               | string  | Measurement unit             |
+| notes              | string? | "optional", "to taste"       |
+| category           | string? | produce, dairy, pantry       |
+| preferredProductId | string? | Saved product match          |
 
 ### ProductPreference
 
 User's product preferences.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| type | enum | `prefer`, `avoid` |
-| category | enum | `brand`, `product`, `ingredient`, `category` |
-| value | string | The preference value |
-| reason | string? | allergy, taste, dietary, budget |
-| ingredientKey | string? | For ingredient-specific prefs |
-| productId | string? | Specific product if type=product |
-| isActive | boolean | Currently active |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field         | Type     | Description                                  |
+| ------------- | -------- | -------------------------------------------- |
+| id            | string   | Unique identifier                            |
+| userId        | string   | FK to User                                   |
+| type          | enum     | `prefer`, `avoid`                            |
+| category      | enum     | `brand`, `product`, `ingredient`, `category` |
+| value         | string   | The preference value                         |
+| reason        | string?  | allergy, taste, dietary, budget              |
+| ingredientKey | string?  | For ingredient-specific prefs                |
+| productId     | string?  | Specific product if type=product             |
+| isActive      | boolean  | Currently active                             |
+| createdAt     | datetime |                                              |
+| updatedAt     | datetime |                                              |
 
 ### SubstitutionRule
 
 Automatic ingredient substitutions.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| originalIngredient | string | What to substitute |
-| substituteIngredient | string | What to use instead |
-| substituteProductId | string? | Specific product |
-| context | enum | `always`, `if_available`, `for_recipe` |
-| recipeId | string? | If context = for_recipe |
-| reason | string? | Why substitution exists |
-| isActive | boolean | Currently active |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field                | Type     | Description                            |
+| -------------------- | -------- | -------------------------------------- |
+| id                   | string   | Unique identifier                      |
+| userId               | string   | FK to User                             |
+| originalIngredient   | string   | What to substitute                     |
+| substituteIngredient | string   | What to use instead                    |
+| substituteProductId  | string?  | Specific product                       |
+| context              | enum     | `always`, `if_available`, `for_recipe` |
+| recipeId             | string?  | If context = for_recipe                |
+| reason               | string?  | Why substitution exists                |
+| isActive             | boolean  | Currently active                       |
+| createdAt            | datetime |                                        |
+| updatedAt            | datetime |                                        |
 
 ### ShoppingList
 
 Generated shopping lists.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| name | string | List name |
-| status | enum | `draft`, `building`, `ready`, `completed` |
-| sourceType | enum | `manual`, `recipe`, `meal_plan` |
-| sourceIds | string[] | Recipe or meal plan IDs |
-| items | json | Array of ShoppingListItem |
-| estimatedTotal | decimal? | Estimated cost |
-| storeId | string? | Target store |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field          | Type     | Description                               |
+| -------------- | -------- | ----------------------------------------- |
+| id             | string   | Unique identifier                         |
+| userId         | string   | FK to User                                |
+| name           | string   | List name                                 |
+| status         | enum     | `draft`, `building`, `ready`, `completed` |
+| sourceType     | enum     | `manual`, `recipe`, `meal_plan`           |
+| sourceIds      | string[] | Recipe or meal plan IDs                   |
+| items          | json     | Array of ShoppingListItem                 |
+| estimatedTotal | decimal? | Estimated cost                            |
+| storeId        | string?  | Target store                              |
+| createdAt      | datetime |                                           |
+| updatedAt      | datetime |                                           |
 
 ### ShoppingListItem (embedded JSON)
 
-| Field | Type | Description |
-| --- | --- | --- |
-| ingredientName | string | Original ingredient |
-| quantity | number | Amount needed |
-| unit | string | Measurement unit |
-| productId | string? | Resolved Kroger product |
-| productName | string? | Product name snapshot |
-| price | decimal? | Current price |
-| status | enum | `pending`, `resolved`, `needs_confirmation`, `skipped` |
-| confirmationReason | string? | Why confirmation needed |
+| Field              | Type     | Description                                            |
+| ------------------ | -------- | ------------------------------------------------------ |
+| ingredientName     | string   | Original ingredient                                    |
+| quantity           | number   | Amount needed                                          |
+| unit               | string   | Measurement unit                                       |
+| productId          | string?  | Resolved Kroger product                                |
+| productName        | string?  | Product name snapshot                                  |
+| price              | decimal? | Current price                                          |
+| status             | enum     | `pending`, `resolved`, `needs_confirmation`, `skipped` |
+| confirmationReason | string?  | Why confirmation needed                                |
 
 ### CartRun
 
 Tracks cart building operations.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| shoppingListId | string | FK to ShoppingList |
-| storeId | string | Target store |
-| status | enum | `running`, `needs_user`, `done`, `failed` |
-| addedItemsCount | int | Successfully added |
-| skippedItems | json | Items requiring user action |
-| errorMessage | string? | Error if failed |
-| evidence | json | Logs, API request IDs |
-| startedAt | datetime | When started |
-| completedAt | datetime? | When finished |
+| Field           | Type      | Description                               |
+| --------------- | --------- | ----------------------------------------- |
+| id              | string    | Unique identifier                         |
+| userId          | string    | FK to User                                |
+| shoppingListId  | string    | FK to ShoppingList                        |
+| storeId         | string    | Target store                              |
+| status          | enum      | `running`, `needs_user`, `done`, `failed` |
+| addedItemsCount | int       | Successfully added                        |
+| skippedItems    | json      | Items requiring user action               |
+| errorMessage    | string?   | Error if failed                           |
+| evidence        | json      | Logs, API request IDs                     |
+| startedAt       | datetime  | When started                              |
+| completedAt     | datetime? | When finished                             |
 
 ---
 
@@ -333,80 +335,80 @@ Tracks cart building operations.
 
 API wrapper with rate limiting.
 
-| Method | Description |
-| --- | --- |
-| `searchProducts(query, options)` | Search products (cache-first) |
-| `getProduct(productId)` | Get product details (cache-first) |
-| `getLocations(zipCode, radius?)` | Find nearby stores |
-| `getCart()` | Get current cart contents |
-| `addToCart(productId, quantity)` | Add item to cart |
-| `updateCartItem(productId, quantity)` | Update quantity |
-| `removeFromCart(productId)` | Remove item |
-| `refreshToken()` | Refresh OAuth token |
+| Method                                | Description                       |
+| ------------------------------------- | --------------------------------- |
+| `searchProducts(query, options)`      | Search products (cache-first)     |
+| `getProduct(productId)`               | Get product details (cache-first) |
+| `getLocations(zipCode, radius?)`      | Find nearby stores                |
+| `getCart()`                           | Get current cart contents         |
+| `addToCart(productId, quantity)`      | Add item to cart                  |
+| `updateCartItem(productId, quantity)` | Update quantity                   |
+| `removeFromCart(productId)`           | Remove item                       |
+| `refreshToken()`                      | Refresh OAuth token               |
 
 ### KrogerProductCache
 
 DB-first product lookups.
 
-| Method | Description |
-| --- | --- |
-| `getCachedProduct(productId)` | Get from cache |
-| `getCachedSearch(query, storeId)` | Get cached search results |
-| `cacheProduct(product)` | Store product |
-| `cacheSearchResults(query, products)` | Store search results |
-| `invalidateProduct(productId)` | Force refresh |
-| `cleanupExpired()` | Remove expired entries |
+| Method                                | Description               |
+| ------------------------------------- | ------------------------- |
+| `getCachedProduct(productId)`         | Get from cache            |
+| `getCachedSearch(query, storeId)`     | Get cached search results |
+| `cacheProduct(product)`               | Store product             |
+| `cacheSearchResults(query, products)` | Store search results      |
+| `invalidateProduct(productId)`        | Force refresh             |
+| `cleanupExpired()`                    | Remove expired entries    |
 
 ### RecipeService
 
 Recipe and ingredient management.
 
-| Method | Description |
-| --- | --- |
-| `createRecipe(input)` | Create new recipe |
-| `updateRecipe(id, input)` | Update recipe |
-| `deleteRecipe(id)` | Delete recipe |
-| `scaleRecipe(id, servings)` | Adjust servings |
-| `getIngredientList(recipeIds)` | Extract ingredients |
-| `normalizeIngredients(ingredients)` | Standardize names/units |
-| `deduplicateIngredients(ingredients)` | Combine across recipes |
+| Method                                | Description             |
+| ------------------------------------- | ----------------------- |
+| `createRecipe(input)`                 | Create new recipe       |
+| `updateRecipe(id, input)`             | Update recipe           |
+| `deleteRecipe(id)`                    | Delete recipe           |
+| `scaleRecipe(id, servings)`           | Adjust servings         |
+| `getIngredientList(recipeIds)`        | Extract ingredients     |
+| `normalizeIngredients(ingredients)`   | Standardize names/units |
+| `deduplicateIngredients(ingredients)` | Combine across recipes  |
 
 ### ProductResolutionService
 
 Maps ingredients to products.
 
-| Method | Description |
-| --- | --- |
-| `resolveIngredient(ingredient, prefs)` | Find matching product |
-| `resolveIngredients(ingredients, prefs)` | Batch resolution |
-| `applyPreferences(products, userId)` | Filter/rank by preferences |
-| `applySubstitutions(ingredients, userId)` | Apply substitution rules |
-| `markConfirmed(ingredientKey, productId)` | Save user confirmation |
+| Method                                    | Description                |
+| ----------------------------------------- | -------------------------- |
+| `resolveIngredient(ingredient, prefs)`    | Find matching product      |
+| `resolveIngredients(ingredients, prefs)`  | Batch resolution           |
+| `applyPreferences(products, userId)`      | Filter/rank by preferences |
+| `applySubstitutions(ingredients, userId)` | Apply substitution rules   |
+| `markConfirmed(ingredientKey, productId)` | Save user confirmation     |
 
 ### ShoppingListService
 
 Shopping list generation.
 
-| Method | Description |
-| --- | --- |
-| `createFromRecipes(recipeIds, servings?)` | Generate from recipes |
-| `createFromMealPlan(mealPlanId)` | Generate from meal plan |
-| `addItem(listId, item)` | Add manual item |
-| `removeItem(listId, itemId)` | Remove item |
-| `resolveProducts(listId)` | Resolve all to products |
-| `getEstimatedTotal(listId)` | Calculate cost |
+| Method                                    | Description             |
+| ----------------------------------------- | ----------------------- |
+| `createFromRecipes(recipeIds, servings?)` | Generate from recipes   |
+| `createFromMealPlan(mealPlanId)`          | Generate from meal plan |
+| `addItem(listId, item)`                   | Add manual item         |
+| `removeItem(listId, itemId)`              | Remove item             |
+| `resolveProducts(listId)`                 | Resolve all to products |
+| `getEstimatedTotal(listId)`               | Calculate cost          |
 
 ### CartBuilderService
 
 Builds Kroger cart from shopping list.
 
-| Method | Description |
-| --- | --- |
-| `startCartRun(shoppingListId)` | Begin cart building |
-| `continueCartRun(runId)` | Resume after user input |
-| `handleAmbiguity(runId, selections)` | Process user choices |
-| `getCartSummary(runId)` | Get final summary |
-| `generateHandoffLink()` | Create "Open Cart" link |
+| Method                               | Description             |
+| ------------------------------------ | ----------------------- |
+| `startCartRun(shoppingListId)`       | Begin cart building     |
+| `continueCartRun(runId)`             | Resume after user input |
+| `handleAmbiguity(runId, selections)` | Process user choices    |
+| `getCartSummary(runId)`              | Get final summary       |
+| `generateHandoffLink()`              | Create "Open Cart" link |
 
 ---
 
@@ -422,13 +424,13 @@ Builds Kroger cart from shopping list.
 
 When resolving an ingredient to a product:
 
-| Factor | Weight | Description |
-| --- | --- | --- |
-| Exact name match | High | "yellow onion" in title |
-| Category alignment | Medium | Produce vs pantry |
-| Size constraints | Medium | 16 oz, 1 lb, 1 gal |
-| Brand preference | Medium | User's preferred brands |
-| Price/unit | Low | Value optimization |
+| Factor             | Weight | Description             |
+| ------------------ | ------ | ----------------------- |
+| Exact name match   | High   | "yellow onion" in title |
+| Category alignment | Medium | Produce vs pantry       |
+| Size constraints   | Medium | 16 oz, 1 lb, 1 gal      |
+| Brand preference   | Medium | User's preferred brands |
+| Price/unit         | Low    | Value optimization      |
 
 ### Ambiguity Triggers
 
@@ -445,64 +447,64 @@ Pause and ask user when:
 
 ### OAuth
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/kroger/auth` | Start OAuth flow |
-| GET | `/api/integrations/kroger/callback` | OAuth callback |
+| Method | Path                                  | Description        |
+| ------ | ------------------------------------- | ------------------ |
+| GET    | `/api/integrations/kroger/auth`       | Start OAuth flow   |
+| GET    | `/api/integrations/kroger/callback`   | OAuth callback     |
 | DELETE | `/api/integrations/kroger/disconnect` | Disconnect account |
-| GET | `/api/integrations/kroger/status` | Connection status |
+| GET    | `/api/integrations/kroger/status`     | Connection status  |
 
 ### Store Selection
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/kroger/locations` | Find nearby stores |
-| POST | `/api/integrations/kroger/store` | Set preferred store |
+| Method | Path                                 | Description         |
+| ------ | ------------------------------------ | ------------------- |
+| GET    | `/api/integrations/kroger/locations` | Find nearby stores  |
+| POST   | `/api/integrations/kroger/store`     | Set preferred store |
 
 ### Products
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/kroger/products/search` | Search products |
-| GET | `/api/integrations/kroger/products/:id` | Get product details |
+| Method | Path                                       | Description         |
+| ------ | ------------------------------------------ | ------------------- |
+| GET    | `/api/integrations/kroger/products/search` | Search products     |
+| GET    | `/api/integrations/kroger/products/:id`    | Get product details |
 
 ### Preferences
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/kroger/preferences` | List preferences |
-| POST | `/api/integrations/kroger/preferences` | Add preference |
-| DELETE | `/api/integrations/kroger/preferences/:id` | Remove preference |
-| GET | `/api/integrations/kroger/substitutions` | List substitutions |
-| POST | `/api/integrations/kroger/substitutions` | Add substitution |
+| Method | Path                                       | Description        |
+| ------ | ------------------------------------------ | ------------------ |
+| GET    | `/api/integrations/kroger/preferences`     | List preferences   |
+| POST   | `/api/integrations/kroger/preferences`     | Add preference     |
+| DELETE | `/api/integrations/kroger/preferences/:id` | Remove preference  |
+| GET    | `/api/integrations/kroger/substitutions`   | List substitutions |
+| POST   | `/api/integrations/kroger/substitutions`   | Add substitution   |
 
 ### Recipes
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/recipes` | List recipes |
-| POST | `/api/recipes` | Create recipe |
-| GET | `/api/recipes/:id` | Get recipe |
-| PATCH | `/api/recipes/:id` | Update recipe |
+| Method | Path               | Description   |
+| ------ | ------------------ | ------------- |
+| GET    | `/api/recipes`     | List recipes  |
+| POST   | `/api/recipes`     | Create recipe |
+| GET    | `/api/recipes/:id` | Get recipe    |
+| PATCH  | `/api/recipes/:id` | Update recipe |
 | DELETE | `/api/recipes/:id` | Delete recipe |
 
 ### Shopping Lists
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/shopping-lists` | List shopping lists |
-| POST | `/api/shopping-lists` | Create from recipes |
-| GET | `/api/shopping-lists/:id` | Get list with items |
-| POST | `/api/shopping-lists/:id/resolve` | Resolve products |
-| POST | `/api/shopping-lists/:id/build-cart` | Start cart build |
+| Method | Path                                 | Description         |
+| ------ | ------------------------------------ | ------------------- |
+| GET    | `/api/shopping-lists`                | List shopping lists |
+| POST   | `/api/shopping-lists`                | Create from recipes |
+| GET    | `/api/shopping-lists/:id`            | Get list with items |
+| POST   | `/api/shopping-lists/:id/resolve`    | Resolve products    |
+| POST   | `/api/shopping-lists/:id/build-cart` | Start cart build    |
 
 ### Cart Building
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/kroger/cart-runs/:id` | Get run status |
-| POST | `/api/integrations/kroger/cart-runs/:id/continue` | Continue with selections |
-| GET | `/api/integrations/kroger/cart-runs/:id/summary` | Get final summary |
+| Method | Path                                              | Description              |
+| ------ | ------------------------------------------------- | ------------------------ |
+| GET    | `/api/integrations/kroger/cart-runs/:id`          | Get run status           |
+| POST   | `/api/integrations/kroger/cart-runs/:id/continue` | Continue with selections |
+| GET    | `/api/integrations/kroger/cart-runs/:id/summary`  | Get final summary        |
 
 ---
 
@@ -510,17 +512,17 @@ Pause and ask user when:
 
 ### Agent Tools
 
-| Tool | Description |
-| --- | --- |
+| Tool                     | Description                      |
+| ------------------------ | -------------------------------- |
 | `search_kroger_products` | Search products with preferences |
-| `get_product_details` | Get specific product info |
-| `create_recipe` | Save a new recipe |
-| `generate_shopping_list` | Create list from recipes |
-| `resolve_shopping_list` | Match ingredients to products |
-| `build_kroger_cart` | Add items to Kroger cart |
-| `get_cart_summary` | Get current cart status |
-| `add_product_preference` | Save brand/product preference |
-| `add_substitution_rule` | Create substitution |
+| `get_product_details`    | Get specific product info        |
+| `create_recipe`          | Save a new recipe                |
+| `generate_shopping_list` | Create list from recipes         |
+| `resolve_shopping_list`  | Match ingredients to products    |
+| `build_kroger_cart`      | Add items to Kroger cart         |
+| `get_cart_summary`       | Get current cart status          |
+| `add_product_preference` | Save brand/product preference    |
+| `add_substitution_rule`  | Create substitution              |
 
 ### Context Enrichment
 
@@ -590,14 +592,14 @@ At completion, Theo presents:
 
 ### Error Types
 
-| Error | Cause | Recovery |
-| --- | --- | --- |
-| `token_expired` | OAuth token expired | Refresh token |
-| `token_revoked` | User revoked access | Prompt re-auth |
-| `store_not_set` | No store selected | Prompt selection |
-| `product_unavailable` | Out of stock | Suggest alternatives |
-| `rate_limited` | API limit exceeded | Queue and retry |
-| `cart_error` | Cart API failure | Retry or manual add |
+| Error                 | Cause               | Recovery             |
+| --------------------- | ------------------- | -------------------- |
+| `token_expired`       | OAuth token expired | Refresh token        |
+| `token_revoked`       | User revoked access | Prompt re-auth       |
+| `store_not_set`       | No store selected   | Prompt selection     |
+| `product_unavailable` | Out of stock        | Suggest alternatives |
+| `rate_limited`        | API limit exceeded  | Queue and retry      |
+| `cart_error`          | Cart API failure    | Retry or manual add  |
 
 ### Intervention Points
 
@@ -684,13 +686,13 @@ Theo must pause and ask user if:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| Cache hit rate | >80% | Product lookups from cache |
-| API calls/user/day | <100 | Stay well under limit |
-| Product resolution rate | >90% | Ingredients matched to products |
-| Cart build success | >85% | Lists fully added to cart |
-| User intervention rate | <20% | Items needing confirmation |
+| Metric                  | Target | Description                     |
+| ----------------------- | ------ | ------------------------------- |
+| Cache hit rate          | >80%   | Product lookups from cache      |
+| API calls/user/day      | <100   | Stay well under limit           |
+| Product resolution rate | >90%   | Ingredients matched to products |
+| Cart build success      | >85%   | Lists fully added to cart       |
+| User intervention rate  | <20%   | Items needing confirmation      |
 
 ---
 
@@ -720,9 +722,24 @@ Theo must pause and ask user if:
   "prepTimeMinutes": 15,
   "cookTimeMinutes": 20,
   "ingredients": [
-    { "name": "chicken breast", "quantity": 1.5, "unit": "lb", "category": "meat" },
-    { "name": "broccoli", "quantity": 2, "unit": "cups", "category": "produce" },
-    { "name": "soy sauce", "quantity": 3, "unit": "tbsp", "category": "pantry" },
+    {
+      "name": "chicken breast",
+      "quantity": 1.5,
+      "unit": "lb",
+      "category": "meat"
+    },
+    {
+      "name": "broccoli",
+      "quantity": 2,
+      "unit": "cups",
+      "category": "produce"
+    },
+    {
+      "name": "soy sauce",
+      "quantity": 3,
+      "unit": "tbsp",
+      "category": "pantry"
+    },
     { "name": "garlic", "quantity": 3, "unit": "cloves", "category": "produce" }
   ],
   "tags": ["asian", "quick", "healthy"]
@@ -760,8 +777,7 @@ Theo must pause and ask user if:
       ]
     }
   ],
-  "estimatedTotal": 67.50,
+  "estimatedTotal": 67.5,
   "handoffUrl": "https://www.kroger.com/cart"
 }
 ```
-

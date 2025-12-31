@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const spinnerVariants = cva(
   "animate-spin rounded-full border-2 border-current border-t-transparent",
@@ -18,13 +18,12 @@ const spinnerVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 interface SpinnerProps
-  extends React.ComponentProps<"div">,
-    VariantProps<typeof spinnerVariants> {
+  extends React.ComponentProps<"div">, VariantProps<typeof spinnerVariants> {
   /** Screen reader label */
-  label?: string
+  label?: string;
 }
 
 function Spinner({
@@ -42,14 +41,14 @@ function Spinner({
     >
       <span className="sr-only">{label}</span>
     </div>
-  )
+  );
 }
 
 interface LoadingOverlayProps extends React.ComponentProps<"div"> {
   /** Whether the overlay is visible */
-  visible?: boolean
+  visible?: boolean;
   /** Loading message to display */
-  message?: string
+  message?: string;
 }
 
 function LoadingOverlay({
@@ -58,23 +57,20 @@ function LoadingOverlay({
   className,
   ...props
 }: LoadingOverlayProps) {
-  if (!visible) return null
+  if (!visible) return null;
 
   return (
     <div
       className={cn(
-        "absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm",
+        "bg-background/80 absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 backdrop-blur-sm",
         className
       )}
       {...props}
     >
       <Spinner size="lg" />
-      {message && (
-        <p className="text-sm text-muted-foreground">{message}</p>
-      )}
+      {message && <p className="text-muted-foreground text-sm">{message}</p>}
     </div>
-  )
+  );
 }
 
-export { Spinner, spinnerVariants, LoadingOverlay }
-
+export { Spinner, spinnerVariants, LoadingOverlay };

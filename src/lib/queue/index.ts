@@ -113,11 +113,11 @@ export async function cleanQueue(
  */
 export async function drainQueue(queueName: QueueName): Promise<number> {
   const queue = getQueue(queueName);
-  
+
   // Get waiting and delayed jobs and remove them
   const waiting = await queue.getWaiting();
   const delayed = await queue.getDelayed();
-  
+
   let removed = 0;
   for (const job of [...waiting, ...delayed]) {
     try {
@@ -127,7 +127,7 @@ export async function drainQueue(queueName: QueueName): Promise<number> {
       // Job might have been picked up, ignore
     }
   }
-  
+
   console.log(`[Queue:${queueName}] Drained ${removed} jobs`);
   return removed;
 }

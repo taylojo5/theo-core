@@ -93,7 +93,7 @@ export interface ProcessWebhookJobData {
  * Data for renewing a webhook before expiration
  */
 export interface RenewWebhookJobData {
-  /** 
+  /**
    * User ID to renew webhook for.
    * If undefined, the job processes ALL users with expiring webhooks (global scheduler mode).
    */
@@ -167,4 +167,3 @@ export interface EmbeddingJobResult {
   failed: number;
   errors?: string[];
 }
-

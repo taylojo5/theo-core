@@ -22,14 +22,14 @@
 
 The Phase 4 Calendar Integration is **functionally complete** with a solid foundation. However, this deep analysis reveals several areas requiring remediation:
 
-| Category | Issues Found | Severity |
-|----------|-------------|----------|
-| WET Implementation | 1 (reduced from 4) | Low |
-| Code Smells | 5 | Medium |
-| Pattern Misalignment | 3 (documentation-only) | Low |
-| Drift from Plan | 3 | Low |
-| Vulnerabilities | 2 | Medium |
-| Functionality Issues | 3 | High |
+| Category             | Issues Found           | Severity |
+| -------------------- | ---------------------- | -------- |
+| WET Implementation   | 1 (reduced from 4)     | Low      |
+| Code Smells          | 5                      | Medium   |
+| Pattern Misalignment | 3 (documentation-only) | Low      |
+| Drift from Plan      | 3                      | Low      |
+| Vulnerabilities      | 2                      | Medium   |
+| Functionality Issues | 3                      | High     |
 
 **Overall Assessment**: The implementation is production-ready with targeted remediation. Priority should be given to functionality issues (auto-sync not starting, webhook placeholder) which affect core user experience. Most "WET" issues are **intentional duplication** for future extraction and should NOT be refactored into shared code.
 
@@ -134,7 +134,7 @@ await scheduleIncrementalSync(queueAdapter, userId);
 if (scopeCheck.hasRequiredScopes && !body.force) {
   const hasRecurring = await hasRecurringSync(userId);
   if (!hasRecurring) {
-    await startRecurringSync(userId);  // ← Calendar connect is missing this!
+    await startRecurringSync(userId); // ← Calendar connect is missing this!
     await triggerSync(userId);
   }
 }
@@ -157,7 +157,8 @@ if (scopeCheck.hasRequiredScopes && !body.force) {
 
 ### 2.3 Inconsistent Endpoint Naming
 
-**Location**: 
+**Location**:
+
 - Gmail: `GET /api/integrations/gmail/status` (implied, not visible)
 - Calendar: `GET /api/integrations/calendar/connect` returns status
 
@@ -342,11 +343,12 @@ tests/integrations/calendar/
 ```typescript
 const { response: rateLimitResponse, headers } = await applyRateLimit(
   request,
-  RATE_LIMITS.calendarWebhook  // May be too restrictive
+  RATE_LIMITS.calendarWebhook // May be too restrictive
 );
 ```
 
-**Recommendation**: 
+**Recommendation**:
+
 1. Verify `RATE_LIMITS.calendarWebhook` allows sufficient burst
 2. Consider IP-based whitelist for Google's webhook IPs
 3. Add queue-based deduplication instead of rejection
@@ -371,7 +373,8 @@ const notification = {
 // No origin verification
 ```
 
-**Recommendation**: 
+**Recommendation**:
+
 1. Google doesn't provide webhook signatures, so this is a known limitation
 2. Add X-Goog-Channel-Token verification (store a secret token when registering)
 3. Verify channelId matches our database
@@ -438,7 +441,7 @@ if (scopeCheck.hasRequiredScopes && !body.force) {
   } catch (error) {
     logger.error("Failed to start auto-sync", { userId }, error);
   }
-  
+
   return NextResponse.json({ ... });
 }
 ```
@@ -477,14 +480,15 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 **Estimated Time**: 3-4 hours
 
-| Task | Description | Files |
-|------|-------------|-------|
-| A.1 | Fix webhook to actually trigger sync | `webhook/route.ts` |
-| A.2 | Add auto-sync to calendar connect | `connect/route.ts` |
-| A.3 | Export queue adapter helper | `sync/index.ts` |
-| A.4 | Add webhook token verification | `webhook/route.ts` |
+| Task | Description                          | Files              |
+| ---- | ------------------------------------ | ------------------ |
+| A.1  | Fix webhook to actually trigger sync | `webhook/route.ts` |
+| A.2  | Add auto-sync to calendar connect    | `connect/route.ts` |
+| A.3  | Export queue adapter helper          | `sync/index.ts`    |
+| A.4  | Add webhook token verification       | `webhook/route.ts` |
 
 **Acceptance Criteria**:
+
 - Webhook notifications trigger actual incremental sync
 - Returning connected users get auto-sync started
 - Queue adapter available for route handlers
@@ -495,13 +499,14 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 **Estimated Time**: 2 hours
 
-| Task | Description | Files |
-|------|-------------|-------|
-| B.1 | Add connect/disconnect to OpenAPI | `openapi/paths/integrations/calendar.ts` |
-| B.2 | Add "Future Work" section to service doc | `docs/services/CALENDAR_SERVICE.md` |
-| B.3 | Add "Extraction Notes" for cluster separation | `CALENDAR_SERVICE.md` |
+| Task | Description                                   | Files                                    |
+| ---- | --------------------------------------------- | ---------------------------------------- |
+| B.1  | Add connect/disconnect to OpenAPI             | `openapi/paths/integrations/calendar.ts` |
+| B.2  | Add "Future Work" section to service doc      | `docs/services/CALENDAR_SERVICE.md`      |
+| B.3  | Add "Extraction Notes" for cluster separation | `CALENDAR_SERVICE.md`                    |
 
 **Acceptance Criteria**:
+
 - All Calendar API endpoints visible in /docs
 - Service documentation complete
 - Extraction considerations documented
@@ -512,14 +517,15 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 **Estimated Time**: 3-4 hours
 
-| Task | Description | Files |
-|------|-------------|-------|
-| C.1 | Create API route test file | `tests/integrations/calendar/api.test.ts` |
-| C.2 | Test authentication flow | `api.test.ts` |
-| C.3 | Test rate limiting | `api.test.ts` |
-| C.4 | Test approval workflow via API | `api.test.ts` |
+| Task | Description                    | Files                                     |
+| ---- | ------------------------------ | ----------------------------------------- |
+| C.1  | Create API route test file     | `tests/integrations/calendar/api.test.ts` |
+| C.2  | Test authentication flow       | `api.test.ts`                             |
+| C.3  | Test rate limiting             | `api.test.ts`                             |
+| C.4  | Test approval workflow via API | `api.test.ts`                             |
 
 **Acceptance Criteria**:
+
 - API routes have test coverage
 - All critical paths tested
 
@@ -533,9 +539,9 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 **One exception**: The `buildSyncStateCreateData` helper is WITHIN Calendar only:
 
-| Task | Description | Files |
-|------|-------------|-------|
-| D.1 | Add `buildSyncStateCreateData` helper | `calendar/repository.ts` |
+| Task | Description                           | Files                    |
+| ---- | ------------------------------------- | ------------------------ |
+| D.1  | Add `buildSyncStateCreateData` helper | `calendar/repository.ts` |
 
 **Time**: 30 minutes
 
@@ -545,16 +551,18 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 **Estimated Time**: 1-2 hours (reduced)
 
-| Task | Description | Files |
-|------|-------------|-------|
-| E.1 | Fix magic empty string for global scheduler | `scheduler.ts` |
-| E.2 | Add typed error results to repository | `repository.ts` |
+| Task | Description                                 | Files           |
+| ---- | ------------------------------------------- | --------------- |
+| E.1  | Fix magic empty string for global scheduler | `scheduler.ts`  |
+| E.2  | Add typed error results to repository       | `repository.ts` |
 
 **Removed from this chunk** (acceptable divergence):
+
 - ~~Standardize audit log action types~~ — Calendar's format is better
 - ~~Verify rate limit configs~~ — Each integration owns its config
 
 **Acceptance Criteria**:
+
 - No magic sentinel values
 - Repository methods return typed results
 
@@ -562,11 +570,11 @@ export function getCalendarQueue(): CalendarJobQueue {
 
 ## Priority Summary
 
-| Priority | Chunks | Total Time | Impact |
-|----------|--------|------------|--------|
-| P1 (Critical) | A | 3-4 hours | Fixes broken functionality |
-| P2 (High) | B, C | 5-6 hours | Completes documentation & tests |
-| P3 (Medium) | D (partial), E | 1.5-2.5 hours | Internal polish |
+| Priority      | Chunks         | Total Time    | Impact                          |
+| ------------- | -------------- | ------------- | ------------------------------- |
+| P1 (Critical) | A              | 3-4 hours     | Fixes broken functionality      |
+| P2 (High)     | B, C           | 5-6 hours     | Completes documentation & tests |
+| P3 (Medium)   | D (partial), E | 1.5-2.5 hours | Internal polish                 |
 
 **Total Remediation Time**: 10-12.5 hours (reduced from 14-18)
 
@@ -598,4 +606,3 @@ _Analysis Version: 1.1_
 _Created: December 23, 2024_  
 _Updated: December 23, 2024 - Added architectural context for cluster extraction_  
 _Author: AI Analysis Engine_
-

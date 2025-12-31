@@ -36,11 +36,13 @@ vi.mock("@/integrations/calendar/repository", () => ({
 
 vi.mock("@/lib/db", () => ({
   db: {
-    $transaction: vi.fn((fn) => fn({
-      calendar: { findMany: vi.fn(), upsert: vi.fn() },
-      event: { findMany: vi.fn(), upsert: vi.fn() },
-      calendarSyncState: { findUnique: vi.fn(), upsert: vi.fn() },
-    })),
+    $transaction: vi.fn((fn) =>
+      fn({
+        calendar: { findMany: vi.fn(), upsert: vi.fn() },
+        event: { findMany: vi.fn(), upsert: vi.fn() },
+        calendarSyncState: { findUnique: vi.fn(), upsert: vi.fn() },
+      })
+    ),
   },
 }));
 
@@ -78,7 +80,9 @@ describe("Calendar Sync", () => {
       expect(fullSync.status).toBe("full_sync");
 
       // Incremental sync state
-      const incrementalSync = createMockDbSyncState({ status: "incremental_sync" });
+      const incrementalSync = createMockDbSyncState({
+        status: "incremental_sync",
+      });
       expect(incrementalSync.status).toBe("incremental_sync");
 
       // Error state
@@ -102,7 +106,9 @@ describe("Calendar Sync", () => {
 
       expect(syncState.calendarSyncToken).toBe("cal_sync_token_123");
       expect(syncState.eventSyncTokens).toHaveProperty("primary");
-      expect((syncState.eventSyncTokens as Record<string, string>)["primary"]).toBe("evt_sync_primary_456");
+      expect(
+        (syncState.eventSyncTokens as Record<string, string>)["primary"]
+      ).toBe("evt_sync_primary_456");
     });
 
     it("should track webhook information", () => {
@@ -192,7 +198,11 @@ describe("Calendar Sync", () => {
       const event = createMockEvent({
         id: "evt-1",
         attendees: [
-          { email: "me@example.com", self: true, responseStatus: "needsAction" },
+          {
+            email: "me@example.com",
+            self: true,
+            responseStatus: "needsAction",
+          },
         ],
       });
       client.addEvents("primary", [event]);
@@ -230,7 +240,11 @@ describe("Calendar Sync", () => {
     it("should simulate errors", async () => {
       const client = new MockCalendarClient({
         errorOn: [
-          { operation: "listCalendars", error: new Error("API Error"), times: 1 },
+          {
+            operation: "listCalendars",
+            error: new Error("API Error"),
+            times: 1,
+          },
         ],
       });
 
@@ -248,12 +262,15 @@ describe("Calendar Sync", () => {
 
   describe("Full Sync Flow", () => {
     it("should sync calendars from Google to database", async () => {
-      const { calendarRepository } = await import(
-        "@/integrations/calendar/repository"
-      );
+      const { calendarRepository } =
+        await import("@/integrations/calendar/repository");
 
       const googleCalendars = [
-        createMockCalendar({ id: "primary", summary: "Primary Calendar", primary: true }),
+        createMockCalendar({
+          id: "primary",
+          summary: "Primary Calendar",
+          primary: true,
+        }),
         createMockCalendar({ id: "work@calendar.com", summary: "Work" }),
       ];
 
@@ -328,9 +345,11 @@ describe("Calendar Sync", () => {
       });
 
       // Simulate detecting expired token scenario
-      const needsFullSync = !syncState.calendarSyncToken || 
-        (syncState.lastFullSyncAt && 
-         Date.now() - syncState.lastFullSyncAt.getTime() > 7 * 24 * 60 * 60 * 1000);
+      const needsFullSync =
+        !syncState.calendarSyncToken ||
+        (syncState.lastFullSyncAt &&
+          Date.now() - syncState.lastFullSyncAt.getTime() >
+            7 * 24 * 60 * 60 * 1000);
 
       expect(needsFullSync).toBe(true);
     });
@@ -460,7 +479,9 @@ describe("Calendar Sync", () => {
         createMockDbCalendar({ id: "3", isSelected: true, isHidden: true }),
       ];
 
-      const selectedForSync = calendars.filter((c) => c.isSelected && !c.isHidden);
+      const selectedForSync = calendars.filter(
+        (c) => c.isSelected && !c.isHidden
+      );
 
       expect(selectedForSync).toHaveLength(1);
       expect(selectedForSync[0].id).toBe("1");
@@ -478,4 +499,3 @@ describe("Calendar Sync", () => {
     });
   });
 });
-

@@ -26,7 +26,8 @@ export default function ChatPage() {
   // State
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Message[]>([]);
-  const [isLoadingConversations, setIsLoadingConversations] = React.useState(true);
+  const [isLoadingConversations, setIsLoadingConversations] =
+    React.useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [streamingMessageId, setStreamingMessageId] = React.useState<string>();
@@ -162,7 +163,7 @@ export default function ChatPage() {
 
       if (res.ok) {
         const data = await res.json();
-        
+
         // Update messages with actual response
         setMessages((prev) =>
           prev.map((m) =>
@@ -170,7 +171,9 @@ export default function ChatPage() {
               ? {
                   ...m,
                   id: data.assistantMessage?.id || m.id,
-                  content: data.assistantMessage?.content || "I received your message!",
+                  content:
+                    data.assistantMessage?.content ||
+                    "I received your message!",
                 }
               : m.id === userMessage.id
                 ? { ...m, id: data.userMessage?.id || m.id }
@@ -183,7 +186,11 @@ export default function ChatPage() {
           setConversations((prev) =>
             prev.map((c) =>
               c.id === activeConversationId
-                ? { ...c, title: data.conversation.title, updatedAt: new Date() }
+                ? {
+                    ...c,
+                    title: data.conversation.title,
+                    updatedAt: new Date(),
+                  }
                 : c
             )
           );
@@ -195,7 +202,10 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessageId
-            ? { ...m, content: "Sorry, I encountered an error. Please try again." }
+            ? {
+                ...m,
+                content: "Sorry, I encountered an error. Please try again.",
+              }
             : m
         )
       );
@@ -255,4 +265,3 @@ export default function ChatPage() {
     </DashboardLayout>
   );
 }
-

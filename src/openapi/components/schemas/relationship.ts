@@ -11,7 +11,13 @@ import {
 } from "./common";
 
 // Entity types that can have relationships
-const EntityTypeSchema = z.enum(["person", "place", "event", "task", "deadline"]);
+const EntityTypeSchema = z.enum([
+  "person",
+  "place",
+  "event",
+  "task",
+  "deadline",
+]);
 
 // ─────────────────────────────────────────────────────────────
 // Relationship Create Schema
@@ -113,4 +119,3 @@ export const PaginatedRelationshipsSchema = createPaginatedSchema(
   RelationshipSchema,
   "Relationships"
 );
-

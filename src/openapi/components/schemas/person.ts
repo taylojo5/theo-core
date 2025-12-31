@@ -23,24 +23,14 @@ export const PersonCreateSchema = z
       description: "Full name of the person",
       example: "John Smith",
     }),
-    email: z
-      .string()
-      .email()
-      .optional()
-      .nullable()
-      .openapi({
-        description: "Email address",
-        example: "john.smith@example.com",
-      }),
-    phone: z
-      .string()
-      .max(50)
-      .optional()
-      .nullable()
-      .openapi({
-        description: "Phone number",
-        example: "+1 555-123-4567",
-      }),
+    email: z.string().email().optional().nullable().openapi({
+      description: "Email address",
+      example: "john.smith@example.com",
+    }),
+    phone: z.string().max(50).optional().nullable().openapi({
+      description: "Phone number",
+      example: "+1 555-123-4567",
+    }),
     type: z.string().max(50).default("contact").openapi({
       description: "Category type (e.g., contact, colleague, client)",
       example: "colleague",
@@ -49,42 +39,22 @@ export const PersonCreateSchema = z
       description: "Importance level (1-10)",
       example: 7,
     }),
-    company: z
-      .string()
-      .max(255)
-      .optional()
-      .nullable()
-      .openapi({
-        description: "Company or organization",
-        example: "Acme Corp",
-      }),
-    title: z
-      .string()
-      .max(255)
-      .optional()
-      .nullable()
-      .openapi({
-        description: "Job title",
-        example: "Senior Engineer",
-      }),
-    location: z
-      .string()
-      .max(255)
-      .optional()
-      .nullable()
-      .openapi({
-        description: "Location or city",
-        example: "San Francisco, CA",
-      }),
-    timezone: z
-      .string()
-      .max(50)
-      .optional()
-      .nullable()
-      .openapi({
-        description: "IANA timezone",
-        example: "America/Los_Angeles",
-      }),
+    company: z.string().max(255).optional().nullable().openapi({
+      description: "Company or organization",
+      example: "Acme Corp",
+    }),
+    title: z.string().max(255).optional().nullable().openapi({
+      description: "Job title",
+      example: "Senior Engineer",
+    }),
+    location: z.string().max(255).optional().nullable().openapi({
+      description: "Location or city",
+      example: "San Francisco, CA",
+    }),
+    timezone: z.string().max(50).optional().nullable().openapi({
+      description: "IANA timezone",
+      example: "America/Los_Angeles",
+    }),
     bio: z.string().optional().nullable().openapi({
       description: "Short biography or description",
       example: "Works on the platform team",

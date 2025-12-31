@@ -407,9 +407,9 @@ After each chunk, verify:
 ### Files to Create/Modify
 
 src/openapi/
-├── components/schemas/{feature}.ts  # NEW: Request/response schemas
-├── paths/{feature}.ts               # NEW: Path operations
-└── paths/index.ts                   # UPDATE: Export new paths
+├── components/schemas/{feature}.ts # NEW: Request/response schemas
+├── paths/{feature}.ts # NEW: Path operations
+└── paths/index.ts # UPDATE: Export new paths
 ```
 
 **Example** - Adding a new endpoint:
@@ -418,15 +418,19 @@ src/openapi/
 // 1. Define schemas (src/openapi/components/schemas/widget.ts)
 import { z } from "zod";
 
-export const WidgetSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1),
-  createdAt: z.string().datetime(),
-}).openapi("Widget");
+export const WidgetSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+    createdAt: z.string().datetime(),
+  })
+  .openapi("Widget");
 
-export const CreateWidgetSchema = z.object({
-  name: z.string().min(1),
-}).openapi("CreateWidgetInput");
+export const CreateWidgetSchema = z
+  .object({
+    name: z.string().min(1),
+  })
+  .openapi("CreateWidgetInput");
 
 // 2. Register paths (src/openapi/paths/widget.ts)
 import { registry } from "../index";
@@ -1057,7 +1061,7 @@ describe("Event Mappers", () => {
     const original = createMockGoogleEvent();
     const dbModel = mapGoogleEventToDb(original);
     const backToGoogle = mapDbEventToGoogleInput(dbModel);
-    
+
     // Core fields should survive round-trip
     expect(backToGoogle.summary).toBe(original.summary);
     expect(backToGoogle.start).toEqual(original.start);
@@ -1077,7 +1081,7 @@ export function parseEventDateTime(dateTime: EventDateTime): Date {
   if (dateTime.date) {
     return new Date(`${dateTime.date}T00:00:00Z`);
   }
-  
+
   // Timed events: Google sends { dateTime: "...", timeZone: "..." }
   return new Date(dateTime.dateTime!);
 }
@@ -1113,10 +1117,13 @@ const attendees = event.attendees.map(normalizeAttendee); // May throw!
 // instrumentation.ts
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { initializeGmailSync } = await import("@/integrations/gmail/jobs/scheduler");
-    const { initializeSchedulers: initializeCalendarSchedulers } = await import("@/integrations/calendar/sync/scheduler");
-    const { initializeEmbeddingWorker } = await import("@/lib/embeddings/worker");
-    
+    const { initializeGmailSync } =
+      await import("@/integrations/gmail/jobs/scheduler");
+    const { initializeSchedulers: initializeCalendarSchedulers } =
+      await import("@/integrations/calendar/sync/scheduler");
+    const { initializeEmbeddingWorker } =
+      await import("@/lib/embeddings/worker");
+
     await Promise.all([
       initializeGmailSync(),
       initializeCalendarSchedulers(), // ← Don't forget new integrations!
@@ -1175,9 +1182,15 @@ export interface ApprovalWorkflowConfig<T> {
 
 export function createApprovalWorkflow<T>(config: ApprovalWorkflowConfig<T>) {
   return {
-    approve: async (id: string) => { /* shared logic */ },
-    reject: async (id: string) => { /* shared logic */ },
-    expire: async () => { /* shared logic */ },
+    approve: async (id: string) => {
+      /* shared logic */
+    },
+    reject: async (id: string) => {
+      /* shared logic */
+    },
+    expire: async () => {
+      /* shared logic */
+    },
   };
 }
 ```
@@ -1220,7 +1233,7 @@ async update(id: string, data: Partial<EventInput>): Promise<Event> {
 ```typescript
 async upsertEvent(googleId: string, data: EventInput): Promise<Event> {
   return prisma.event.upsert({
-    where: { 
+    where: {
       googleId,
       deletedAt: null, // Don't resurrect soft-deleted events
     },
@@ -1380,6 +1393,7 @@ it("preserves timezone information", () => { ... });
 ✅ **Do**: Either implement fully or throw a clear "NotImplemented" error
 
 > ⚠️ **This pattern has been found THREE times in Calendar integration:**
+>
 > 1. Webhook handler (Phase 4-2)
 > 2. Connect endpoint auto-sync (Phase 4-2)
 > 3. Sync API route job scheduling (Phase 4-3)
@@ -1422,6 +1436,7 @@ throw new Error("NOT_IMPLEMENTED: Sync scheduling requires queue adapter");
 ```
 
 **Verification checklist for API routes**:
+
 - [ ] Does `POST` to a sync/action endpoint actually queue a job?
 - [ ] Search for "TODO", "Note:", "In production" comments
 - [ ] Trace the code path from request to job queue
@@ -1438,14 +1453,15 @@ throw new Error("NOT_IMPLEMENTED: Sync scheduling requires queue adapter");
 if (scopeCheck.hasRequiredScopes && !body.force) {
   const hasRecurring = await hasRecurringSync(userId);
   if (!hasRecurring) {
-    await startRecurringSync(userId);  // ✅ Gmail does this
+    await startRecurringSync(userId); // ✅ Gmail does this
     await triggerSync(userId);
   }
 }
 
 // Calendar connect was missing this entirely!
 if (scopeCheck.hasRequiredScopes && !body.force) {
-  return NextResponse.json({  // ❌ No auto-sync logic
+  return NextResponse.json({
+    // ❌ No auto-sync logic
     success: true,
     alreadyConnected: true,
   });
@@ -1473,12 +1489,14 @@ if (scopeCheck.hasRequiredScopes && !body.force) {
 > **Critical Architectural Decision**: Are integrations designed for future extraction into separate clusters/microservices?
 
 **If YES (extraction-ready)**:
+
 - **Intentional duplication is correct** - Each integration should be self-contained
 - **Avoid shared utilities between integrations** - This creates extraction-blocking coupling
 - **Pattern consistency via documentation** - Document conventions, don't enforce via imports
 - **Share only infrastructure** - Auth, rate limiting, queue primitives in core
 
 **If NO (monolith)**:
+
 - Extract shared patterns when implementing similar logic for the second time
 - Create `src/lib/integrations/shared-*.ts` utilities
 
@@ -1533,7 +1551,7 @@ Before marking chunk complete, verify these files exist:
 
 - [ ] `tests/integrations/{module}/actions.test.ts`
 - [ ] `tests/integrations/{module}/sync.test.ts`
-- [ ] `tests/integrations/{module}/api.test.ts`  ← Often forgotten!
+- [ ] `tests/integrations/{module}/api.test.ts` ← Often forgotten!
 - [ ] `tests/integrations/{module}/webhook.test.ts`
 - [ ] `tests/integrations/{module}/mocks/index.ts`
 ```
@@ -1607,7 +1625,10 @@ export type RepositoryErrorCode =
   | "UNKNOWN_ERROR";
 
 // Usage in repository
-updateWithResult: async (id: string, data: UpdateInput): Promise<RepositoryResult<Model>> => {
+updateWithResult: async (
+  id: string,
+  data: UpdateInput
+): Promise<RepositoryResult<Model>> => {
   try {
     const result = await db.model.update({ where: { id }, data });
     return { success: true, data: result };
@@ -1616,7 +1637,7 @@ updateWithResult: async (id: string, data: UpdateInput): Promise<RepositoryResul
     logger.debug("Update failed", { id, code, error });
     return { success: false, error: message, code };
   }
-}
+};
 ```
 
 ### 26.2 Backward Compatible Migration
@@ -1656,9 +1677,9 @@ upsert: async (input: CreateInput): Promise<Model> => {
   return db.model.upsert({
     where: { uniqueField: input.uniqueField },
     create: createInputToPrisma(input),
-    update: buildUpdateData(input),  // Reusable!
+    update: buildUpdateData(input), // Reusable!
   });
-}
+};
 ```
 
 ---
@@ -1684,10 +1705,13 @@ const lastProcessedTime = new Map<string, number>();
 ```typescript
 import { getRedisClient } from "@/lib/redis";
 
-async function shouldProcess(key: string, debounceMs: number): Promise<boolean> {
+async function shouldProcess(
+  key: string,
+  debounceMs: number
+): Promise<boolean> {
   const redis = getRedisClient();
   const lockKey = `debounce:${key}`;
-  
+
   // SET NX with expiration for atomic debounce
   const acquired = await redis.set(lockKey, "1", { NX: true, PX: debounceMs });
   return acquired !== null;
@@ -1705,7 +1729,7 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 
 export function startCleanupScheduler(): void {
   if (cleanupInterval) return; // Prevent duplicates
-  
+
   cleanupInterval = setInterval(() => {
     cleanupExpiredEntries();
   }, 60000);
@@ -1731,11 +1755,11 @@ export function stopCleanupScheduler(): void {
 
 ```markdown
 docs/build-docs/phase-N/
-├── PHASE_N_PLAN.md              # Initial plan
-├── PHASE_N_CHUNK_PLAN.md        # Detailed chunks
-├── PHASE_N-1_COMPLETION_ANALYSIS.md  # First analysis
-├── PHASE_N-2_COMPLETION_ANALYSIS.md  # Deep dive after remediation
-└── PHASE_N-3_COMPLETION_ANALYSIS.md  # Final verification
+├── PHASE_N_PLAN.md # Initial plan
+├── PHASE_N_CHUNK_PLAN.md # Detailed chunks
+├── PHASE_N-1_COMPLETION_ANALYSIS.md # First analysis
+├── PHASE_N-2_COMPLETION_ANALYSIS.md # Deep dive after remediation
+└── PHASE_N-3_COMPLETION_ANALYSIS.md # Final verification
 ```
 
 ### 28.2 Issue Tracking Format
@@ -1743,12 +1767,12 @@ docs/build-docs/phase-N/
 **Best Practice**: Use consistent severity ratings and status tracking:
 
 ```markdown
-| Severity | Count | Previous | Current |
-|----------|-------|----------|---------|
-| 🔴 Critical | 0 | 2 | 0 |
-| 🟠 High | 0 | 3 | 0 |
-| 🟡 Medium | 2 | 5 | 2 |
-| 🟢 Low | 3 | 3 | 3 |
+| Severity    | Count | Previous | Current |
+| ----------- | ----- | -------- | ------- |
+| 🔴 Critical | 0     | 2        | 0       |
+| 🟠 High     | 0     | 3        | 0       |
+| 🟡 Medium   | 2     | 5        | 2       |
+| 🟢 Low      | 3     | 3        | 3       |
 ```
 
 ### 28.3 Resolution Verification
@@ -1759,6 +1783,7 @@ docs/build-docs/phase-N/
 ### 6.1 Previously Critical Issues - RESOLVED ✅
 
 #### Issue: [Brief description]
+
 **Previous**: [What was wrong]
 **Current**: [How it's fixed, with code reference]
 
@@ -1777,17 +1802,19 @@ docs/build-docs/phase-N/
 ✅ **Do**: Use typed results or at minimum log the failure reason
 
 **What went wrong**:
+
 ```typescript
 update: async (id, data) => {
   try {
     return await db.model.update({ where: { id }, data });
   } catch {
-    return null;  // ❌ Was it not found? Constraint violation? Unknown error?
+    return null; // ❌ Was it not found? Constraint violation? Unknown error?
   }
-}
+};
 ```
 
 **Better approach**:
+
 ```typescript
 updateWithResult: async (id, data) => {
   try {
@@ -1798,7 +1825,7 @@ updateWithResult: async (id, data) => {
     logger.debug("Update failed", { id, code });
     return { success: false, error: message, code };
   }
-}
+};
 ```
 
 ### 29.2 "Undocumented Scalability Limitations"
@@ -1807,6 +1834,7 @@ updateWithResult: async (id, data) => {
 ✅ **Do**: Add clear comments about scalability constraints
 
 **Better approach**:
+
 ```typescript
 // ⚠️ SCALABILITY NOTE: This in-memory Map only works for single-instance deployments.
 // For horizontal scaling, implement Redis-based debounce using getRedisClient().
@@ -1821,6 +1849,7 @@ const debounceMap = new Map<string, number>();
 
 **What went wrong**:
 The Calendar integration had:
+
 - ✅ Job type definitions (`jobs.ts`) with proper interfaces
 - ✅ Scheduler functions (`scheduler.ts`) that queued jobs correctly
 - ✅ API routes that called the scheduler functions
@@ -1828,7 +1857,8 @@ The Calendar integration had:
 
 Jobs would be scheduled successfully and the API would return success, but nothing would ever happen because there was no BullMQ worker listening on the queue.
 
-**The insidious nature of this bug**: 
+**The insidious nature of this bug**:
+
 - Code compiles without errors
 - TypeScript is happy
 - API calls return success
@@ -1836,6 +1866,7 @@ Jobs would be scheduled successfully and the API would return success, but nothi
 - But nothing processes them - they sit there forever
 
 **Prevention checklist for job queue chunks**:
+
 ```markdown
 [ ] Job type definitions created (jobs.ts)
 [ ] Scheduler functions created (scheduler.ts)  
@@ -1846,28 +1877,28 @@ Jobs would be scheduled successfully and the API would return success, but nothi
 ```
 
 **Correct pattern** (from Gmail):
+
 ```typescript
 // sync/worker.ts - MUST EXIST!
 export function registerGmailSyncWorker() {
-  return registerWorker(
-    QUEUE_NAMES.EMAIL_SYNC,
-    processGmailSyncJob,
-    { concurrency: 3 }
-  );
+  return registerWorker(QUEUE_NAMES.EMAIL_SYNC, processGmailSyncJob, {
+    concurrency: 3,
+  });
 }
 
 // sync/index.ts - Must call worker registration!
 export async function initializeGmailSync(): Promise<void> {
-  registerGmailSyncWorker();  // ← Critical!
+  registerGmailSyncWorker(); // ← Critical!
   await startApprovalExpirationScheduler();
 }
 
 // instrumentation.ts - Must call initialization!
-await initializeGmailSync();  // ← Critical!
+await initializeGmailSync(); // ← Critical!
 ```
 
 **Chunk plan template update**:
 Any chunk that involves job scheduling MUST include explicit subtasks:
+
 1. Create job types
 2. Create scheduler functions
 3. **Create worker file**
@@ -1906,6 +1937,7 @@ Apply these lessons to all future phase implementations.
 _Based on analysis of Phase 3 (Gmail), Phase 4, 4-2 & 4-3 (Calendar), and Phase 13 (API Docs) implementations_  
 _Document Version: 1.6_  
 _Updated: December 23, 2024_
+
 - _v1.6: Added Phase 4-3 learnings - typed repository results, multi-instance scalability patterns, remediation tracking_
 - _v1.5: Added Phase 4-2 deep analysis learnings - extraction-ready architecture, placeholder detection, documentation-focused pattern verification_
 - _v1.4: Added Phase 4 (Calendar) learnings - rate limiting, mappers, schedulers, cross-integration patterns_

@@ -154,4 +154,3 @@ export const SimilarEmailsResponseSchema = z
     results: z.array(EmailSearchResultSchema),
   })
   .openapi("SimilarEmailsResponse");
-

@@ -10,9 +10,16 @@ import {
   calendarSyncStateRepository,
 } from "../repository";
 import { mapGoogleEventToDb } from "../mappers";
-import { CalendarError, CalendarErrorCode, isSyncTokenExpired } from "../errors";
+import {
+  CalendarError,
+  CalendarErrorCode,
+  isSyncTokenExpired,
+} from "../errors";
 import { syncLogger } from "../logger";
-import { INCREMENTAL_SYNC_MAX_EVENTS, DEFAULT_EVENT_PAGE_SIZE } from "../constants";
+import {
+  INCREMENTAL_SYNC_MAX_EVENTS,
+  DEFAULT_EVENT_PAGE_SIZE,
+} from "../constants";
 import {
   queueIncrementalSyncEmbeddings,
   createSyncError,
@@ -32,7 +39,9 @@ import type {
 // Default Options
 // ─────────────────────────────────────────────────────────────
 
-const DEFAULT_OPTIONS: Required<Omit<IncrementalCalendarSyncOptions, "syncToken" | "calendarIds">> = {
+const DEFAULT_OPTIONS: Required<
+  Omit<IncrementalCalendarSyncOptions, "syncToken" | "calendarIds">
+> = {
   maxEvents: INCREMENTAL_SYNC_MAX_EVENTS,
 };
 
@@ -116,7 +125,11 @@ export async function incrementalCalendarSync(
     // Sync each calendar
     for (const calendar of calendars) {
       try {
-        const { changes, syncToken: calendarSyncToken, hasMore } = await fetchEventChanges(
+        const {
+          changes,
+          syncToken: calendarSyncToken,
+          hasMore,
+        } = await fetchEventChanges(
           client,
           calendar.googleCalendarId,
           syncToken,
@@ -165,7 +178,6 @@ export async function incrementalCalendarSync(
           updated: stats.updated,
           deleted: stats.deleted,
         });
-
       } catch (error) {
         // Check for sync token expired (410 Gone)
         if (isSyncTokenExpired(error)) {
@@ -187,7 +199,11 @@ export async function incrementalCalendarSync(
           );
         }
 
-        const syncError = createSyncError(error, calendar.googleCalendarId, "calendar");
+        const syncError = createSyncError(
+          error,
+          calendar.googleCalendarId,
+          "calendar"
+        );
         result.errors.push(syncError);
 
         syncLogger.error("Failed to sync calendar", {
@@ -258,7 +274,6 @@ export async function incrementalCalendarSync(
     });
 
     return result;
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -266,7 +281,10 @@ export async function incrementalCalendarSync(
     await calendarSyncStateRepository.setError(userId, errorMessage);
 
     // Re-throw sync required errors without additional logging
-    if (error instanceof CalendarError && error.code === CalendarErrorCode.SYNC_REQUIRED) {
+    if (
+      error instanceof CalendarError &&
+      error.code === CalendarErrorCode.SYNC_REQUIRED
+    ) {
       throw error;
     }
 
@@ -311,7 +329,7 @@ async function getCalendarsToSync(
 
   // Filter if specific calendar IDs provided
   if (filterCalendarIds && filterCalendarIds.length > 0) {
-    return calendars.filter(cal =>
+    return calendars.filter((cal) =>
       filterCalendarIds.includes(cal.googleCalendarId)
     );
   }
@@ -375,7 +393,6 @@ async function fetchEventChanges(
       hasMore = !!pageToken;
       break;
     }
-
   } while (pageToken);
 
   return { changes, syncToken: newSyncToken, hasMore };
@@ -401,11 +418,17 @@ async function processEventChanges(
     try {
       if (change.type === "deleted") {
         // Soft delete the event
-        await calendarEventRepository.softDeleteByGoogleId(userId, change.eventId);
+        await calendarEventRepository.softDeleteByGoogleId(
+          userId,
+          change.eventId
+        );
         stats.deleted++;
       } else if (change.event) {
         // Check if event exists
-        const existing = await calendarEventRepository.findByGoogleId(userId, change.eventId);
+        const existing = await calendarEventRepository.findByGoogleId(
+          userId,
+          change.eventId
+        );
 
         // Map and upsert
         const input = mapGoogleEventToDb(
@@ -450,4 +473,3 @@ export async function triggerIncrementalSync(
 ): Promise<CalendarSyncResult> {
   return incrementalCalendarSync(userId, accessToken);
 }
-

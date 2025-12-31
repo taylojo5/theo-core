@@ -165,7 +165,9 @@ describe("Pagination Utilities", () => {
 describe("Email Utilities", () => {
   describe("normalizeEmail", () => {
     it("lowercases email", () => {
-      expect(normalizeEmail("John.Doe@Example.COM")).toBe("john.doe@example.com");
+      expect(normalizeEmail("John.Doe@Example.COM")).toBe(
+        "john.doe@example.com"
+      );
     });
 
     it("trims whitespace", () => {
@@ -468,4 +470,3 @@ describe("Importance Utilities", () => {
     });
   });
 });
-

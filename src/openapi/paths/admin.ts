@@ -55,10 +55,30 @@ Requires authentication. Admin role check coming in future release.
             schema: QueueStatsResponseSchema,
             example: {
               queues: [
-                { name: "embeddings", waiting: 5, active: 2, completed: 1000, failed: 3, delayed: 0 },
-                { name: "gmail-sync", waiting: 0, active: 1, completed: 50, failed: 0, delayed: 0 },
+                {
+                  name: "embeddings",
+                  waiting: 5,
+                  active: 2,
+                  completed: 1000,
+                  failed: 3,
+                  delayed: 0,
+                },
+                {
+                  name: "gmail-sync",
+                  waiting: 0,
+                  active: 1,
+                  completed: 50,
+                  failed: 0,
+                  delayed: 0,
+                },
               ],
-              totals: { waiting: 5, active: 3, completed: 1050, failed: 3, delayed: 0 },
+              totals: {
+                waiting: 5,
+                active: 3,
+                completed: 1050,
+                failed: 3,
+                delayed: 0,
+              },
               timestamp: "2024-01-15T10:30:00Z",
             },
           },
@@ -68,4 +88,3 @@ Requires authentication. Admin role check coming in future release.
     },
   });
 }
-

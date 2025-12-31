@@ -29,7 +29,7 @@ export interface EmbeddingStats {
 /**
  * Mark event embedding as started (processing)
  * Returns false if the event no longer exists
- * 
+ *
  * Note: Does NOT increment embeddingAttempts here - that happens in
  * markEventEmbeddingFailed() to avoid double-counting attempts.
  */
@@ -167,10 +167,11 @@ export async function getEventEmbeddingStats(
   for (const count of counts) {
     const status = count.embeddingStatus as EmbeddingStatus;
     // Prisma groupBy with _count: true returns { _count: { _all: number } }
-    const value = typeof count._count === "number" 
-      ? count._count 
-      : (count._count as { _all?: number })._all ?? 0;
-    
+    const value =
+      typeof count._count === "number"
+        ? count._count
+        : ((count._count as { _all?: number })._all ?? 0);
+
     if (status in stats) {
       stats[status] = value;
     }
@@ -279,4 +280,3 @@ export async function getEventsNeedingEmbedding(
 
   return events.map((e) => e.id);
 }
-

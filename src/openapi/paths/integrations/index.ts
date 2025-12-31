@@ -13,5 +13,8 @@ export function registerIntegrationPaths(registry: OpenAPIRegistry) {
   registerCalendarPaths(registry);
 }
 
-export { registerIntegrationStatusPaths, registerGmailPaths, registerCalendarPaths };
-
+export {
+  registerIntegrationStatusPaths,
+  registerGmailPaths,
+  registerCalendarPaths,
+};

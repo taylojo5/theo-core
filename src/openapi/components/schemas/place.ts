@@ -51,10 +51,16 @@ export const PlaceCreateSchema = z
       description: "Latitude coordinate",
       example: 37.7749,
     }),
-    longitude: z.coerce.number().min(-180).max(180).optional().nullable().openapi({
-      description: "Longitude coordinate",
-      example: -122.4194,
-    }),
+    longitude: z.coerce
+      .number()
+      .min(-180)
+      .max(180)
+      .optional()
+      .nullable()
+      .openapi({
+        description: "Longitude coordinate",
+        example: -122.4194,
+      }),
     timezone: z.string().max(50).optional().nullable().openapi({
       description: "IANA timezone",
       example: "America/Los_Angeles",
@@ -158,5 +164,7 @@ export const PlaceListQuerySchema = z
 // Paginated Response
 // ─────────────────────────────────────────────────────────────
 
-export const PaginatedPlacesSchema = createPaginatedSchema(PlaceSchema, "Places");
-
+export const PaginatedPlacesSchema = createPaginatedSchema(
+  PlaceSchema,
+  "Places"
+);

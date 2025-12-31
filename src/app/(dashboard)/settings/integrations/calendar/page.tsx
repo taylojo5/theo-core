@@ -47,8 +47,12 @@ export default function CalendarSettingsPage() {
   >();
 
   // Config state for the sync configuration panel
-  const [configData, setConfigData] = React.useState<CalendarSyncConfigData | undefined>();
-  const [availableCalendars, setAvailableCalendars] = React.useState<CalendarOption[]>([]);
+  const [configData, setConfigData] = React.useState<
+    CalendarSyncConfigData | undefined
+  >();
+  const [availableCalendars, setAvailableCalendars] = React.useState<
+    CalendarOption[]
+  >([]);
   const [metadataSynced, setMetadataSynced] = React.useState(false);
 
   const [loadingStates, setLoadingStates] = React.useState({
@@ -105,7 +109,9 @@ export default function CalendarSettingsPage() {
 
     setLoadingStates((s) => ({ ...s, calendars: true }));
     try {
-      const res = await fetch("/api/integrations/calendar/calendars?includeHidden=true");
+      const res = await fetch(
+        "/api/integrations/calendar/calendars?includeHidden=true"
+      );
       if (res.ok) {
         const data = await res.json();
         setCalendarListData({
@@ -162,7 +168,9 @@ export default function CalendarSettingsPage() {
 
     setLoadingStates((s) => ({ ...s, approvals: true }));
     try {
-      const res = await fetch("/api/integrations/calendar/approvals?pending=true");
+      const res = await fetch(
+        "/api/integrations/calendar/approvals?pending=true"
+      );
       if (res.ok) {
         const data = await res.json();
         setApprovalsData({
@@ -222,7 +230,13 @@ export default function CalendarSettingsPage() {
       fetchApprovals();
       fetchSyncConfig();
     }
-  }, [isConnected, fetchCalendars, fetchSyncStatus, fetchApprovals, fetchSyncConfig]);
+  }, [
+    isConnected,
+    fetchCalendars,
+    fetchSyncStatus,
+    fetchApprovals,
+    fetchSyncConfig,
+  ]);
 
   // ───────────────────────────────────────────────────────────
   // Handlers
@@ -233,7 +247,9 @@ export default function CalendarSettingsPage() {
       const res = await fetch("/api/integrations/calendar/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ redirectUrl: "/settings/integrations/calendar" }),
+        body: JSON.stringify({
+          redirectUrl: "/settings/integrations/calendar",
+        }),
       });
 
       if (!res.ok) {
@@ -247,7 +263,9 @@ export default function CalendarSettingsPage() {
         // Use NextAuth's signIn() to properly handle PKCE
         await signIn(
           "google",
-          { callbackUrl: data.callbackUrl || "/settings/integrations/calendar" },
+          {
+            callbackUrl: data.callbackUrl || "/settings/integrations/calendar",
+          },
           data.authorizationParams
         );
       } else if (data.alreadyConnected) {
@@ -290,7 +308,9 @@ export default function CalendarSettingsPage() {
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to disconnect Calendar";
+        error instanceof Error
+          ? error.message
+          : "Failed to disconnect Calendar";
       toast.error(message);
       console.error("Failed to disconnect Calendar:", error);
     }
@@ -301,11 +321,14 @@ export default function CalendarSettingsPage() {
     isHidden: boolean
   ) => {
     try {
-      const res = await fetch(`/api/integrations/calendar/calendars/${calendarId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isHidden }),
-      });
+      const res = await fetch(
+        `/api/integrations/calendar/calendars/${calendarId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isHidden }),
+        }
+      );
       if (res.ok) {
         fetchCalendars();
       } else {
@@ -374,7 +397,10 @@ export default function CalendarSettingsPage() {
     }
   };
 
-  const handleSaveSyncConfig = async (config: { enabledCalendarIds?: string[]; enableRecurring?: boolean }) => {
+  const handleSaveSyncConfig = async (config: {
+    enabledCalendarIds?: string[];
+    enableRecurring?: boolean;
+  }) => {
     try {
       const res = await fetch("/api/integrations/calendar/sync/config", {
         method: "PUT",
@@ -384,21 +410,23 @@ export default function CalendarSettingsPage() {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        throw new Error(
-          error.error || `Failed to save config (${res.status})`
-        );
+        throw new Error(error.error || `Failed to save config (${res.status})`);
       }
 
       const data = await res.json();
-      
+
       if (data.syncStarted) {
         toast.success("Calendar sync started! Your events are being imported.");
       } else {
         toast.success("Sync configuration saved");
       }
-      
+
       // Refresh both config and sync status
-      await Promise.all([fetchSyncConfig(), fetchSyncStatus(), fetchCalendars()]);
+      await Promise.all([
+        fetchSyncConfig(),
+        fetchSyncStatus(),
+        fetchCalendars(),
+      ]);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to save sync config";
@@ -456,7 +484,7 @@ export default function CalendarSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "metadata" }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         toast.success(data.message || "Calendar list refreshed");
@@ -534,7 +562,8 @@ export default function CalendarSettingsPage() {
 
             {/* Show remaining UI only after sync is configured OR when not connected */}
             {/* Don't show while loading config - wait until we know the configuration status */}
-            {(!isConnected || (configData?.syncConfigured && !loadingStates.config)) && (
+            {(!isConnected ||
+              (configData?.syncConfigured && !loadingStates.config)) && (
               <>
                 {/* Sync Status */}
                 <CalendarSyncStatus
@@ -623,4 +652,3 @@ function CalendarIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-

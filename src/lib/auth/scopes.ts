@@ -42,18 +42,15 @@ export const CALENDAR_SCOPES = {
   /** Read/write access to Calendar events */
   EVENTS: "https://www.googleapis.com/auth/calendar.events",
   /** Read-only access to calendar settings */
-  SETTINGS_READONLY: "https://www.googleapis.com/auth/calendar.settings.readonly",
+  SETTINGS_READONLY:
+    "https://www.googleapis.com/auth/calendar.settings.readonly",
 } as const;
 
 /** Calendar read-only scopes */
-export const CALENDAR_READ_SCOPES = [
-  CALENDAR_SCOPES.READONLY,
-] as const;
+export const CALENDAR_READ_SCOPES = [CALENDAR_SCOPES.READONLY] as const;
 
 /** Calendar write scopes (EVENTS scope provides full read/write access) */
-export const CALENDAR_WRITE_SCOPES = [
-  CALENDAR_SCOPES.EVENTS,
-] as const;
+export const CALENDAR_WRITE_SCOPES = [CALENDAR_SCOPES.EVENTS] as const;
 
 /**
  * All Calendar scopes required for full integration
@@ -85,10 +82,7 @@ export const SCOPE_SETS = {
   gmailFull: [...BASE_SCOPES, ...ALL_GMAIL_SCOPES],
 
   /** Calendar read-only (view events) */
-  calendarReadOnly: [
-    ...BASE_SCOPES,
-    CALENDAR_SCOPES.READONLY,
-  ],
+  calendarReadOnly: [...BASE_SCOPES, CALENDAR_SCOPES.READONLY],
 
   /** Full Calendar access (read, create, update, delete events) */
   calendarFull: [...BASE_SCOPES, ...ALL_CALENDAR_SCOPES],
@@ -196,7 +190,7 @@ export function hasCalendarWriteAccess(grantedScopes: string[]): boolean {
  * Get required Calendar scopes for a specific action
  * Note: The EVENTS scope provides full read/write access,
  * so write operations only require EVENTS, not READONLY.
- * 
+ *
  * For "read" action, returns READONLY but note that EVENTS also satisfies
  * read requirements. Use hasMissingCalendarScopes() to properly check.
  */
@@ -216,7 +210,7 @@ export function getRequiredCalendarScopes(
 
 /**
  * Check if scopes are missing for a Calendar action, considering alternative scopes
- * 
+ *
  * Unlike getMissingScopes(), this properly handles cases where:
  * - EVENTS scope satisfies read requirements (READONLY not needed)
  * - Either READONLY or EVENTS satisfies read access
@@ -239,7 +233,7 @@ export function hasMissingCalendarScopes(
 
 /**
  * Get missing Calendar scopes for a specific action, considering alternative scopes
- * 
+ *
  * Returns empty array if:
  * - For "read": user has READONLY or EVENTS (either satisfies read)
  * - For "write": user has EVENTS
@@ -263,7 +257,9 @@ export function getMissingCalendarScopesForAction(
       }
       return [CALENDAR_SCOPES.EVENTS];
     default:
-      return hasCalendarReadAccess(grantedScopes) ? [] : [CALENDAR_SCOPES.READONLY];
+      return hasCalendarReadAccess(grantedScopes)
+        ? []
+        : [CALENDAR_SCOPES.READONLY];
   }
 }
 
@@ -334,13 +330,16 @@ export function getIntegrationStatus(
 
   // Calculate missing scopes per integration
   const missingGmailScopes = getMissingScopes(grantedScopes, ALL_GMAIL_SCOPES);
-  
+
   // For Calendar, use capability-aware missing scope calculation:
   // - If user has write access (EVENTS), no scopes are missing
   // - If user has read-only access (READONLY), report EVENTS as missing for full access
   // - If user has no access, report EVENTS (which provides both read and write)
   // Note: We don't report READONLY as missing since EVENTS supersedes it
-  const missingCalendarScopes = getMissingCalendarScopesForAction(grantedScopes, "write");
+  const missingCalendarScopes = getMissingCalendarScopesForAction(
+    grantedScopes,
+    "write"
+  );
 
   return {
     gmail: {
@@ -369,5 +368,6 @@ export function getIntegrationStatus(
 // ─────────────────────────────────────────────────────────────
 
 export type GmailScope = (typeof GMAIL_SCOPES)[keyof typeof GMAIL_SCOPES];
-export type CalendarScope = (typeof CALENDAR_SCOPES)[keyof typeof CALENDAR_SCOPES];
+export type CalendarScope =
+  (typeof CALENDAR_SCOPES)[keyof typeof CALENDAR_SCOPES];
 export type ScopeSet = keyof typeof SCOPE_SETS;

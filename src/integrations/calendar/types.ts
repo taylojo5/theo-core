@@ -143,8 +143,7 @@ export interface GoogleEvent {
 /**
  * Event status values
  */
-export type EventStatus =
-  (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS];
+export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS];
 
 /**
  * Event visibility values
@@ -155,7 +154,11 @@ export type EventVisibility =
 /**
  * Event type values
  */
-export type EventType = "default" | "outOfOffice" | "focusTime" | "workingLocation";
+export type EventType =
+  | "default"
+  | "outOfOffice"
+  | "focusTime"
+  | "workingLocation";
 
 // ─────────────────────────────────────────────────────────────
 // Event Participant Types
@@ -561,7 +564,11 @@ export interface EventUpdateInput {
   /** End time */
   end?: EventDateTime;
   /** Attendees */
-  attendees?: Array<{ email: string; optional?: boolean; responseStatus?: AttendeeResponseStatus }>;
+  attendees?: Array<{
+    email: string;
+    optional?: boolean;
+    responseStatus?: AttendeeResponseStatus;
+  }>;
   /** Reminders */
   reminders?: EventReminders;
   /** Recurrence rules */
@@ -662,4 +669,3 @@ export const CALENDAR_QUOTA_UNITS = {
 } as const;
 
 export type CalendarOperation = keyof typeof CALENDAR_QUOTA_UNITS;
-

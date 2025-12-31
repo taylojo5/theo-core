@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createCalendarClient } from "../client";
-import { calendarApprovalRepository, calendarEventRepository } from "../repository";
+import {
+  calendarApprovalRepository,
+  calendarEventRepository,
+} from "../repository";
 import { calendarLogger } from "../logger";
 import { mapGoogleEventToDb } from "../mappers";
 import { logAuditEntry } from "@/services/audit";
@@ -26,10 +29,10 @@ import type {
 
 /**
  * Request an update to an existing event
- * 
+ *
  * Creates an approval record that must be approved before execution.
  * Optionally checks for scheduling conflicts if times are being changed.
- * 
+ *
  * @param request - Event update request
  * @param options - Approval options
  * @returns Result with approval record
@@ -49,13 +52,13 @@ export async function requestEventUpdate(
     requestedBy,
     notes,
   } = request;
-  
+
   const logger = calendarLogger.child("requestEventUpdate");
 
   try {
     // Find the existing event
     const existingEvent = await calendarEventRepository.findById(eventId);
-    
+
     if (!existingEvent) {
       return {
         success: false,
@@ -75,17 +78,17 @@ export async function requestEventUpdate(
 
     // Determine if times are changing
     const timesChanging = updates.start || updates.end;
-    
+
     // Check for conflicts if times are changing
     let conflicts: Awaited<ReturnType<typeof detectConflicts>> = [];
     if (checkConflicts && timesChanging) {
-      const newStart = updates.start 
-        ? parseEventDateTime(updates.start) 
+      const newStart = updates.start
+        ? parseEventDateTime(updates.start)
         : existingEvent.startsAt;
-      const newEnd = updates.end 
-        ? parseEventDateTime(updates.end) 
+      const newEnd = updates.end
+        ? parseEventDateTime(updates.end)
         : existingEvent.endsAt || existingEvent.startsAt;
-      
+
       if (newStart && newEnd) {
         conflicts = await detectConflicts(userId, newStart, newEnd, {
           excludeEventId: eventId,
@@ -111,7 +114,8 @@ export async function requestEventUpdate(
     };
 
     // Calculate expiration
-    const expiresAt = options.expiresAt || 
+    const expiresAt =
+      options.expiresAt ||
       new Date(Date.now() + APPROVAL_DEFAULT_EXPIRATION_MS);
 
     // Create approval record
@@ -162,7 +166,7 @@ export async function requestEventUpdate(
     };
   } catch (error) {
     logger.error("Error requesting event update", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -177,10 +181,10 @@ export async function requestEventUpdate(
 
 /**
  * Execute an approved event update
- * 
+ *
  * Actually updates the event in Google Calendar and syncs to local DB.
  * Should only be called after approval.
- * 
+ *
  * @param approvalId - ID of the approved request
  * @returns Result with updated event
  */
@@ -192,7 +196,7 @@ export async function executeEventUpdate(
   try {
     // Get approval record
     const approval = await calendarApprovalRepository.findById(approvalId);
-    
+
     if (!approval) {
       return {
         success: false,
@@ -231,9 +235,14 @@ export async function executeEventUpdate(
       };
     }
 
-    const existingEvent = await calendarEventRepository.findById(approval.eventId);
+    const existingEvent = await calendarEventRepository.findById(
+      approval.eventId
+    );
     if (!existingEvent) {
-      await calendarApprovalRepository.markFailed(approvalId, "Event no longer exists");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "Event no longer exists"
+      );
       return {
         success: false,
         error: "Event not found",
@@ -245,7 +254,10 @@ export async function executeEventUpdate(
     // Get Google Event ID
     const googleEventId = existingEvent.googleEventId;
     if (!googleEventId) {
-      await calendarApprovalRepository.markFailed(approvalId, "No Google Event ID");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "No Google Event ID"
+      );
       return {
         success: false,
         error: "Not a Google event",
@@ -271,7 +283,10 @@ export async function executeEventUpdate(
     // Get access token
     const accessToken = await getValidAccessToken(approval.userId);
     if (!accessToken) {
-      await calendarApprovalRepository.markFailed(approvalId, "No valid access token");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "No valid access token"
+      );
       return {
         success: false,
         error: "Authentication failed",
@@ -292,7 +307,11 @@ export async function executeEventUpdate(
     );
 
     // Sync updated event to local database
-    const dbEventInput = mapGoogleEventToDb(googleEvent, approval.userId, approval.calendarId);
+    const dbEventInput = mapGoogleEventToDb(
+      googleEvent,
+      approval.userId,
+      approval.calendarId
+    );
     const dbEvent = await calendarEventRepository.upsert(dbEventInput);
 
     // Mark approval as executed
@@ -322,14 +341,16 @@ export async function executeEventUpdate(
     return {
       success: true,
       event: dbEvent,
-      approval: await calendarApprovalRepository.findById(approvalId) || approval,
+      approval:
+        (await calendarApprovalRepository.findById(approvalId)) || approval,
       message: `Event "${googleEvent.summary}" updated successfully`,
     };
   } catch (error) {
     logger.error("Error executing event update", { error });
 
     // Mark approval as failed
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await calendarApprovalRepository.markFailed(approvalId, errorMessage);
 
     return {
@@ -361,4 +382,3 @@ function parseEventDateTime(eventDateTime: {
   }
   return null;
 }
-

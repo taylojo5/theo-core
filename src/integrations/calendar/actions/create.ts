@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createCalendarClient } from "../client";
-import { calendarApprovalRepository, calendarEventRepository } from "../repository";
+import {
+  calendarApprovalRepository,
+  calendarEventRepository,
+} from "../repository";
 import { calendarLogger } from "../logger";
 import { mapGoogleEventToDb } from "../mappers";
 import { logAuditEntry } from "@/services/audit";
@@ -27,10 +30,10 @@ import type { CalendarApproval, Event } from "@prisma/client";
 
 /**
  * Request creation of a new event
- * 
+ *
  * Creates an approval record that must be approved before execution.
  * Optionally checks for scheduling conflicts.
- * 
+ *
  * @param request - Event creation request
  * @param options - Approval options
  * @returns Result with approval record
@@ -39,8 +42,15 @@ export async function requestEventCreation(
   request: CreateEventRequest,
   options: ApprovalOptions = {}
 ): Promise<ActionRequestResult> {
-  const { userId, calendarId, event, checkConflicts = true, requestedBy, notes } = request;
-  
+  const {
+    userId,
+    calendarId,
+    event,
+    checkConflicts = true,
+    requestedBy,
+    notes,
+  } = request;
+
   const logger = calendarLogger.child("requestEventCreation");
 
   try {
@@ -89,7 +99,8 @@ export async function requestEventCreation(
     };
 
     // Calculate expiration
-    const expiresAt = options.expiresAt || 
+    const expiresAt =
+      options.expiresAt ||
       new Date(Date.now() + APPROVAL_DEFAULT_EXPIRATION_MS);
 
     // Create approval record
@@ -137,7 +148,7 @@ export async function requestEventCreation(
     };
   } catch (error) {
     logger.error("Error requesting event creation", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -152,10 +163,10 @@ export async function requestEventCreation(
 
 /**
  * Execute an approved event creation
- * 
+ *
  * Actually creates the event in Google Calendar and syncs to local DB.
  * Should only be called after approval.
- * 
+ *
  * @param approvalId - ID of the approved request
  * @returns Result with created event
  */
@@ -167,7 +178,7 @@ export async function executeEventCreation(
   try {
     // Get approval record
     const approval = await calendarApprovalRepository.findById(approvalId);
-    
+
     if (!approval) {
       return {
         success: false,
@@ -212,7 +223,10 @@ export async function executeEventCreation(
     // Get access token
     const accessToken = await getValidAccessToken(approval.userId);
     if (!accessToken) {
-      await calendarApprovalRepository.markFailed(approvalId, "No valid access token");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "No valid access token"
+      );
       return {
         success: false,
         error: "Authentication failed",
@@ -225,10 +239,17 @@ export async function executeEventCreation(
     const client = createCalendarClient(accessToken, approval.userId);
 
     // Create event in Google Calendar
-    const googleEvent = await client.createEvent(approval.calendarId, createData);
+    const googleEvent = await client.createEvent(
+      approval.calendarId,
+      createData
+    );
 
     // Sync event to local database
-    const dbEventInput = mapGoogleEventToDb(googleEvent, approval.userId, approval.calendarId);
+    const dbEventInput = mapGoogleEventToDb(
+      googleEvent,
+      approval.userId,
+      approval.calendarId
+    );
     const dbEvent = await calendarEventRepository.upsert(dbEventInput);
 
     // Mark approval as executed
@@ -257,14 +278,16 @@ export async function executeEventCreation(
     return {
       success: true,
       event: dbEvent,
-      approval: await calendarApprovalRepository.findById(approvalId) || approval,
+      approval:
+        (await calendarApprovalRepository.findById(approvalId)) || approval,
       message: `Event "${googleEvent.summary}" created successfully`,
     };
   } catch (error) {
     logger.error("Error executing event creation", { error });
 
     // Mark approval as failed
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await calendarApprovalRepository.markFailed(approvalId, errorMessage);
 
     return {
@@ -296,4 +319,3 @@ function parseEventDateTime(eventDateTime: {
   }
   return null;
 }
-

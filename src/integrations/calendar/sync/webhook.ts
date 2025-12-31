@@ -257,7 +257,8 @@ export async function processWebhookNotification(
     }
 
     // Look up user by channel ID
-    const syncState = await calendarSyncStateRepository.findByWebhookChannel(channelId);
+    const syncState =
+      await calendarSyncStateRepository.findByWebhookChannel(channelId);
 
     if (!syncState) {
       webhookLogger.warn("Unknown webhook channel", { channelId });
@@ -287,10 +288,13 @@ export async function processWebhookNotification(
     // All webhooks registered with this codebase include a token.
     // Webhooks expire after 7 days max, so any legacy tokenless webhooks would have expired.
     if (!token) {
-      webhookLogger.warn("Webhook notification missing token - rejecting for security", {
-        channelId,
-        userId: syncState.userId,
-      });
+      webhookLogger.warn(
+        "Webhook notification missing token - rejecting for security",
+        {
+          channelId,
+          userId: syncState.userId,
+        }
+      );
       return {
         success: false,
         syncTriggered: false,
@@ -369,7 +373,6 @@ export async function processWebhookNotification(
       syncTriggered: false,
       userId,
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     webhookLogger.error("Failed to process webhook notification", {
@@ -416,7 +419,8 @@ export function parseWebhookHeaders(
     channelId,
     resourceId,
     resourceState: resourceState as "sync" | "exists" | "not_exists",
-    messageNumber: parseInt(getHeader("X-Goog-Message-Number") || "0", 10) || undefined,
+    messageNumber:
+      parseInt(getHeader("X-Goog-Message-Number") || "0", 10) || undefined,
     token: getHeader("X-Goog-Channel-Token"),
     expiration: getHeader("X-Goog-Channel-Expiration"),
   };
@@ -438,9 +442,10 @@ export async function renewExpiringWebhooks(
   webhookUrl: string
 ): Promise<number> {
   // Find webhooks expiring within the buffer period
-  const expiringSyncStates = await calendarSyncStateRepository.findExpiringWebhooks(
-    WEBHOOK_RENEWAL_BUFFER_MS
-  );
+  const expiringSyncStates =
+    await calendarSyncStateRepository.findExpiringWebhooks(
+      WEBHOOK_RENEWAL_BUFFER_MS
+    );
 
   if (expiringSyncStates.length === 0) {
     webhookLogger.debug("No webhooks to renew");
@@ -476,7 +481,6 @@ export async function renewExpiringWebhooks(
       webhookLogger.info("Renewed webhook", {
         userId: syncState.userId,
       });
-
     } catch (error) {
       webhookLogger.error("Failed to renew webhook", {
         userId: syncState.userId,
@@ -510,4 +514,3 @@ function generateChannelId(): string {
   // Use UUID v4 for unpredictable channel IDs
   return `calendar-${randomUUID()}`;
 }
-

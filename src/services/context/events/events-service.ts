@@ -83,7 +83,10 @@ function validateStatusTransition(
 /**
  * Get date range from preset
  */
-function getPresetDateRange(preset: TimeRangePreset): { start: Date; end: Date } {
+function getPresetDateRange(preset: TimeRangePreset): {
+  start: Date;
+  end: Date;
+} {
   const now = new Date();
 
   switch (preset) {
@@ -146,7 +149,10 @@ export async function createEvent(
       where: { id: data.placeId, userId, ...softDeleteFilter() },
     });
     if (!place) {
-      throw new EventsError("PLACE_NOT_FOUND", `Place not found: ${data.placeId}`);
+      throw new EventsError(
+        "PLACE_NOT_FOUND",
+        `Place not found: ${data.placeId}`
+      );
     }
   }
 
@@ -154,9 +160,8 @@ export async function createEvent(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : [];
 
   // Validate importance
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : 5;
+  const importance =
+    data.importance !== undefined ? validateImportance(data.importance) : 5;
 
   try {
     const event = await db.event.create({
@@ -280,7 +285,10 @@ export async function updateEvent(
       where: { id: data.placeId, userId, ...softDeleteFilter() },
     });
     if (!place) {
-      throw new EventsError("PLACE_NOT_FOUND", `Place not found: ${data.placeId}`);
+      throw new EventsError(
+        "PLACE_NOT_FOUND",
+        `Place not found: ${data.placeId}`
+      );
     }
   }
 
@@ -288,16 +296,19 @@ export async function updateEvent(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : undefined;
 
   // Validate importance if provided
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : undefined;
+  const importance =
+    data.importance !== undefined
+      ? validateImportance(data.importance)
+      : undefined;
 
   try {
     const event = await db.event.update({
       where: { id },
       data: {
         ...(data.title !== undefined && { title: data.title }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.type !== undefined && { type: data.type }),
         ...(data.startsAt !== undefined && { startsAt: data.startsAt }),
         ...(data.endsAt !== undefined && { endsAt: data.endsAt }),
@@ -475,7 +486,10 @@ export async function listEvents(
   options: ListEventsOptions = {}
 ): Promise<PaginatedResult<Event>> {
   const pagination = normalizePagination(options);
-  const orderBy = buildOrderBy(options.sortBy ?? "startsAt", options.sortOrder ?? "asc");
+  const orderBy = buildOrderBy(
+    options.sortBy ?? "startsAt",
+    options.sortOrder ?? "asc"
+  );
 
   const where: Prisma.EventWhereInput = {
     userId,
@@ -492,8 +506,15 @@ export async function listEvents(
     ...(options.search && {
       OR: [
         { title: { contains: options.search, mode: "insensitive" as const } },
-        { description: { contains: options.search, mode: "insensitive" as const } },
-        { location: { contains: options.search, mode: "insensitive" as const } },
+        {
+          description: {
+            contains: options.search,
+            mode: "insensitive" as const,
+          },
+        },
+        {
+          location: { contains: options.search, mode: "insensitive" as const },
+        },
       ],
     }),
   };
@@ -546,9 +567,7 @@ export async function searchEvents(
         { notes: { contains: query, mode: "insensitive" } },
       ],
     },
-    orderBy: [
-      { startsAt: "desc" },
-    ],
+    orderBy: [{ startsAt: "desc" }],
     take: limit,
   });
 }
@@ -616,10 +635,7 @@ export async function getEventsByTimeRange(
       ...(startsAfter && { startsAt: { gte: startsAfter } }),
       ...(startsBefore && { startsAt: { lte: startsBefore } }),
       ...(options.includeEnded === false && {
-        OR: [
-          { endsAt: null },
-          { endsAt: { gte: new Date() } },
-        ],
+        OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }],
       }),
     },
     orderBy: { startsAt: "asc" },
@@ -689,7 +705,8 @@ export async function upsertEventsFromSource(
       const hasChanges =
         existing.title !== data.title ||
         existing.startsAt.getTime() !== data.startsAt.getTime() ||
-        (data.endsAt !== undefined && existing.endsAt?.getTime() !== data.endsAt?.getTime()) ||
+        (data.endsAt !== undefined &&
+          existing.endsAt?.getTime() !== data.endsAt?.getTime()) ||
         (data.location !== undefined && existing.location !== data.location);
 
       if (hasChanges) {
@@ -740,4 +757,3 @@ export const EventsService: IEventsService = {
   getByPlace: getEventsByPlace,
   upsertFromSource: upsertEventsFromSource,
 };
-

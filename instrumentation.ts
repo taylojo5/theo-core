@@ -31,7 +31,8 @@ export async function register() {
 
     // Initialize Calendar sync system
     try {
-      const { initializeCalendarSync } = await import("@/integrations/calendar");
+      const { initializeCalendarSync } =
+        await import("@/integrations/calendar");
 
       // Initialize Calendar sync system (webhook renewal + approval expiration schedulers)
       await initializeCalendarSync();

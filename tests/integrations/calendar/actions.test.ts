@@ -8,16 +8,13 @@ import {
   summarizeConflicts,
   shouldBlockAction,
 } from "@/integrations/calendar/actions/conflicts";
-import {
-  createMockDbApproval,
-  resetMockCounters,
-} from "./mocks";
-import type {
-  ConflictInfo,
-} from "@/integrations/calendar/actions/types";
+import { createMockDbApproval, resetMockCounters } from "./mocks";
+import type { ConflictInfo } from "@/integrations/calendar/actions/types";
 
 // Helper to create mock conflicts matching the actual ConflictInfo type
-function createMockConflict(overrides: Partial<ConflictInfo> = {}): ConflictInfo {
+function createMockConflict(
+  overrides: Partial<ConflictInfo> = {}
+): ConflictInfo {
   return {
     eventId: "evt-" + Math.random().toString(36).substring(7),
     title: "Conflicting Event",
@@ -45,7 +42,11 @@ describe("Calendar Actions", () => {
       it("should identify high severity in conflict list", () => {
         const conflicts: ConflictInfo[] = [
           createMockConflict({ severity: "low", title: "Event 1" }),
-          createMockConflict({ severity: "high", conflictType: "same_time", title: "Event 2" }),
+          createMockConflict({
+            severity: "high",
+            conflictType: "same_time",
+            title: "Event 2",
+          }),
         ];
 
         const hasHigh = conflicts.some((c) => c.severity === "high");
@@ -234,10 +235,10 @@ describe("Calendar Actions", () => {
   describe("Conflict Association with Approvals", () => {
     it("should store conflicts with approval", () => {
       const conflicts: ConflictInfo[] = [
-        createMockConflict({ 
-          conflictType: "overlap", 
-          severity: "medium", 
-          title: "Existing Event" 
+        createMockConflict({
+          conflictType: "overlap",
+          severity: "medium",
+          title: "Existing Event",
         }),
       ];
 
@@ -246,7 +247,9 @@ describe("Calendar Actions", () => {
       });
 
       expect(approval.conflicts).toHaveLength(1);
-      expect((approval.conflicts as ConflictInfo[])[0].conflictType).toBe("overlap");
+      expect((approval.conflicts as ConflictInfo[])[0].conflictType).toBe(
+        "overlap"
+      );
     });
 
     it("should handle approval without conflicts", () => {
@@ -258,4 +261,3 @@ describe("Calendar Actions", () => {
     });
   });
 });
-

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ─────────────────────────────────────────────────────────────
@@ -24,16 +24,34 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────────────────────
-  # Redis (Cache, Sessions, Job Queues)
+  # Redis Cache (General caching, sessions, rate limiting)
   # ─────────────────────────────────────────────────────────────
-  redis:
+  redis-cache:
     image: redis:7-alpine
-    container_name: theo-redis
+    container_name: theo-redis-cache
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6381:6379"
     volumes:
-      - redis_data:/data
+      - redis_cache_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────
+  # Redis BullMQ (Job queues)
+  # ─────────────────────────────────────────────────────────────
+  redis-bullmq:
+    image: redis:7-alpine
+    container_name: theo-redis-bullmq
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_bullmq_data:/data
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -52,9 +70,10 @@ services:
     ports:
       - "8081:8081"
     environment:
-      REDIS_HOSTS: local:redis:6379
+      REDIS_HOSTS: cache:redis-cache:6379,bullmq:redis-bullmq:6379
     depends_on:
-      - redis
+      - redis-cache
+      - redis-bullmq
     profiles:
       - tools
 
@@ -119,11 +138,11 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  redis_cache_data:
+  redis_bullmq_data:
   pgadmin_data:
   localstack_data:
 
 networks:
   default:
     name: theo-network
-

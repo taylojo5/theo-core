@@ -3,7 +3,12 @@
 // Schema definitions for conversations and messages
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { z, BaseEntitySchema, MetadataSchema, createPaginatedSchema } from "./common";
+import {
+  z,
+  BaseEntitySchema,
+  MetadataSchema,
+  createPaginatedSchema,
+} from "./common";
 
 // ─────────────────────────────────────────────────────────────
 // Conversation Schemas
@@ -51,7 +56,8 @@ export const ConversationListQuerySchema = z
         description: "Include recent messages in response",
       }),
     messageLimit: z.coerce.number().int().min(1).max(10).default(1).openapi({
-      description: "Number of recent messages to include (if includeMessages=true)",
+      description:
+        "Number of recent messages to include (if includeMessages=true)",
     }),
   })
   .openapi("ConversationListQuery");
@@ -69,11 +75,15 @@ export const MessageCreateSchema = z
   .object({
     content: z.string().min(1).openapi({
       description: "Message content",
-      example: "Can you help me draft an email to John about the project update?",
+      example:
+        "Can you help me draft an email to John about the project update?",
     }),
-    role: z.enum(["user", "assistant", "system", "tool"]).default("user").openapi({
-      description: "Message role",
-    }),
+    role: z
+      .enum(["user", "assistant", "system", "tool"])
+      .default("user")
+      .openapi({
+        description: "Message role",
+      }),
     toolCalls: z.array(z.unknown()).optional().openapi({
       description: "Tool calls made by the assistant",
     }),
@@ -103,7 +113,10 @@ export const MessageListQuerySchema = z
   })
   .openapi("MessageListQuery");
 
-export const PaginatedMessagesSchema = createPaginatedSchema(MessageSchema, "Messages");
+export const PaginatedMessagesSchema = createPaginatedSchema(
+  MessageSchema,
+  "Messages"
+);
 
 // ─────────────────────────────────────────────────────────────
 // Conversation with Messages (detailed view)
@@ -114,4 +127,3 @@ export const ConversationWithMessagesSchema = ConversationSchema.extend({
     description: "Messages in this conversation",
   }),
 }).openapi("ConversationWithMessages");
-

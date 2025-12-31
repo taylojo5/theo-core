@@ -42,7 +42,10 @@ import {
   createMockRecurringEvent,
   resetMockCounters,
 } from "./mocks";
-import type { EventAttendee, EventDateTime } from "@/integrations/calendar/types";
+import type {
+  EventAttendee,
+  EventDateTime,
+} from "@/integrations/calendar/types";
 
 describe("Calendar Mappers", () => {
   beforeEach(() => {
@@ -298,8 +301,14 @@ describe("Calendar Mappers", () => {
     it("should handle events with attendees", () => {
       const event = createMockEvent({
         attendees: [
-          createMockAttendee({ email: "a@example.com", responseStatus: "accepted" }),
-          createMockAttendee({ email: "b@example.com", responseStatus: "declined" }),
+          createMockAttendee({
+            email: "a@example.com",
+            responseStatus: "accepted",
+          }),
+          createMockAttendee({
+            email: "b@example.com",
+            responseStatus: "declined",
+          }),
         ],
       });
 
@@ -442,7 +451,10 @@ describe("Calendar Mappers", () => {
       const conferenceData = {
         conferenceId: "meet-123",
         entryPoints: [
-          { entryPointType: "video" as const, uri: "https://meet.google.com/abc-defg-hij" },
+          {
+            entryPointType: "video" as const,
+            uri: "https://meet.google.com/abc-defg-hij",
+          },
         ],
       };
 
@@ -784,4 +796,3 @@ describe("Calendar Mappers", () => {
     });
   });
 });
-

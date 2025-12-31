@@ -81,7 +81,9 @@ export function processPaginatedResults<T extends { id: string }>(
 
   const hasMore = items.length > limit;
   const resultItems = hasMore ? items.slice(0, limit) : items;
-  const nextCursor = hasMore ? resultItems[resultItems.length - 1]?.id : undefined;
+  const nextCursor = hasMore
+    ? resultItems[resultItems.length - 1]?.id
+    : undefined;
 
   return {
     items: resultItems,
@@ -179,7 +181,9 @@ export function generateContentHash(content: string): string {
 /**
  * Generate a hash from multiple fields for change detection
  */
-export function generateEntityHash(fields: (string | undefined | null)[]): string {
+export function generateEntityHash(
+  fields: (string | undefined | null)[]
+): string {
   const content = fields.filter(Boolean).join("|");
   return generateContentHash(content);
 }
@@ -223,7 +227,10 @@ export function extractSnippet(
   }
 
   const start = Math.max(0, matchIndex - contextLength);
-  const end = Math.min(text.length, matchIndex + searchTerm.length + contextLength);
+  const end = Math.min(
+    text.length,
+    matchIndex + searchTerm.length + contextLength
+  );
 
   let snippet = text.slice(start, end);
 
@@ -351,4 +358,3 @@ export function getImportanceLabel(
   if (value <= 7) return "high";
   return "critical";
 }
-

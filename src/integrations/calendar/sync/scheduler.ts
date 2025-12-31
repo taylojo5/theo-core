@@ -25,7 +25,10 @@ import type {
   RenewWebhookJobData,
   ExpireApprovalsJobData,
 } from "./jobs";
-import type { FullCalendarSyncOptions, IncrementalCalendarSyncOptions } from "./types";
+import type {
+  FullCalendarSyncOptions,
+  IncrementalCalendarSyncOptions,
+} from "./types";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -53,7 +56,10 @@ export interface CalendarJobQueue {
     }
   ): Promise<{ id: string; name: string }>;
 
-  removeRepeatable(name: string, repeatOpts: { every: number }): Promise<boolean>;
+  removeRepeatable(
+    name: string,
+    repeatOpts: { every: number }
+  ): Promise<boolean>;
 
   getRepeatableJobs(): Promise<Array<{ name: string; id?: string }>>;
 }
@@ -351,7 +357,9 @@ export async function stopApprovalExpirationScheduler(
  *
  * @param config - Scheduler configuration
  */
-export async function initializeSchedulers(config: SchedulerConfig): Promise<void> {
+export async function initializeSchedulers(
+  config: SchedulerConfig
+): Promise<void> {
   const {
     queue,
     enableRecurringSync = false,
@@ -384,7 +392,9 @@ export async function initializeSchedulers(config: SchedulerConfig): Promise<voi
  *
  * @param queue - Job queue
  */
-export async function shutdownSchedulers(queue: CalendarJobQueue): Promise<void> {
+export async function shutdownSchedulers(
+  queue: CalendarJobQueue
+): Promise<void> {
   schedulerLogger.info("Shutting down calendar schedulers");
 
   await stopWebhookRenewalScheduler(queue);
@@ -410,7 +420,8 @@ export async function hasRecurringSyncActive(
 ): Promise<boolean> {
   const repeatableJobs = await queue.getRepeatableJobs();
   return repeatableJobs.some(
-    job => job.name === CALENDAR_JOB_NAMES.INCREMENTAL_SYNC && job.id?.includes(userId)
+    (job) =>
+      job.name === CALENDAR_JOB_NAMES.INCREMENTAL_SYNC &&
+      job.id?.includes(userId)
   );
 }
-

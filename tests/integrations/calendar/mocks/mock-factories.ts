@@ -47,7 +47,9 @@ export function createMockCalendar(
   options: CreateCalendarOptions = {}
 ): GoogleCalendar {
   calendarCounter++;
-  const id = options.id || `cal_${calendarCounter.toString().padStart(3, "0")}@group.calendar.google.com`;
+  const id =
+    options.id ||
+    `cal_${calendarCounter.toString().padStart(3, "0")}@group.calendar.google.com`;
 
   return {
     id,
@@ -121,9 +123,7 @@ let eventCounter = 0;
 /**
  * Create a mock Google Calendar event
  */
-export function createMockEvent(
-  options: CreateEventOptions = {}
-): GoogleEvent {
+export function createMockEvent(options: CreateEventOptions = {}): GoogleEvent {
   eventCounter++;
   const id = options.id || `evt_${eventCounter.toString().padStart(5, "0")}`;
   const calendarId = options.calendarId || "primary";
@@ -180,7 +180,8 @@ export function createMockEvent(
     colorId: options.colorId,
     iCalUID: options.iCalUID || `${id}@google.com`,
     sequence: options.sequence ?? 0,
-    htmlLink: options.htmlLink || `https://www.google.com/calendar/event?eid=${id}`,
+    htmlLink:
+      options.htmlLink || `https://www.google.com/calendar/event?eid=${id}`,
     created: options.created || now,
     updated: options.updated || now,
     etag: `"etag_${id}"`,
@@ -209,7 +210,9 @@ export function createMockRecurringEvent(
   options: CreateEventOptions & { rrule?: string } = {}
 ): GoogleEvent {
   return createMockEvent({
-    recurrence: options.recurrence || [options.rrule || "RRULE:FREQ=WEEKLY;COUNT=10"],
+    recurrence: options.recurrence || [
+      options.rrule || "RRULE:FREQ=WEEKLY;COUNT=10",
+    ],
     ...options,
   });
 }
@@ -241,7 +244,7 @@ export function createMockEventWithMeet(
   options: Partial<CreateEventOptions> = {}
 ): GoogleEvent {
   const meetId = `meet-${Date.now()}`;
-  
+
   return createMockEvent({
     hangoutLink: `https://meet.google.com/${meetId}`,
     conferenceData: {
@@ -249,7 +252,8 @@ export function createMockEventWithMeet(
       conferenceSolution: {
         key: { type: "hangoutsMeet" },
         name: "Google Meet",
-        iconUri: "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+        iconUri:
+          "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
       },
       entryPoints: [
         {
@@ -313,7 +317,9 @@ export function createMockCalendarListResponse(
     items: calendars,
     nextPageToken: options.nextPageToken,
     // Only include sync token if there's no page token (final page)
-    nextSyncToken: options.nextPageToken ? undefined : (options.nextSyncToken || `sync_token_${Date.now()}`),
+    nextSyncToken: options.nextPageToken
+      ? undefined
+      : options.nextSyncToken || `sync_token_${Date.now()}`,
     etag: `"etag_list_${Date.now()}"`,
   };
 }
@@ -346,7 +352,11 @@ export function createMockEventListResponse(
  * Create a mock watch response
  */
 export function createMockWatchResponse(
-  options: { channelId?: string; resourceId?: string; expirationMs?: number } = {}
+  options: {
+    channelId?: string;
+    resourceId?: string;
+    expirationMs?: number;
+  } = {}
 ): WatchResponse {
   const now = Date.now();
   const expiration = now + (options.expirationMs || 7 * 24 * 60 * 60 * 1000); // 7 days default
@@ -354,7 +364,8 @@ export function createMockWatchResponse(
   return {
     id: options.channelId || `channel_${now}`,
     resourceId: options.resourceId || `resource_${now}`,
-    resourceUri: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    resourceUri:
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     expiration: expiration.toString(),
   };
 }
@@ -390,7 +401,9 @@ export function createMockDbCalendar(options: CreateDbCalendarOptions = {}) {
   return {
     id: options.id || `db_cal_${dbCalendarCounter}`,
     userId: options.userId || "test-user-id",
-    googleCalendarId: options.googleCalendarId || `cal_${dbCalendarCounter}@group.calendar.google.com`,
+    googleCalendarId:
+      options.googleCalendarId ||
+      `cal_${dbCalendarCounter}@group.calendar.google.com`,
     name: options.name || `Calendar ${dbCalendarCounter}`,
     description: options.description || null,
     timezone: options.timezone || "America/New_York",
@@ -445,8 +458,10 @@ let dbEventCounter = 0;
 export function createMockDbEvent(options: CreateDbEventOptions = {}) {
   dbEventCounter++;
   const now = new Date();
-  const startsAt = options.startsAt || new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const endsAt = options.endsAt || new Date(startsAt.getTime() + 60 * 60 * 1000);
+  const startsAt =
+    options.startsAt || new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const endsAt =
+    options.endsAt || new Date(startsAt.getTime() + 60 * 60 * 1000);
 
   return {
     id: options.id || `db_evt_${dbEventCounter}`,
@@ -474,7 +489,9 @@ export function createMockDbEvent(options: CreateDbEventOptions = {}) {
     reminders: options.reminders || null,
     conferenceData: options.conferenceData || null,
     hangoutLink: options.hangoutLink || null,
-    iCalUID: options.iCalUID || `${options.googleEventId || `evt_${dbEventCounter}`}@google.com`,
+    iCalUID:
+      options.iCalUID ||
+      `${options.googleEventId || `evt_${dbEventCounter}`}@google.com`,
     sequence: options.sequence ?? 0,
     etag: options.etag || null,
     htmlLink: options.htmlLink || null,
@@ -488,7 +505,13 @@ export interface CreateDbApprovalOptions {
   id?: string;
   userId?: string;
   actionType?: "create" | "update" | "delete" | "respond";
-  status?: "pending" | "approved" | "rejected" | "expired" | "executed" | "failed";
+  status?:
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "expired"
+    | "executed"
+    | "failed";
   calendarId?: string;
   eventId?: string | null;
   eventSnapshot?: object | null;
@@ -520,7 +543,8 @@ export function createMockDbApproval(options: CreateDbApprovalOptions = {}) {
     conflicts: options.conflicts || null,
     agentContext: options.agentContext || null,
     userNotes: options.userNotes || null,
-    expiresAt: options.expiresAt || new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    expiresAt:
+      options.expiresAt || new Date(now.getTime() + 24 * 60 * 60 * 1000),
     createdAt: now,
     updatedAt: now,
     executedAt: null,
@@ -595,4 +619,3 @@ export function resetMockCounters(): void {
   dbApprovalCounter = 0;
   dbSyncStateCounter = 0;
 }
-

@@ -79,15 +79,17 @@ export async function createPlace(
   context?: ServiceContext
 ): Promise<Place> {
   // Validate coordinates if provided
-  const { latitude, longitude } = validateCoordinates(data.latitude, data.longitude);
+  const { latitude, longitude } = validateCoordinates(
+    data.latitude,
+    data.longitude
+  );
 
   // Normalize tags
   const normalizedTags = data.tags ? normalizeTags(data.tags) : [];
 
   // Validate importance
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : 5;
+  const importance =
+    data.importance !== undefined ? validateImportance(data.importance) : 5;
 
   try {
     const place = await db.place.create({
@@ -100,8 +102,10 @@ export async function createPlace(
         state: data.state,
         country: data.country,
         postalCode: data.postalCode,
-        latitude: latitude !== undefined ? new Prisma.Decimal(latitude) : undefined,
-        longitude: longitude !== undefined ? new Prisma.Decimal(longitude) : undefined,
+        latitude:
+          latitude !== undefined ? new Prisma.Decimal(latitude) : undefined,
+        longitude:
+          longitude !== undefined ? new Prisma.Decimal(longitude) : undefined,
         timezone: data.timezone,
         notes: data.notes,
         importance,
@@ -181,15 +185,19 @@ export async function updatePlace(
   }
 
   // Validate coordinates if provided
-  const { latitude, longitude } = validateCoordinates(data.latitude, data.longitude);
+  const { latitude, longitude } = validateCoordinates(
+    data.latitude,
+    data.longitude
+  );
 
   // Normalize tags if provided
   const normalizedTags = data.tags ? normalizeTags(data.tags) : undefined;
 
   // Validate importance if provided
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : undefined;
+  const importance =
+    data.importance !== undefined
+      ? validateImportance(data.importance)
+      : undefined;
 
   try {
     const place = await db.place.update({
@@ -202,8 +210,12 @@ export async function updatePlace(
         ...(data.state !== undefined && { state: data.state }),
         ...(data.country !== undefined && { country: data.country }),
         ...(data.postalCode !== undefined && { postalCode: data.postalCode }),
-        ...(latitude !== undefined && { latitude: new Prisma.Decimal(latitude) }),
-        ...(longitude !== undefined && { longitude: new Prisma.Decimal(longitude) }),
+        ...(latitude !== undefined && {
+          latitude: new Prisma.Decimal(latitude),
+        }),
+        ...(longitude !== undefined && {
+          longitude: new Prisma.Decimal(longitude),
+        }),
         ...(data.timezone !== undefined && { timezone: data.timezone }),
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(importance !== undefined && { importance }),
@@ -304,10 +316,7 @@ export async function restorePlace(
   });
 
   if (!existing) {
-    throw new PlacesError(
-      "PLACE_NOT_FOUND",
-      `Deleted place not found: ${id}`
-    );
+    throw new PlacesError("PLACE_NOT_FOUND", `Deleted place not found: ${id}`);
   }
 
   const place = await db.place.update({
@@ -338,7 +347,10 @@ export async function listPlaces(
   options: ListPlacesOptions = {}
 ): Promise<PaginatedResult<Place>> {
   const pagination = normalizePagination(options);
-  const orderBy = buildOrderBy(options.sortBy ?? "name", options.sortOrder ?? "asc");
+  const orderBy = buildOrderBy(
+    options.sortBy ?? "name",
+    options.sortOrder ?? "asc"
+  );
 
   // Build where clause
   const where: Prisma.PlaceWhereInput = {
@@ -413,10 +425,7 @@ export async function searchPlaces(
         { notes: { contains: query, mode: "insensitive" } },
       ],
     },
-    orderBy: [
-      { importance: "desc" },
-      { name: "asc" },
-    ],
+    orderBy: [{ importance: "desc" }, { name: "asc" }],
     take: limit,
   });
 
@@ -542,4 +551,3 @@ export const PlacesService: IPlacesService = {
   findNearby: findPlacesNearby,
   upsertFromSource: upsertPlacesFromSource,
 };
-

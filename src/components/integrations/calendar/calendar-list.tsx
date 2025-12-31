@@ -113,7 +113,8 @@ export function CalendarList({
               )}
             </CardTitle>
             <CardDescription>
-              Manage calendar visibility. Use Sync Configuration above to select which calendars to sync events from.
+              Manage calendar visibility. Use Sync Configuration above to select
+              which calendars to sync events from.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -235,7 +236,9 @@ function CalendarItem({
           )}
         </div>
         <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
-          <span>{accessRoleLabels[calendar.accessRole] || calendar.accessRole}</span>
+          <span>
+            {accessRoleLabels[calendar.accessRole] || calendar.accessRole}
+          </span>
           {calendar.description && (
             <>
               <span>•</span>
@@ -374,4 +377,3 @@ function EyeOffIcon({ className }: { className?: string }) {
 }
 
 export default CalendarList;
-

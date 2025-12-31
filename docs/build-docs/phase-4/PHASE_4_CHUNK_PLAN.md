@@ -80,23 +80,23 @@ This document breaks down Phase 4 (Google Calendar Integration) into manageable 
                     └─────────────────────────────────────────┘
 ```
 
-> **Note**: Agent Integration has been deferred to a future phase when the Agent Engine 
-> is implemented. The Calendar integration is fully functional through the API routes 
-> (Chunk 9), and agent tools will be added once the tool registration and context 
+> **Note**: Agent Integration has been deferred to a future phase when the Agent Engine
+> is implemented. The Calendar integration is fully functional through the API routes
+> (Chunk 9), and agent tools will be added once the tool registration and context
 > injection architecture is defined.
 
 ### Parallelization Analysis
 
-| Chunks | Can Run in Parallel? | Notes |
-|--------|---------------------|-------|
-| 0 → 1 | ❌ Sequential | 1 depends on 0 |
-| 2, 3, 4 | ✅ Parallel | All depend only on Chunk 1 |
-| 5 | ❌ Sequential | Depends on 2, 3, 4 |
-| 6, 7 | ✅ Parallel | Both depend on 5 |
-| 8 | ❌ Sequential | Depends on 6 + 7 |
-| 9 | ❌ Sequential | Depends on 8 |
-| 10 | ❌ Sequential | Depends on 9 |
-| 11, 12 | ❌ Sequential | Final phases |
+| Chunks  | Can Run in Parallel? | Notes                      |
+| ------- | -------------------- | -------------------------- |
+| 0 → 1   | ❌ Sequential        | 1 depends on 0             |
+| 2, 3, 4 | ✅ Parallel          | All depend only on Chunk 1 |
+| 5       | ❌ Sequential        | Depends on 2, 3, 4         |
+| 6, 7    | ✅ Parallel          | Both depend on 5           |
+| 8       | ❌ Sequential        | Depends on 6 + 7           |
+| 9       | ❌ Sequential        | Depends on 8               |
+| 10      | ❌ Sequential        | Depends on 9               |
+| 11, 12  | ❌ Sequential        | Final phases               |
 
 ---
 
@@ -114,11 +114,13 @@ This document breaks down Phase 4 (Google Calendar Integration) into manageable 
 ### Architecture Notes
 
 Google Calendar uses the same OAuth flow as Gmail. We need to:
+
 1. Add Calendar scopes to the existing Google OAuth configuration
 2. Implement scope detection utilities to check if user has Calendar access
 3. Leverage existing scope upgrade flow from Phase 3
 
 **Scope Strategy**:
+
 - Start with read-only scope (`calendar.readonly`) for sync
 - Request write scope (`calendar.events`) when user initiates event creation
 - Use incremental authorization (request only when needed)
@@ -126,11 +128,12 @@ Google Calendar uses the same OAuth flow as Gmail. We need to:
 ### Tasks
 
 1. [ ] Add Calendar scopes to `src/lib/auth/config.ts`
+
    ```typescript
    CALENDAR_SCOPES: [
-     'https://www.googleapis.com/auth/calendar.readonly',
-     'https://www.googleapis.com/auth/calendar.events',
-   ]
+     "https://www.googleapis.com/auth/calendar.readonly",
+     "https://www.googleapis.com/auth/calendar.events",
+   ];
    ```
 
 2. [ ] Create scope detection utility in `src/integrations/calendar/scopes.ts`
@@ -195,12 +198,14 @@ src/integrations/calendar/
 ### Architecture Notes
 
 Following the pattern established in Gmail integration:
+
 - Structured logging with child loggers
 - Typed error classes with error codes
 - Centralized constants file
 - Comprehensive TypeScript types
 
 **Module Structure**:
+
 ```
 src/integrations/calendar/
 ├── index.ts          # Public exports
@@ -233,7 +238,7 @@ src/integrations/calendar/
    - `CalendarConflictError` - scheduling conflicts
 
 4. [ ] Create `src/integrations/calendar/logger.ts`
-   - Main `calendarLogger` 
+   - Main `calendarLogger`
    - Child loggers: `syncLogger`, `clientLogger`, `actionsLogger`, `webhookLogger`
 
 5. [ ] Create `src/integrations/calendar/index.ts`
@@ -290,12 +295,14 @@ src/integrations/calendar/
 ### Architecture Notes
 
 Three new models needed:
+
 1. **CalendarSyncState** - Tracks sync progress per user (mirrors GmailSyncState)
 2. **Calendar** - Stores user's calendars for multi-calendar support
 3. **CalendarApproval** - For agent-initiated event actions
 
 **Extending Event Model**:
 The existing `Event` model needs Calendar-specific fields. Rather than creating a separate model, we extend `Event` with optional calendar fields. This allows:
+
 - Existing events to coexist with synced calendar events
 - Unified event queries across sources
 - Gradual migration if needed
@@ -303,127 +310,131 @@ The existing `Event` model needs Calendar-specific fields. Rather than creating 
 ### Tasks
 
 1. [ ] Add `CalendarSyncState` model to `prisma/schema.prisma`
+
    ```prisma
    model CalendarSyncState {
      id     String @id @default(cuid())
      userId String @unique
-     
+
      // Sync tokens
      syncToken           String?
      syncTokenSetAt      DateTime?
      lastSyncAt          DateTime?
      lastFullSyncAt      DateTime?
-     
+
      // Full sync checkpoint
      fullSyncPageToken   String?
      fullSyncProgress    Int       @default(0)
      fullSyncStartedAt   DateTime?
-     
+
      // Status
      syncStatus          String    @default("idle")
      syncError           String?
-     
+
      // Statistics
      eventCount          Int       @default(0)
      calendarCount       Int       @default(0)
-     
+
      // Webhook
      webhookChannelId    String?
      webhookResourceId   String?
      webhookExpiration   DateTime?
-     
+
      // Configuration
      syncCalendarIds     String[]  @default([])
      excludeCalendarIds  String[]  @default([])
-     
+
      // Timestamps
      createdAt DateTime @default(now())
      updatedAt DateTime @updatedAt
-     
+
      user User @relation(fields: [userId], references: [id], onDelete: Cascade)
    }
    ```
 
 2. [ ] Add `Calendar` model to `prisma/schema.prisma`
+
    ```prisma
    model Calendar {
      id               String  @id @default(cuid())
      userId           String
      googleCalendarId String
-     
+
      // Display
      name             String
      description      String?
      timeZone         String?
-     
+
      // Classification
      isPrimary        Boolean @default(false)
      isOwner          Boolean @default(false)
      accessRole       String  // owner, writer, reader, freeBusyReader
-     
+
      // Appearance
      backgroundColor  String?
      foregroundColor  String?
-     
+
      // User preferences
      isSelected       Boolean @default(true)
      isHidden         Boolean @default(false)
-     
+
      // Timestamps
      createdAt DateTime @default(now())
      updatedAt DateTime @updatedAt
-     
+
      user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-     
+
      @@unique([userId, googleCalendarId])
      @@index([userId])
    }
    ```
 
 3. [ ] Add `CalendarApproval` model to `prisma/schema.prisma`
+
    ```prisma
    model CalendarApproval {
      id          String  @id @default(cuid())
      userId      String
-     
+
      // Action
      actionType  String  // create, update, delete, respond
      calendarId  String
      eventId     String? // For update/delete
-     
+
      // Snapshot
      eventSnapshot Json
-     
+
      // Status
      status      String  @default("pending")
-     
+
      // Timing
      requestedAt DateTime  @default(now())
      requestedBy String?
      expiresAt   DateTime?
      decidedAt   DateTime?
      decidedBy   String?
-     
+
      // Result
      resultEventId String?
      errorMessage  String?
      notes         String?  @db.Text
-     
+
      // Metadata
      metadata    Json      @default("{}")
-     
+
      // Timestamps
      createdAt   DateTime  @default(now())
      updatedAt   DateTime  @updatedAt
-     
+
      user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-     
+
      @@index([userId, status])
      @@index([expiresAt])
    }
    ```
 
 4. [ ] Extend `Event` model with Calendar fields
+
    ```prisma
    // Add to existing Event model:
    googleEventId     String?
@@ -441,16 +452,17 @@ The existing `Event` model needs Calendar-specific fields. Rather than creating 
    etag              String?
    htmlLink          String?
    hangoutLink       String?
-   
+
    // Add relation
    calendar Calendar? @relation(fields: [calendarId], references: [id])
-   
+
    // Add indexes
    @@index([googleEventId])
    @@index([googleCalendarId])
    ```
 
 5. [ ] Add User relations
+
    ```prisma
    // In User model, add:
    calendars         Calendar[]
@@ -459,6 +471,7 @@ The existing `Event` model needs Calendar-specific fields. Rather than creating 
    ```
 
 6. [ ] Create migration
+
    ```bash
    npx prisma migrate dev --name add_calendar_models
    ```
@@ -514,6 +527,7 @@ prisma/
 ### Architecture Notes
 
 The Calendar Client follows the same pattern as Gmail Client:
+
 - Thin wrapper over Google API
 - Automatic token refresh
 - Rate limiting with exponential backoff
@@ -521,6 +535,7 @@ The Calendar Client follows the same pattern as Gmail Client:
 - Retry logic for transient failures
 
 **Key API Endpoints**:
+
 - `CalendarList.list()` - List user's calendars
 - `Events.list()` - List events with filtering
 - `Events.get()` - Get single event
@@ -532,27 +547,43 @@ The Calendar Client follows the same pattern as Gmail Client:
 ### Tasks
 
 1. [ ] Create `src/integrations/calendar/client.ts`
-   
+
    ```typescript
    export class CalendarClient {
      constructor(accessToken: string);
-     
+
      // Calendar operations
      listCalendars(): Promise<GoogleCalendar[]>;
      getCalendar(calendarId: string): Promise<GoogleCalendar>;
-     
+
      // Event operations
-     listEvents(calendarId: string, options?: ListEventsOptions): Promise<EventListResponse>;
+     listEvents(
+       calendarId: string,
+       options?: ListEventsOptions
+     ): Promise<EventListResponse>;
      getEvent(calendarId: string, eventId: string): Promise<GoogleEvent>;
      createEvent(calendarId: string, event: EventInput): Promise<GoogleEvent>;
-     updateEvent(calendarId: string, eventId: string, event: EventUpdate): Promise<GoogleEvent>;
+     updateEvent(
+       calendarId: string,
+       eventId: string,
+       event: EventUpdate
+     ): Promise<GoogleEvent>;
      deleteEvent(calendarId: string, eventId: string): Promise<void>;
-     
+
      // Event response
-     respondToEvent(calendarId: string, eventId: string, response: ResponseStatus): Promise<GoogleEvent>;
-     
+     respondToEvent(
+       calendarId: string,
+       eventId: string,
+       response: ResponseStatus
+     ): Promise<GoogleEvent>;
+
      // Webhooks
-     watchCalendar(calendarId: string, channelId: string, webhookUrl: string, expiration?: Date): Promise<WatchResponse>;
+     watchCalendar(
+       calendarId: string,
+       channelId: string,
+       webhookUrl: string,
+       expiration?: Date
+     ): Promise<WatchResponse>;
      stopWatching(channelId: string, resourceId: string): Promise<void>;
    }
    ```
@@ -640,10 +671,12 @@ src/integrations/calendar/
 ### Architecture Notes
 
 Mappers serve two purposes:
+
 1. **API → DB**: Convert Google Calendar API responses to Prisma models
 2. **DB → API**: Convert Prisma models to Google Calendar API format (for creates/updates)
 
 **Key Considerations**:
+
 - Handle timezone conversions properly
 - Preserve all attendee metadata
 - Map recurrence rules correctly
@@ -654,63 +687,60 @@ Mappers serve two purposes:
 1. [ ] Create `src/integrations/calendar/mappers.ts`
 
 2. [ ] Implement Calendar mappers
+
    ```typescript
    export function mapGoogleCalendarToDb(
      calendar: GoogleCalendar,
      userId: string
    ): Prisma.CalendarCreateInput;
-   
+
    export function mapDbCalendarToGoogle(
      calendar: Calendar
    ): Partial<GoogleCalendar>;
    ```
 
 3. [ ] Implement Event mappers
+
    ```typescript
    export function mapGoogleEventToDb(
      event: GoogleEvent,
      userId: string,
      calendarId: string
    ): Prisma.EventCreateInput;
-   
-   export function mapDbEventToGoogle(
-     event: Event
-   ): GoogleEventInput;
-   
+
+   export function mapDbEventToGoogle(event: Event): GoogleEventInput;
+
    export function mapEventUpdateToGoogle(
      updates: Partial<Event>
    ): Partial<GoogleEventInput>;
    ```
 
 4. [ ] Implement attendee mapping
+
    ```typescript
-   export function mapAttendees(
-     attendees: GoogleAttendee[]
-   ): EventAttendee[];
-   
+   export function mapAttendees(attendees: GoogleAttendee[]): EventAttendee[];
+
    export function mapAttendeesToGoogle(
      attendees: EventAttendee[]
    ): GoogleAttendee[];
    ```
 
 5. [ ] Implement recurrence mapping
+
    ```typescript
-   export function parseRecurrenceRules(
-     recurrence: string[]
-   ): RecurrenceInfo;
-   
-   export function formatRecurrenceRules(
-     info: RecurrenceInfo
-   ): string[];
+   export function parseRecurrenceRules(recurrence: string[]): RecurrenceInfo;
+
+   export function formatRecurrenceRules(info: RecurrenceInfo): string[];
    ```
 
 6. [ ] Handle timezone conversions
+
    ```typescript
    export function normalizeEventTime(
      dateTime: GoogleDateTime,
      userTimezone: string
    ): Date;
-   
+
    export function formatEventTime(
      date: Date,
      timezone: string,
@@ -766,6 +796,7 @@ src/integrations/calendar/
 ### Architecture Notes
 
 Repository pattern following Gmail integration:
+
 - Clean separation of database logic from business logic
 - Typed queries and mutations
 - Support for batch operations
@@ -776,6 +807,7 @@ Repository pattern following Gmail integration:
 1. [ ] Create `src/integrations/calendar/repository.ts`
 
 2. [ ] Implement SyncState repository
+
    ```typescript
    export const calendarSyncStateRepository = {
      get(userId: string): Promise<CalendarSyncState | null>;
@@ -789,6 +821,7 @@ Repository pattern following Gmail integration:
    ```
 
 3. [ ] Implement Calendar repository
+
    ```typescript
    export const calendarRepository = {
      upsert(input: CalendarUpsertInput): Promise<Calendar>;
@@ -801,6 +834,7 @@ Repository pattern following Gmail integration:
    ```
 
 4. [ ] Implement Event repository (extend existing)
+
    ```typescript
    export const calendarEventRepository = {
      upsert(input: EventUpsertInput): Promise<Event>;
@@ -876,6 +910,7 @@ src/integrations/calendar/
 ### Architecture Notes
 
 Full sync imports all calendar data:
+
 1. Fetch all calendars user has access to
 2. Store calendars, mark primary
 3. For each selected calendar, fetch all events (paginated)
@@ -883,6 +918,7 @@ Full sync imports all calendar data:
 5. Store sync token for future incremental sync
 
 **Resume Strategy** (from Gmail learnings):
+
 - Store `fullSyncPageToken` after each page
 - Track `fullSyncProgress` for UI feedback
 - On failure, resume from last successful page
@@ -890,12 +926,13 @@ Full sync imports all calendar data:
 ### Tasks
 
 1. [ ] Create `src/integrations/calendar/sync/full-sync.ts`
+
    ```typescript
    export async function fullCalendarSync(
      userId: string,
      options?: FullSyncOptions
    ): Promise<FullSyncResult>;
-   
+
    export async function resumeFullSync(
      userId: string
    ): Promise<FullSyncResult>;
@@ -985,11 +1022,13 @@ src/integrations/calendar/sync/
 ### Architecture Notes
 
 **Incremental Sync**:
+
 - Use `syncToken` from previous sync
 - Only returns changed events
 - Handle `410 Gone` (sync token expired) → trigger full sync
 
 **Webhooks (Push Notifications)**:
+
 - Google sends notifications when calendar changes
 - We respond by triggering incremental sync
 - Webhooks expire after 7 days max
@@ -998,11 +1037,12 @@ src/integrations/calendar/sync/
 ### Tasks
 
 1. [ ] Create `src/integrations/calendar/sync/incremental-sync.ts`
+
    ```typescript
    export async function incrementalCalendarSync(
      userId: string
    ): Promise<IncrementalSyncResult>;
-   
+
    export async function processEventChanges(
      userId: string,
      changes: EventChange[]
@@ -1020,17 +1060,18 @@ src/integrations/calendar/sync/
    - Trigger full sync
 
 4. [ ] Create `src/integrations/calendar/sync/webhook.ts`
+
    ```typescript
    export async function registerWebhook(
      userId: string,
      calendarId: string
    ): Promise<WebhookRegistration>;
-   
+
    export async function processWebhookNotification(
      channelId: string,
      resourceId: string
    ): Promise<void>;
-   
+
    export async function renewExpiredWebhooks(): Promise<void>;
    ```
 
@@ -1104,6 +1145,7 @@ src/integrations/calendar/sync/
 ### Architecture Notes
 
 All event modifications require approval (following Gmail pattern):
+
 1. Agent requests action (create, update, delete, respond)
 2. Approval record created with event snapshot
 3. User approves or rejects
@@ -1111,6 +1153,7 @@ All event modifications require approval (following Gmail pattern):
 5. Result synced back to local DB
 
 **Conflict Detection**:
+
 - Check for overlapping events before create/update
 - Include conflict info in approval request
 - Suggest alternative times
@@ -1126,19 +1169,21 @@ All event modifications require approval (following Gmail pattern):
    - Conflict information types
 
 3. [ ] Create `src/integrations/calendar/actions/create.ts`
+
    ```typescript
    export async function requestEventCreation(
      userId: string,
      event: EventCreateInput,
      requestedBy?: string
    ): Promise<ApprovalResult>;
-   
+
    export async function executeEventCreation(
      approvalId: string
    ): Promise<Event>;
    ```
 
 4. [ ] Create `src/integrations/calendar/actions/update.ts`
+
    ```typescript
    export async function requestEventUpdate(
      userId: string,
@@ -1146,13 +1191,12 @@ All event modifications require approval (following Gmail pattern):
      updates: EventUpdateInput,
      requestedBy?: string
    ): Promise<ApprovalResult>;
-   
-   export async function executeEventUpdate(
-     approvalId: string
-   ): Promise<Event>;
+
+   export async function executeEventUpdate(approvalId: string): Promise<Event>;
    ```
 
 5. [ ] Create `src/integrations/calendar/actions/delete.ts`
+
    ```typescript
    export async function requestEventDeletion(
      userId: string,
@@ -1160,43 +1204,46 @@ All event modifications require approval (following Gmail pattern):
      reason?: string,
      requestedBy?: string
    ): Promise<ApprovalResult>;
-   
+
    export async function executeEventDeletion(
      approvalId: string
    ): Promise<void>;
    ```
 
 6. [ ] Create `src/integrations/calendar/actions/respond.ts`
+
    ```typescript
    export async function requestEventResponse(
      userId: string,
      eventId: string,
-     response: 'accepted' | 'declined' | 'tentative',
+     response: "accepted" | "declined" | "tentative",
      requestedBy?: string
    ): Promise<ApprovalResult>;
-   
+
    export async function executeEventResponse(
      approvalId: string
    ): Promise<Event>;
    ```
 
 7. [ ] Create `src/integrations/calendar/actions/approval.ts`
+
    ```typescript
    export async function approveCalendarAction(
      userId: string,
      approvalId: string
    ): Promise<ApprovalResult>;
-   
+
    export async function rejectCalendarAction(
      userId: string,
      approvalId: string,
      notes?: string
    ): Promise<ApprovalResult>;
-   
+
    export async function expireOldApprovals(): Promise<number>;
    ```
 
 8. [ ] Implement conflict detection
+
    ```typescript
    export async function detectConflicts(
      userId: string,
@@ -1270,6 +1317,7 @@ src/integrations/calendar/actions/
 ### Architecture Notes
 
 Following existing API patterns:
+
 - RESTful endpoints under `/api/integrations/calendar/`
 - CSRF protection on all state-changing endpoints
 - Rate limiting per user
@@ -1397,12 +1445,14 @@ src/openapi/
 ### Architecture Notes
 
 UI Components needed:
+
 1. Calendar connection status in settings
 2. Calendar list with selection toggles
 3. Pending approvals panel
 4. Sync controls and status display
 
 **Following Gmail UI patterns**:
+
 - Use existing UI components where possible
 - Consistent styling with Gmail settings
 - Loading states and error handling
@@ -1498,6 +1548,7 @@ src/app/(dashboard)/settings/
 ### Architecture Notes
 
 Integration tests should cover:
+
 1. Full sync flow (API → DB → Embeddings)
 2. Incremental sync flow
 3. Webhook notification flow
@@ -1571,7 +1622,7 @@ tests/integrations/calendar/
 
 ### Acceptance Criteria
 
-- [ ] >80% code coverage for Calendar module
+- [ ] > 80% code coverage for Calendar module
 - [ ] All integration tests pass
 - [ ] No flaky tests
 - [ ] Coverage report generated
@@ -1720,51 +1771,50 @@ tests/integrations/calendar/
 
 ## Estimated Timeline
 
-| Chunk | Estimated Hours | Parallel With |
-|-------|-----------------|---------------|
-| 0: Security & OAuth | 2-3 | - |
-| 1: Module Foundation | 2-3 | - |
-| 2: Database Models | 3-4 | 3, 4 |
-| 3: Calendar Client | 4-5 | 2, 4 |
-| 4: Calendar Mappers | 2-3 | 2, 3 |
-| 5: Repository | 3-4 | - |
-| 6: Full Sync | 4-5 | 7 |
-| 7: Incremental Sync | 4-5 | 6 |
-| 8: Actions & Approval | 4-5 | - |
-| 9: API Routes | 4-5 | - |
-| 10: Calendar UI | 4-5 | - |
-| 11: Integration Testing | 4-5 | - |
-| 12: Polish & Review | 3-4 | - |
-| *(Deferred) Agent Integration* | *3-4* | *Future Phase* |
+| Chunk                          | Estimated Hours | Parallel With  |
+| ------------------------------ | --------------- | -------------- |
+| 0: Security & OAuth            | 2-3             | -              |
+| 1: Module Foundation           | 2-3             | -              |
+| 2: Database Models             | 3-4             | 3, 4           |
+| 3: Calendar Client             | 4-5             | 2, 4           |
+| 4: Calendar Mappers            | 2-3             | 2, 3           |
+| 5: Repository                  | 3-4             | -              |
+| 6: Full Sync                   | 4-5             | 7              |
+| 7: Incremental Sync            | 4-5             | 6              |
+| 8: Actions & Approval          | 4-5             | -              |
+| 9: API Routes                  | 4-5             | -              |
+| 10: Calendar UI                | 4-5             | -              |
+| 11: Integration Testing        | 4-5             | -              |
+| 12: Polish & Review            | 3-4             | -              |
+| _(Deferred) Agent Integration_ | _3-4_           | _Future Phase_ |
 
 **Total Estimated Hours**: 45-56 hours  
 **With Parallelization**: ~32-42 hours
 
-> **Note**: Agent Integration (3-4 hours) has been deferred to a future phase 
-> when the Agent Engine is implemented. This reduces the Phase 4 scope while 
+> **Note**: Agent Integration (3-4 hours) has been deferred to a future phase
+> when the Agent Engine is implemented. This reduces the Phase 4 scope while
 > maintaining full Calendar functionality through API routes.
 
 ---
 
 ## Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| Sync latency | <30s from Google change to local update |
-| Full sync time | <2 min for typical calendar (500 events) |
-| API reliability | >99% successful API calls |
-| Conflict detection | >95% correctly identified conflicts |
-| Webhook uptime | >99.5% webhook channel availability |
-| Test coverage | >80% for Calendar module |
-| Event accuracy | 100% no data loss or corruption |
+| Metric             | Target                                   |
+| ------------------ | ---------------------------------------- |
+| Sync latency       | <30s from Google change to local update  |
+| Full sync time     | <2 min for typical calendar (500 events) |
+| API reliability    | >99% successful API calls                |
+| Conflict detection | >95% correctly identified conflicts      |
+| Webhook uptime     | >99.5% webhook channel availability      |
+| Test coverage      | >80% for Calendar module                 |
+| Event accuracy     | 100% no data loss or corruption          |
 
 ---
 
-*Document Version: 1.1*  
-*Created: December 22, 2024*  
-*Updated: December 23, 2024*  
-*Based on: PHASE_4_CALENDAR.md, CHUNKING_BEST_PRACTICES.md*
+_Document Version: 1.1_  
+_Created: December 22, 2024_  
+_Updated: December 23, 2024_  
+_Based on: PHASE_4_CALENDAR.md, CHUNKING_BEST_PRACTICES.md_
 
 > **Version 1.1 Changes**: Agent Integration chunk deferred to future phase when
 > Agent Engine is implemented. Chunks renumbered (11→10, 12→11, 13→12).
-

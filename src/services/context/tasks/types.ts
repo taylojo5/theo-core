@@ -81,7 +81,10 @@ export interface ITasksService {
 
   getById(userId: string, id: string): Promise<Task | null>;
 
-  getByIdWithRelations(userId: string, id: string): Promise<TaskWithRelations | null>;
+  getByIdWithRelations(
+    userId: string,
+    id: string
+  ): Promise<TaskWithRelations | null>;
 
   update(
     userId: string,
@@ -206,4 +209,3 @@ export type {
   TaskStatus,
   TaskPriority,
 };
-

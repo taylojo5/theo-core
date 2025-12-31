@@ -11,10 +11,13 @@ import { z, MetadataSchema, createPaginatedSchema } from "./common";
 
 export const DraftCreateSchema = z
   .object({
-    to: z.array(z.string().email()).min(1).openapi({
-      description: "Recipient email addresses",
-      example: ["john@example.com"],
-    }),
+    to: z
+      .array(z.string().email())
+      .min(1)
+      .openapi({
+        description: "Recipient email addresses",
+        example: ["john@example.com"],
+      }),
     cc: z.array(z.string().email()).optional().openapi({
       description: "CC email addresses",
     }),
@@ -212,7 +215,8 @@ export const SendEmailSchema = z
     inReplyTo: z.string().optional(),
     references: z.array(z.string()).optional(),
     requireApproval: z.boolean().openapi({
-      description: "If true, creates an approval request instead of sending immediately",
+      description:
+        "If true, creates an approval request instead of sending immediately",
     }),
     requestedBy: z.string().optional(),
     expiresInMinutes: z.number().positive().optional(),
@@ -293,4 +297,3 @@ export const GmailConnectResponseSchema = z
     error: z.string().optional(),
   })
   .openapi("GmailConnectResponse");
-

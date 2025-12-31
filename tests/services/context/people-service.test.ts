@@ -38,7 +38,11 @@ import {
   upsertPeopleFromSource,
   PeopleServiceError,
 } from "@/services/context/people";
-import type { CreatePersonInput, UpdatePersonInput, Person } from "@/services/context/people";
+import type {
+  CreatePersonInput,
+  UpdatePersonInput,
+  Person,
+} from "@/services/context/people";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -182,14 +186,20 @@ describe("createPerson", () => {
   it("handles duplicate email constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "email"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "email"] },
+      }
     );
     vi.mocked(db.person.create).mockRejectedValue(prismaError);
 
     await expect(createPerson(mockUserId, mockCreateInput)).rejects.toThrow(
       PeopleServiceError
     );
-    await expect(createPerson(mockUserId, mockCreateInput)).rejects.toMatchObject({
+    await expect(
+      createPerson(mockUserId, mockCreateInput)
+    ).rejects.toMatchObject({
       code: "DUPLICATE_EMAIL",
     });
   });
@@ -197,12 +207,20 @@ describe("createPerson", () => {
   it("handles duplicate sourceId constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "source", "sourceId"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "source", "sourceId"] },
+      }
     );
     vi.mocked(db.person.create).mockRejectedValue(prismaError);
 
     await expect(
-      createPerson(mockUserId, { ...mockCreateInput, source: "gmail", sourceId: "123" })
+      createPerson(mockUserId, {
+        ...mockCreateInput,
+        source: "gmail",
+        sourceId: "123",
+      })
     ).rejects.toMatchObject({
       code: "DUPLICATE_SOURCE_ID",
     });
@@ -357,9 +375,11 @@ describe("deletePerson", () => {
   it("throws error when person not found", async () => {
     vi.mocked(db.person.findFirst).mockResolvedValue(null);
 
-    await expect(deletePerson(mockUserId, "nonexistent")).rejects.toMatchObject({
-      code: "PERSON_NOT_FOUND",
-    });
+    await expect(deletePerson(mockUserId, "nonexistent")).rejects.toMatchObject(
+      {
+        code: "PERSON_NOT_FOUND",
+      }
+    );
   });
 });
 
@@ -375,7 +395,10 @@ describe("restorePerson", () => {
   it("restores soft-deleted person", async () => {
     const deletedPerson = { ...mockPerson, deletedAt: new Date() };
     vi.mocked(db.person.findFirst).mockResolvedValue(deletedPerson);
-    vi.mocked(db.person.update).mockResolvedValue({ ...mockPerson, deletedAt: null });
+    vi.mocked(db.person.update).mockResolvedValue({
+      ...mockPerson,
+      deletedAt: null,
+    });
 
     const result = await restorePerson(mockUserId, mockPersonId);
 
@@ -389,7 +412,9 @@ describe("restorePerson", () => {
   it("throws error when deleted person not found", async () => {
     vi.mocked(db.person.findFirst).mockResolvedValue(null);
 
-    await expect(restorePerson(mockUserId, "nonexistent")).rejects.toMatchObject({
+    await expect(
+      restorePerson(mockUserId, "nonexistent")
+    ).rejects.toMatchObject({
       code: "PERSON_NOT_FOUND",
     });
   });
@@ -546,7 +571,11 @@ describe("findPersonBySource", () => {
   });
 
   it("finds person by source and sourceId", async () => {
-    const gmailPerson = { ...mockPerson, source: "gmail", sourceId: "gmail-123" };
+    const gmailPerson = {
+      ...mockPerson,
+      source: "gmail",
+      sourceId: "gmail-123",
+    };
     vi.mocked(db.person.findFirst).mockResolvedValue(gmailPerson);
 
     const result = await findPersonBySource(mockUserId, "gmail", "gmail-123");
@@ -643,9 +672,16 @@ describe("upsertPeopleFromSource", () => {
   });
 
   it("updates existing persons when data changed", async () => {
-    const existingPerson = { ...mockPerson, source: "gmail", sourceId: "gmail-123" };
+    const existingPerson = {
+      ...mockPerson,
+      source: "gmail",
+      sourceId: "gmail-123",
+    };
     vi.mocked(db.person.findFirst).mockResolvedValue(existingPerson);
-    vi.mocked(db.person.update).mockResolvedValue({ ...existingPerson, name: "Jane Doe" });
+    vi.mocked(db.person.update).mockResolvedValue({
+      ...existingPerson,
+      name: "Jane Doe",
+    });
 
     const result = await upsertPeopleFromSource(mockUserId, "gmail", [
       {
@@ -661,9 +697,9 @@ describe("upsertPeopleFromSource", () => {
 
   it("counts unchanged persons", async () => {
     // Create a person that exactly matches what will be compared
-    const existingPerson = { 
-      ...mockPerson, 
-      source: "gmail", 
+    const existingPerson = {
+      ...mockPerson,
+      source: "gmail",
       sourceId: "gmail-123",
       phone: null, // Must match the undefined in data (normalized to null)
       company: null, // Must match the undefined in data (normalized to null)
@@ -691,7 +727,10 @@ describe("upsertPeopleFromSource", () => {
 
 describe("PeopleServiceError", () => {
   it("creates error with code and message", () => {
-    const error = new PeopleServiceError("PERSON_NOT_FOUND", "Person not found");
+    const error = new PeopleServiceError(
+      "PERSON_NOT_FOUND",
+      "Person not found"
+    );
 
     expect(error.code).toBe("PERSON_NOT_FOUND");
     expect(error.message).toBe("Person not found");
@@ -706,4 +745,3 @@ describe("PeopleServiceError", () => {
     expect(error.details).toEqual({ email: "test@example.com" });
   });
 });
-

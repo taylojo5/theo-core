@@ -3,16 +3,13 @@
 // Integrates embedding generation into entity lifecycle
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { getEmbeddingService, deleteEmbeddings as deleteEntityEmbeddings } from "@/lib/embeddings";
+import {
+  getEmbeddingService,
+  deleteEmbeddings as deleteEntityEmbeddings,
+} from "@/lib/embeddings";
 import { buildSearchableContent } from "./utils";
 import type { EntityType } from "./types";
-import type {
-  Person,
-  Place,
-  Event,
-  Task,
-  Deadline,
-} from "@prisma/client";
+import type { Person, Place, Event, Task, Deadline } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -60,7 +57,9 @@ export function buildPlaceContent(place: Place): string {
     place.state,
     place.country,
     place.postalCode,
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return buildSearchableContent([
     place.name,
@@ -219,7 +218,9 @@ export async function removeEntityEmbedding(
  * Handle embedding after entity creation
  * Call this after successfully creating an entity
  */
-export async function afterEntityCreate<T extends { id: string; userId: string }>(
+export async function afterEntityCreate<
+  T extends { id: string; userId: string },
+>(
   entityType: EntityType,
   entity: T,
   contentBuilder: (entity: T) => string,
@@ -237,7 +238,9 @@ export async function afterEntityCreate<T extends { id: string; userId: string }
  * Handle embedding after entity update
  * Call this after successfully updating an entity
  */
-export async function afterEntityUpdate<T extends { id: string; userId: string }>(
+export async function afterEntityUpdate<
+  T extends { id: string; userId: string },
+>(
   entityType: EntityType,
   entity: T,
   contentBuilder: (entity: T) => string,
@@ -376,4 +379,3 @@ export async function removeDeadlineEmbedding(
 ): Promise<EmbeddingResult> {
   return afterEntityDelete("deadline", userId, deadlineId, context);
 }
-

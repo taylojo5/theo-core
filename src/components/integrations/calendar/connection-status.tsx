@@ -317,4 +317,3 @@ function DisconnectIcon({ className }: { className?: string }) {
 }
 
 export default CalendarConnectionStatus;
-

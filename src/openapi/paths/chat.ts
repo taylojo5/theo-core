@@ -31,14 +31,17 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     path: "/api/chat/conversations",
     tags: ["Chat"],
     summary: "List conversations",
-    description: "Retrieve a paginated list of conversations. Optionally include recent messages.",
+    description:
+      "Retrieve a paginated list of conversations. Optionally include recent messages.",
     security: protectedEndpoint,
     request: { query: ConversationListQuerySchema },
     responses: {
       200: {
         description: "List of conversations",
         headers: rateLimitHeaders,
-        content: { "application/json": { schema: PaginatedConversationsSchema } },
+        content: {
+          "application/json": { schema: PaginatedConversationsSchema },
+        },
       },
       401: { $ref: "#/components/responses/Unauthorized" },
     },
@@ -50,10 +53,14 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     path: "/api/chat/conversations",
     tags: ["Chat"],
     summary: "Create conversation",
-    description: "Start a new conversation. Title is auto-generated if not provided.",
+    description:
+      "Start a new conversation. Title is auto-generated if not provided.",
     security: protectedEndpoint,
     request: {
-      body: { required: false, content: { "application/json": { schema: ConversationCreateSchema } } },
+      body: {
+        required: false,
+        content: { "application/json": { schema: ConversationCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -75,14 +82,22 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     request: {
       params: z.object({ id: z.string() }),
       query: z.object({
-        includeMessages: z.string().optional().openapi({ description: "Include messages (default: true)" }),
-        messageLimit: z.coerce.number().optional().openapi({ description: "Max messages to include" }),
+        includeMessages: z
+          .string()
+          .optional()
+          .openapi({ description: "Include messages (default: true)" }),
+        messageLimit: z.coerce
+          .number()
+          .optional()
+          .openapi({ description: "Max messages to include" }),
       }),
     },
     responses: {
       200: {
         description: "Conversation with messages",
-        content: { "application/json": { schema: ConversationWithMessagesSchema } },
+        content: {
+          "application/json": { schema: ConversationWithMessagesSchema },
+        },
       },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -99,10 +114,16 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: ConversationUpdateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: ConversationUpdateSchema } },
+      },
     },
     responses: {
-      200: { description: "Conversation updated", content: { "application/json": { schema: ConversationSchema } } },
+      200: {
+        description: "Conversation updated",
+        content: { "application/json": { schema: ConversationSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -118,7 +139,10 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Conversation deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Conversation deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -137,7 +161,9 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     description: "Get messages in a conversation with pagination.",
     security: protectedEndpoint,
     request: {
-      params: z.object({ id: z.string().openapi({ description: "Conversation ID" }) }),
+      params: z.object({
+        id: z.string().openapi({ description: "Conversation ID" }),
+      }),
       query: MessageListQuerySchema,
     },
     responses: {
@@ -156,11 +182,15 @@ export function registerChatPaths(registry: OpenAPIRegistry) {
     path: "/api/chat/conversations/{id}/messages",
     tags: ["Chat"],
     summary: "Send message",
-    description: "Send a message in a conversation. The AI assistant will respond automatically.",
+    description:
+      "Send a message in a conversation. The AI assistant will respond automatically.",
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: MessageCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: MessageCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -208,4 +238,3 @@ Subscribe to real-time updates for a conversation using Server-Sent Events.
     },
   });
 }
-

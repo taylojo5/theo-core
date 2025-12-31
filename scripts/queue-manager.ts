@@ -176,9 +176,26 @@ function clearScreen(): void {
 
 function printHeader(): void {
   console.log("");
-  console.log(c("bold", c("cyan", "╔═══════════════════════════════════════════════════════╗")));
-  console.log(c("bold", c("cyan", "║           ") + c("white", "🔧 THEO Queue Manager") + c("cyan", "                    ║")));
-  console.log(c("bold", c("cyan", "╚═══════════════════════════════════════════════════════╝")));
+  console.log(
+    c(
+      "bold",
+      c("cyan", "╔═══════════════════════════════════════════════════════╗")
+    )
+  );
+  console.log(
+    c(
+      "bold",
+      c("cyan", "║           ") +
+        c("white", "🔧 THEO Queue Manager") +
+        c("cyan", "                    ║")
+    )
+  );
+  console.log(
+    c(
+      "bold",
+      c("cyan", "╚═══════════════════════════════════════════════════════╝")
+    )
+  );
   console.log("");
 }
 
@@ -186,7 +203,15 @@ function printQueueStats(stats: QueueStats[]): void {
   console.log(c("bold", "Queue Status:"));
   console.log(c("dim", "─".repeat(60)));
 
-  const headers = ["Queue", "Waiting", "Active", "Delayed", "Completed", "Failed", "Status"];
+  const headers = [
+    "Queue",
+    "Waiting",
+    "Active",
+    "Delayed",
+    "Completed",
+    "Failed",
+    "Status",
+  ];
   const widths = [16, 9, 8, 9, 11, 8, 10];
 
   // Print header
@@ -224,7 +249,9 @@ function printMenu(): void {
   console.log(c("bold", "Actions:"));
   console.log(c("dim", "─".repeat(60)));
   console.log(`  ${c("cyan", "1")} - View queue details`);
-  console.log(`  ${c("cyan", "2")} - Drain queue (remove waiting/delayed jobs)`);
+  console.log(
+    `  ${c("cyan", "2")} - Drain queue (remove waiting/delayed jobs)`
+  );
   console.log(`  ${c("cyan", "3")} - Obliterate queue (remove ALL jobs)`);
   console.log(`  ${c("cyan", "4")} - Clean completed/failed jobs`);
   console.log(`  ${c("cyan", "5")} - Retry failed jobs`);
@@ -262,7 +289,9 @@ async function printQueueDetails(name: string): Promise<void> {
   console.log(`  Delayed:   ${c("blue", String(stats.delayed))}`);
   console.log(`  Completed: ${c("dim", String(stats.completed))}`);
   console.log(`  Failed:    ${c("red", String(stats.failed))}`);
-  console.log(`  Status:    ${stats.paused ? c("yellow", "Paused") : c("green", "Active")}`);
+  console.log(
+    `  Status:    ${stats.paused ? c("yellow", "Paused") : c("green", "Active")}`
+  );
 
   // Show recent jobs
   const [waiting, failed] = await Promise.all([
@@ -274,7 +303,9 @@ async function printQueueDetails(name: string): Promise<void> {
     console.log("");
     console.log(c("bold", "Recent Waiting Jobs:"));
     for (const job of waiting) {
-      console.log(`  ${c("dim", `[${job.id}]`)} ${job.name} - ${c("dim", new Date(job.timestamp).toLocaleString())}`);
+      console.log(
+        `  ${c("dim", `[${job.id}]`)} ${job.name} - ${c("dim", new Date(job.timestamp).toLocaleString())}`
+      );
     }
   }
 
@@ -370,9 +401,7 @@ async function mainLoop(): Promise<void> {
           if (await confirmAction(`drain ${queueList}`)) {
             for (const name of queues) {
               const removed = await drainQueue(name);
-              console.log(
-                c("green", `✓ ${name}: Drained ${removed} jobs`)
-              );
+              console.log(c("green", `✓ ${name}: Drained ${removed} jobs`));
             }
             await prompt(c("dim", "\nPress Enter to continue..."));
           }
@@ -388,7 +417,10 @@ async function mainLoop(): Promise<void> {
         if (queues) {
           const queueList = queues.join(", ");
           console.log(
-            c("red", "\n⚠ DANGER: This will remove ALL jobs including active, completed, and failed!\n")
+            c(
+              "red",
+              "\n⚠ DANGER: This will remove ALL jobs including active, completed, and failed!\n"
+            )
           );
           if (await confirmAction(`OBLITERATE ${queueList}`)) {
             for (const name of queues) {
@@ -410,7 +442,10 @@ async function mainLoop(): Promise<void> {
           for (const name of queues) {
             const [completed, failed] = await cleanQueue(name);
             console.log(
-              c("green", `✓ ${name}: Cleaned ${completed} completed, ${failed} failed jobs`)
+              c(
+                "green",
+                `✓ ${name}: Cleaned ${completed} completed, ${failed} failed jobs`
+              )
             );
           }
           await prompt(c("dim", "\nPress Enter to continue..."));
@@ -564,7 +599,10 @@ async function runNonInteractive(): Promise<void> {
       for (const name of queues) {
         const [completed, failed] = await cleanQueue(name);
         console.log(
-          c("green", `✓ ${name}: Cleaned ${completed} completed, ${failed} failed`)
+          c(
+            "green",
+            `✓ ${name}: Cleaned ${completed} completed, ${failed} failed`
+          )
         );
       }
       break;
@@ -629,9 +667,7 @@ function printUsage(): void {
   console.log("  help               Show this help");
   console.log("");
   console.log(c("bold", "Queues:"));
-  console.log(
-    `  ${Object.values(QUEUE_NAMES).join(", ")}, all (default)`
-  );
+  console.log(`  ${Object.values(QUEUE_NAMES).join(", ")}, all (default)`);
   console.log("");
   console.log(c("bold", "Examples:"));
   console.log("  npm run queue status");
@@ -691,4 +727,3 @@ async function main(): Promise<void> {
 }
 
 main();
-

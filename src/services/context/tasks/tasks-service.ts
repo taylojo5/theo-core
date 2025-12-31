@@ -91,10 +91,11 @@ async function checkCircularReference(
 
     visited.add(currentId);
 
-    const parentTask: { parentId: string | null } | null = await db.task.findFirst({
-      where: { id: currentId, userId, ...softDeleteFilter() },
-      select: { parentId: true },
-    });
+    const parentTask: { parentId: string | null } | null =
+      await db.task.findFirst({
+        where: { id: currentId, userId, ...softDeleteFilter() },
+        select: { parentId: true },
+      });
 
     currentId = parentTask?.parentId ?? null;
   }
@@ -120,7 +121,10 @@ export async function createTask(
       where: { id: data.parentId, userId, ...softDeleteFilter() },
     });
     if (!parent) {
-      throw new TasksError("TASK_NOT_FOUND", `Parent task not found: ${data.parentId}`);
+      throw new TasksError(
+        "TASK_NOT_FOUND",
+        `Parent task not found: ${data.parentId}`
+      );
     }
   }
 
@@ -130,7 +134,10 @@ export async function createTask(
       where: { id: data.assignedToId, userId, ...softDeleteFilter() },
     });
     if (!person) {
-      throw new TasksError("PERSON_NOT_FOUND", `Person not found: ${data.assignedToId}`);
+      throw new TasksError(
+        "PERSON_NOT_FOUND",
+        `Person not found: ${data.assignedToId}`
+      );
     }
   }
 
@@ -263,7 +270,10 @@ export async function updateTask(
       where: { id: data.parentId, userId, ...softDeleteFilter() },
     });
     if (!parent) {
-      throw new TasksError("TASK_NOT_FOUND", `Parent task not found: ${data.parentId}`);
+      throw new TasksError(
+        "TASK_NOT_FOUND",
+        `Parent task not found: ${data.parentId}`
+      );
     }
 
     // Check for circular reference
@@ -282,7 +292,10 @@ export async function updateTask(
       where: { id: data.assignedToId, userId, ...softDeleteFilter() },
     });
     if (!person) {
-      throw new TasksError("PERSON_NOT_FOUND", `Person not found: ${data.assignedToId}`);
+      throw new TasksError(
+        "PERSON_NOT_FOUND",
+        `Person not found: ${data.assignedToId}`
+      );
     }
   }
 
@@ -291,9 +304,17 @@ export async function updateTask(
 
   // Auto-set completedAt when status changes to completed
   let completedAt = data.completedAt;
-  if (data.status === "completed" && existing.status !== "completed" && !completedAt) {
+  if (
+    data.status === "completed" &&
+    existing.status !== "completed" &&
+    !completedAt
+  ) {
     completedAt = new Date();
-  } else if (data.status && data.status !== "completed" && existing.completedAt) {
+  } else if (
+    data.status &&
+    data.status !== "completed" &&
+    existing.completedAt
+  ) {
     completedAt = undefined; // Clear completedAt when reopening
   }
 
@@ -302,7 +323,9 @@ export async function updateTask(
       where: { id },
       data: {
         ...(data.title !== undefined && { title: data.title }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.parentId !== undefined && { parentId: data.parentId }),
         ...(data.position !== undefined && { position: data.position }),
         ...(data.status !== undefined && { status: data.status }),
@@ -310,10 +333,16 @@ export async function updateTask(
         ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
         ...(data.startDate !== undefined && { startDate: data.startDate }),
         ...(completedAt !== undefined && { completedAt }),
-        ...(data.estimatedMinutes !== undefined && { estimatedMinutes: data.estimatedMinutes }),
-        ...(data.actualMinutes !== undefined && { actualMinutes: data.actualMinutes }),
+        ...(data.estimatedMinutes !== undefined && {
+          estimatedMinutes: data.estimatedMinutes,
+        }),
+        ...(data.actualMinutes !== undefined && {
+          actualMinutes: data.actualMinutes,
+        }),
         ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.assignedToId !== undefined && { assignedToId: data.assignedToId }),
+        ...(data.assignedToId !== undefined && {
+          assignedToId: data.assignedToId,
+        }),
         ...(data.metadata !== undefined && {
           metadata: data.metadata as Prisma.InputJsonValue,
         }),
@@ -340,7 +369,10 @@ export async function updateTask(
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
-        throw new TasksError("DUPLICATE_SOURCE_ID", `A task with this source ID already exists`);
+        throw new TasksError(
+          "DUPLICATE_SOURCE_ID",
+          `A task with this source ID already exists`
+        );
       }
     }
     throw error;
@@ -603,16 +635,20 @@ export async function listTasks(
   options: ListTasksOptions = {}
 ): Promise<PaginatedResult<Task>> {
   const pagination = normalizePagination(options);
-  const orderBy = buildOrderBy(options.sortBy ?? "createdAt", options.sortOrder ?? "desc");
+  const orderBy = buildOrderBy(
+    options.sortBy ?? "createdAt",
+    options.sortOrder ?? "desc"
+  );
 
   // Handle parentId filter (null means top-level tasks)
-  const parentIdFilter = options.parentId === null
-    ? { parentId: null }
-    : options.parentId
-      ? { parentId: options.parentId }
-      : options.includeSubtasks === false
-        ? { parentId: null }
-        : {};
+  const parentIdFilter =
+    options.parentId === null
+      ? { parentId: null }
+      : options.parentId
+        ? { parentId: options.parentId }
+        : options.includeSubtasks === false
+          ? { parentId: null }
+          : {};
 
   const where: Prisma.TaskWhereInput = {
     userId,
@@ -628,7 +664,12 @@ export async function listTasks(
     ...(options.search && {
       OR: [
         { title: { contains: options.search, mode: "insensitive" as const } },
-        { description: { contains: options.search, mode: "insensitive" as const } },
+        {
+          description: {
+            contains: options.search,
+            mode: "insensitive" as const,
+          },
+        },
         { notes: { contains: options.search, mode: "insensitive" as const } },
       ],
     }),
@@ -682,10 +723,7 @@ export async function searchTasks(
         { notes: { contains: query, mode: "insensitive" } },
       ],
     },
-    orderBy: [
-      { priority: "desc" },
-      { dueDate: "asc" },
-    ],
+    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
     take: limit,
   });
 }
@@ -774,10 +812,7 @@ export async function getTasksAssignedTo(
       assignedToId: personId,
       ...softDeleteFilter(),
     },
-    orderBy: [
-      { status: "asc" },
-      { dueDate: "asc" },
-    ],
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }],
   });
 }
 
@@ -800,9 +835,11 @@ export async function upsertTasksFromSource(
     if (existing) {
       const hasChanges =
         existing.title !== data.title ||
-        (data.description !== undefined && existing.description !== data.description) ||
+        (data.description !== undefined &&
+          existing.description !== data.description) ||
         (data.status !== undefined && existing.status !== data.status) ||
-        (data.dueDate !== undefined && existing.dueDate?.getTime() !== data.dueDate?.getTime());
+        (data.dueDate !== undefined &&
+          existing.dueDate?.getTime() !== data.dueDate?.getTime());
 
       if (hasChanges) {
         const updatedTask = await updateTask(
@@ -857,4 +894,3 @@ export const TasksService: ITasksService = {
   getAssignedTo: getTasksAssignedTo,
   upsertFromSource: upsertTasksFromSource,
 };
-

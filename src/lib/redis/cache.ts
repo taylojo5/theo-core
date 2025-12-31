@@ -3,7 +3,7 @@
 // Simple cache operations with JSON serialization
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { redis, ensureRedisConnection, isRedisConnected } from "./index";
+import { redis, ensureRedisConnection } from "./index";
 
 export interface CacheOptions {
   /** Time-to-live in seconds */
@@ -16,10 +16,6 @@ const CACHE_PREFIX = "cache:";
  * Get a cached value
  */
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  if (!isRedisConnected()) {
-    return null;
-  }
-
   try {
     await ensureRedisConnection();
     const value = await redis.get(`${CACHE_PREFIX}${key}`);
@@ -38,10 +34,6 @@ export async function cacheSet<T>(
   value: T,
   options: CacheOptions = {}
 ): Promise<boolean> {
-  if (!isRedisConnected()) {
-    return false;
-  }
-
   try {
     await ensureRedisConnection();
     const serialized = JSON.stringify(value);
@@ -64,10 +56,6 @@ export async function cacheSet<T>(
  * Delete a cached value
  */
 export async function cacheDelete(key: string): Promise<boolean> {
-  if (!isRedisConnected()) {
-    return false;
-  }
-
   try {
     await ensureRedisConnection();
     await redis.del(`${CACHE_PREFIX}${key}`);
@@ -82,10 +70,6 @@ export async function cacheDelete(key: string): Promise<boolean> {
  * Delete all cached values matching a pattern
  */
 export async function cacheDeletePattern(pattern: string): Promise<boolean> {
-  if (!isRedisConnected()) {
-    return false;
-  }
-
   try {
     await ensureRedisConnection();
     const keys = await redis.keys(`${CACHE_PREFIX}${pattern}`);

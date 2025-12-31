@@ -120,7 +120,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (account.scope && user?.id) {
           try {
             // Encrypt tokens and update account with new scopes
-            const encryptedAccessToken = await encryptToken(account.access_token);
+            const encryptedAccessToken = await encryptToken(
+              account.access_token
+            );
             const encryptedRefreshToken = await encryptToken(
               account.refresh_token
             );

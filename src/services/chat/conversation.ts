@@ -219,10 +219,7 @@ export async function deleteConversation(
  */
 export function generateTitleFromContent(content: string): string {
   // Clean up the content
-  const cleaned = content
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 100);
+  const cleaned = content.replace(/\s+/g, " ").trim().slice(0, 100);
 
   // If content is short enough, use it directly
   if (cleaned.length <= 50) {
@@ -232,6 +229,7 @@ export function generateTitleFromContent(content: string): string {
   // Otherwise, truncate at word boundary
   const truncated = cleaned.slice(0, 50);
   const lastSpace = truncated.lastIndexOf(" ");
-  return lastSpace > 20 ? truncated.slice(0, lastSpace) + "..." : truncated + "...";
+  return lastSpace > 20
+    ? truncated.slice(0, lastSpace) + "..."
+    : truncated + "...";
 }
-

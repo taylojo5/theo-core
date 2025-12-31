@@ -22,7 +22,8 @@ export function registerPlacesPaths(registry: OpenAPIRegistry) {
     path: "/api/context/places",
     tags: ["Context - Places"],
     summary: "List places",
-    description: "Retrieve a paginated list of places/locations with optional filtering.",
+    description:
+      "Retrieve a paginated list of places/locations with optional filtering.",
     security: protectedEndpoint,
     request: { query: PlaceListQuerySchema },
     responses: {
@@ -45,7 +46,10 @@ export function registerPlacesPaths(registry: OpenAPIRegistry) {
     description: "Create a new place in the context system.",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: PlaceCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: PlaceCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -66,10 +70,15 @@ export function registerPlacesPaths(registry: OpenAPIRegistry) {
     summary: "Get place by ID",
     security: protectedEndpoint,
     request: {
-      params: z.object({ id: z.string().openapi({ example: "clx1234567890abcdef" }) }),
+      params: z.object({
+        id: z.string().openapi({ example: "clx1234567890abcdef" }),
+      }),
     },
     responses: {
-      200: { description: "Place details", content: { "application/json": { schema: PlaceSchema } } },
+      200: {
+        description: "Place details",
+        content: { "application/json": { schema: PlaceSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -84,10 +93,16 @@ export function registerPlacesPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: PlaceUpdateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: PlaceUpdateSchema } },
+      },
     },
     responses: {
-      200: { description: "Place updated", content: { "application/json": { schema: PlaceSchema } } },
+      200: {
+        description: "Place updated",
+        content: { "application/json": { schema: PlaceSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -100,14 +115,17 @@ export function registerPlacesPaths(registry: OpenAPIRegistry) {
     path: "/api/context/places/{id}",
     tags: ["Context - Places"],
     summary: "Delete place",
-    description: "Soft-delete a place. Can be restored via PATCH with `{ restore: true }`.",
+    description:
+      "Soft-delete a place. Can be restored via PATCH with `{ restore: true }`.",
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Place deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Place deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
   });
 }
-

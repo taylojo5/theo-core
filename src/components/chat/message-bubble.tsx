@@ -81,19 +81,18 @@ export function MessageBubble({
 
       {/* Message content */}
       <div
-        className={cn(
-          "flex max-w-[75%] flex-col gap-1",
-          isUser && "items-end"
-        )}
+        className={cn("flex max-w-[75%] flex-col gap-1", isUser && "items-end")}
       >
         {/* Name and time */}
         <div
           className={cn(
-            "flex items-center gap-2 text-xs text-muted-foreground",
+            "text-muted-foreground flex items-center gap-2 text-xs",
             isUser && "flex-row-reverse"
           )}
         >
-          <span className="font-medium">{name || (isUser ? "You" : "Theo")}</span>
+          <span className="font-medium">
+            {name || (isUser ? "You" : "Theo")}
+          </span>
           <span className="opacity-0 transition-opacity group-hover:opacity-100">
             {formatRelativeTime(createdAt)}
           </span>
@@ -104,8 +103,8 @@ export function MessageBubble({
           className={cn(
             "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
             isUser
-              ? "rounded-br-md bg-primary text-primary-foreground"
-              : "rounded-bl-md bg-muted text-foreground"
+              ? "bg-primary text-primary-foreground rounded-br-md"
+              : "bg-muted text-foreground rounded-bl-md"
           )}
         >
           {/* Render content with basic formatting */}
@@ -145,7 +144,7 @@ function MessageContent({
               className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100 dark:bg-zinc-950"
             >
               {lang && (
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                <div className="mb-2 text-[10px] tracking-wider text-zinc-500 uppercase">
                   {lang}
                 </div>
               )}
@@ -167,4 +166,3 @@ function MessageContent({
     </div>
   );
 }
-

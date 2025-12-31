@@ -234,25 +234,40 @@ export function CalendarPendingApprovals({
                   <div className="flex gap-2">
                     <dt className="text-muted-foreground shrink-0">Title:</dt>
                     <dd className="font-medium">
-                      {(selectedApproval.eventSnapshot as { summary?: string })?.summary ||
-                        "(No title)"}
+                      {(selectedApproval.eventSnapshot as { summary?: string })
+                        ?.summary || "(No title)"}
                     </dd>
                   </div>
-                  {(selectedApproval.eventSnapshot as { start?: { dateTime?: string } })?.start?.dateTime && (
+                  {(
+                    selectedApproval.eventSnapshot as {
+                      start?: { dateTime?: string };
+                    }
+                  )?.start?.dateTime && (
                     <div className="flex gap-2">
                       <dt className="text-muted-foreground shrink-0">When:</dt>
                       <dd>
                         {formatEventTime(
-                          (selectedApproval.eventSnapshot as { start?: { dateTime?: string } }).start?.dateTime || ""
+                          (
+                            selectedApproval.eventSnapshot as {
+                              start?: { dateTime?: string };
+                            }
+                          ).start?.dateTime || ""
                         )}
                       </dd>
                     </div>
                   )}
-                  {(selectedApproval.eventSnapshot as { location?: string })?.location && (
+                  {(selectedApproval.eventSnapshot as { location?: string })
+                    ?.location && (
                     <div className="flex gap-2">
                       <dt className="text-muted-foreground shrink-0">Where:</dt>
                       <dd>
-                        {(selectedApproval.eventSnapshot as { location?: string }).location}
+                        {
+                          (
+                            selectedApproval.eventSnapshot as {
+                              location?: string;
+                            }
+                          ).location
+                        }
                       </dd>
                     </div>
                   )}
@@ -278,10 +293,12 @@ export function CalendarPendingApprovals({
                 </label>
                 <textarea
                   value={notes}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setNotes(e.target.value)
+                  }
                   placeholder="Add a note about your decision..."
                   rows={2}
-                  className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             </CardContent>
@@ -428,7 +445,10 @@ function ApprovalCard({ approval, onClick }: ApprovalCardProps) {
 function ActionTypeBadge({ type }: { type: CalendarActionType }) {
   const config: Record<
     CalendarActionType,
-    { label: string; variant: "default" | "success" | "warning" | "destructive" }
+    {
+      label: string;
+      variant: "default" | "success" | "warning" | "destructive";
+    }
   > = {
     create: { label: "Create", variant: "success" },
     update: { label: "Update", variant: "warning" },
@@ -565,4 +585,3 @@ function CheckIcon({ className }: { className?: string }) {
 }
 
 export default CalendarPendingApprovals;
-

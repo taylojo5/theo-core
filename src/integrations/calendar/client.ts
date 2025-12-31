@@ -4,7 +4,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { google, calendar_v3 } from "googleapis";
-import { CalendarError, CalendarErrorCode, parseGoogleApiError } from "./errors";
+import {
+  CalendarError,
+  CalendarErrorCode,
+  parseGoogleApiError,
+} from "./errors";
 import { CalendarRateLimiter, createCalendarRateLimiter } from "./rate-limiter";
 import { clientLogger } from "./logger";
 import {
@@ -202,7 +206,8 @@ export class CalendarClient {
         accessRole: response.data.accessRole as EventListResponse["accessRole"],
         nextPageToken: response.data.nextPageToken || undefined,
         nextSyncToken: response.data.nextSyncToken || undefined,
-        defaultReminders: response.data.defaultReminders as EventListResponse["defaultReminders"],
+        defaultReminders: response.data
+          .defaultReminders as EventListResponse["defaultReminders"],
         etag: response.data.etag || undefined,
         updated: response.data.updated || undefined,
       };
@@ -246,7 +251,10 @@ export class CalendarClient {
    * Internal method to fetch event without rate limiting
    * Use this within operations that are already wrapped in execute()
    */
-  private async _getEventRaw(calendarId: string, eventId: string): Promise<GoogleEvent> {
+  private async _getEventRaw(
+    calendarId: string,
+    eventId: string
+  ): Promise<GoogleEvent> {
     const response = await this.calendar.events.get({
       calendarId,
       eventId,
@@ -340,11 +348,11 @@ export class CalendarClient {
 
   /**
    * Update an existing event
-   * 
+   *
    * Note: This operation costs 3 quota units total:
    * - 1 unit for events.get (prefetch existing event)
    * - 2 units for events.update (the actual update)
-   * 
+   *
    * All 3 units are checked and consumed atomically before any API calls,
    * preventing quota waste if the rate limit check fails.
    */
@@ -359,36 +367,40 @@ export class CalendarClient {
   ): Promise<GoogleEvent> {
     // Execute with additionalUnits: 1 to account for the prefetch (events.get)
     // This ensures all 3 quota units are checked atomically before any API calls
-    return this.execute("events.update", async () => {
-      // First, get the existing event to merge with updates
-      // Quota already consumed above, so use internal method without rate-limiting
-      const existing = await this._getEventRaw(calendarId, eventId);
+    return this.execute(
+      "events.update",
+      async () => {
+        // First, get the existing event to merge with updates
+        // Quota already consumed above, so use internal method without rate-limiting
+        const existing = await this._getEventRaw(calendarId, eventId);
 
-      // Build the updated event
-      const requestBody: calendar_v3.Schema$Event = {
-        ...existing,
-        summary: event.summary ?? existing.summary,
-        description: event.description ?? existing.description,
-        location: event.location ?? existing.location,
-        start: event.start ?? existing.start,
-        end: event.end ?? existing.end,
-        attendees: event.attendees ?? existing.attendees,
-        reminders: event.reminders ?? existing.reminders,
-        recurrence: event.recurrence ?? existing.recurrence,
-        visibility: event.visibility ?? existing.visibility,
-        status: event.status ?? existing.status,
-        colorId: event.colorId ?? existing.colorId,
-      };
+        // Build the updated event
+        const requestBody: calendar_v3.Schema$Event = {
+          ...existing,
+          summary: event.summary ?? existing.summary,
+          description: event.description ?? existing.description,
+          location: event.location ?? existing.location,
+          start: event.start ?? existing.start,
+          end: event.end ?? existing.end,
+          attendees: event.attendees ?? existing.attendees,
+          reminders: event.reminders ?? existing.reminders,
+          recurrence: event.recurrence ?? existing.recurrence,
+          visibility: event.visibility ?? existing.visibility,
+          status: event.status ?? existing.status,
+          colorId: event.colorId ?? existing.colorId,
+        };
 
-      const response = await this.calendar.events.update({
-        calendarId,
-        eventId,
-        requestBody,
-        sendUpdates: options.sendUpdates || "none",
-      });
+        const response = await this.calendar.events.update({
+          calendarId,
+          eventId,
+          requestBody,
+          sendUpdates: options.sendUpdates || "none",
+        });
 
-      return response.data as GoogleEvent;
-    }, { additionalUnits: 1 });
+        return response.data as GoogleEvent;
+      },
+      { additionalUnits: 1 }
+    );
   }
 
   /**
@@ -483,11 +495,11 @@ export class CalendarClient {
 
   /**
    * Respond to an event invitation (RSVP)
-   * 
+   *
    * Note: This operation costs 3 quota units total:
    * - 1 unit for events.get (prefetch event to find attendee entry)
    * - 2 units for events.patch (the actual RSVP update)
-   * 
+   *
    * All 3 units are checked and consumed atomically before any API calls,
    * preventing quota waste if the rate limit check fails.
    */
@@ -504,53 +516,57 @@ export class CalendarClient {
   ): Promise<GoogleEvent> {
     // Execute with additionalUnits: 1 to account for the prefetch (events.get)
     // This ensures all 3 quota units are checked atomically before any API calls
-    return this.execute("events.patch", async () => {
-      // Get the current event to find our attendee entry
-      // Quota already consumed above, so use internal method without rate-limiting
-      const event = await this._getEventRaw(calendarId, eventId);
+    return this.execute(
+      "events.patch",
+      async () => {
+        // Get the current event to find our attendee entry
+        // Quota already consumed above, so use internal method without rate-limiting
+        const event = await this._getEventRaw(calendarId, eventId);
 
-      // Validate event has attendees
-      if (!event.attendees || event.attendees.length === 0) {
-        throw new CalendarError(
-          CalendarErrorCode.INVALID_REQUEST,
-          "Cannot respond to event: event has no attendees",
-          false
-        );
-      }
-
-      // Find the current user in the attendee list
-      const selfAttendee = event.attendees.find((a) => a.self);
-      if (!selfAttendee) {
-        throw new CalendarError(
-          CalendarErrorCode.INVALID_REQUEST,
-          "Cannot respond to event: current user is not an attendee",
-          false
-        );
-      }
-
-      // Update our response status in the attendees list
-      const updatedAttendees = event.attendees.map((attendee) => {
-        if (attendee.self) {
-          return {
-            ...attendee,
-            responseStatus: response,
-            comment: options.comment ?? attendee.comment,
-          };
+        // Validate event has attendees
+        if (!event.attendees || event.attendees.length === 0) {
+          throw new CalendarError(
+            CalendarErrorCode.INVALID_REQUEST,
+            "Cannot respond to event: event has no attendees",
+            false
+          );
         }
-        return attendee;
-      });
 
-      const patchResponse = await this.calendar.events.patch({
-        calendarId,
-        eventId,
-        requestBody: {
-          attendees: updatedAttendees,
-        },
-        sendUpdates: options.sendUpdates || "all",
-      });
+        // Find the current user in the attendee list
+        const selfAttendee = event.attendees.find((a) => a.self);
+        if (!selfAttendee) {
+          throw new CalendarError(
+            CalendarErrorCode.INVALID_REQUEST,
+            "Cannot respond to event: current user is not an attendee",
+            false
+          );
+        }
 
-      return patchResponse.data as GoogleEvent;
-    }, { additionalUnits: 1 });
+        // Update our response status in the attendees list
+        const updatedAttendees = event.attendees.map((attendee) => {
+          if (attendee.self) {
+            return {
+              ...attendee,
+              responseStatus: response,
+              comment: options.comment ?? attendee.comment,
+            };
+          }
+          return attendee;
+        });
+
+        const patchResponse = await this.calendar.events.patch({
+          calendarId,
+          eventId,
+          requestBody: {
+            attendees: updatedAttendees,
+          },
+          sendUpdates: options.sendUpdates || "all",
+        });
+
+        return patchResponse.data as GoogleEvent;
+      },
+      { additionalUnits: 1 }
+    );
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -583,7 +599,8 @@ export class CalendarClient {
     return this.execute("events.watch", async () => {
       // Calculate expiration (max 7 days)
       const maxExpiration = Date.now() + WEBHOOK_MAX_LIFETIME_MS;
-      const requestedExpiration = options.expiration?.getTime() || maxExpiration;
+      const requestedExpiration =
+        options.expiration?.getTime() || maxExpiration;
       const expiration = Math.min(requestedExpiration, maxExpiration);
 
       const response = await this.calendar.events.watch({
@@ -725,9 +742,14 @@ export class CalendarClient {
       const response = await this.calendar.colors.get();
 
       const mapColors = (
-        colors: Record<string, { background?: string; foreground?: string }> | undefined
+        colors:
+          | Record<string, { background?: string; foreground?: string }>
+          | undefined
       ): Record<string, { background: string; foreground: string }> => {
-        const result: Record<string, { background: string; foreground: string }> = {};
+        const result: Record<
+          string,
+          { background: string; foreground: string }
+        > = {};
         if (colors) {
           for (const [id, color] of Object.entries(colors)) {
             result[id] = {
@@ -740,8 +762,18 @@ export class CalendarClient {
       };
 
       return {
-        calendar: mapColors(response.data.calendar as Record<string, { background?: string; foreground?: string }>),
-        event: mapColors(response.data.event as Record<string, { background?: string; foreground?: string }>),
+        calendar: mapColors(
+          response.data.calendar as Record<
+            string,
+            { background?: string; foreground?: string }
+          >
+        ),
+        event: mapColors(
+          response.data.event as Record<
+            string,
+            { background?: string; foreground?: string }
+          >
+        ),
       };
     });
   }
@@ -752,13 +784,13 @@ export class CalendarClient {
 
   /**
    * Execute an API call with rate limiting and retry logic
-   * 
+   *
    * Rate limiting strategy to minimize quota waste:
    * 1. Wait for quota availability using peek (read-only, no consumption)
    * 2. Verify with peek immediately before consuming
    * 3. Only consume quota via check() when we're confident it will succeed
    * 4. If check() fails due to race condition, we've only wasted one attempt
-   * 
+   *
    * @param operation - The primary operation being performed
    * @param fn - The function to execute
    * @param options.additionalUnits - Extra quota units to account for (e.g., prefetch calls)
@@ -770,16 +802,20 @@ export class CalendarClient {
   ): Promise<T> {
     // Calculate total units needed (operation units + any additional)
     const additionalUnits = options?.additionalUnits ?? 0;
-    
+
     // Rate limit check and consumption
     if (this.rateLimiter) {
       try {
         // Get total units needed for rate limiting
         const operationUnits = CALENDAR_QUOTA_UNITS[operation];
         const totalUnits = operationUnits + additionalUnits;
-        
+
         // Wait for total quota to become available (peek-only, no consumption)
-        await this.rateLimiter.waitForQuotaUnits(totalUnits, this.config.timeoutMs, operation);
+        await this.rateLimiter.waitForQuotaUnits(
+          totalUnits,
+          this.config.timeoutMs,
+          operation
+        );
 
         // Verify quota is still available with peek before consuming
         // This reduces the chance of wasting quota due to race conditions
@@ -790,7 +826,7 @@ export class CalendarClient {
           if (peekResult.waitMs) {
             await this.sleep(peekResult.waitMs);
           }
-          
+
           const retryPeek = await this.rateLimiter.peekUnits(totalUnits);
           if (!retryPeek.allowed) {
             throw new CalendarError(
@@ -851,7 +887,8 @@ export class CalendarClient {
         }
 
         // Calculate backoff delay
-        const baseDelay = calendarError.retryAfterMs || CALENDAR_BASE_RETRY_DELAY_MS;
+        const baseDelay =
+          calendarError.retryAfterMs || CALENDAR_BASE_RETRY_DELAY_MS;
         const delay = Math.min(
           baseDelay * Math.pow(2, attempt - 1),
           CALENDAR_MAX_RETRY_DELAY_MS
@@ -901,4 +938,3 @@ export function createCalendarClient(
 }
 
 export default CalendarClient;
-

@@ -50,10 +50,10 @@ export async function checkRateLimitAsync(
 /**
  * Check rate limit and consume a specific number of units
  * Use this for operations with variable costs (e.g., API calls with different quota costs)
- * 
+ *
  * This function checks BEFORE consuming to avoid wasting quota on rejected requests.
  * Uses a Lua script for atomic check-and-increment in Redis.
- * 
+ *
  * @param key - The rate limit key (e.g., user ID)
  * @param config - Rate limit configuration
  * @param units - Number of quota units to consume (default: 1)
@@ -110,14 +110,14 @@ export async function checkRateLimitAsyncWithUnits(
         return {allowed, finalCount, ttl}
       `;
 
-      const result = await redis.eval(
+      const result = (await redis.eval(
         luaScript,
         1,
         fullKey,
         safeUnits.toString(),
         config.maxRequests.toString(),
         config.windowMs.toString()
-      ) as [number, number, number];
+      )) as [number, number, number];
 
       const [allowed, count, ttl] = result;
       // count is the current counter value:
@@ -148,15 +148,15 @@ export async function checkRateLimitAsyncWithUnits(
 /**
  * Unconditionally consume quota units (always increments, ignores limit)
  * Use this to track actual API usage that has already occurred.
- * 
+ *
  * Unlike checkRateLimitAsyncWithUnits (which only increments when allowed),
  * this function ALWAYS increments the counter regardless of whether the
  * limit would be exceeded. This is appropriate for:
  * - Tracking API calls that have already happened
  * - Accounting for nested/prefetch operations
- * 
+ *
  * @param key - The rate limit key (e.g., user ID)
- * @param config - Rate limit configuration  
+ * @param config - Rate limit configuration
  * @param units - Number of quota units to consume (default: 1)
  */
 export async function consumeRateLimitAsync(
@@ -230,7 +230,7 @@ export async function peekRateLimitAsync(
 /**
  * Peek at rate limit status for a specific number of units without incrementing
  * Use this to check if a multi-unit operation would be allowed
- * 
+ *
  * @param key - The rate limit key (e.g., user ID)
  * @param config - Rate limit configuration
  * @param units - Number of quota units to check for (default: 1)
@@ -314,7 +314,7 @@ function checkRateLimitMemory(
 
 /**
  * Memory-based rate limiting with unit support (increments counter by units)
- * 
+ *
  * Unlike Redis (which requires atomic increment-then-check), the memory version
  * checks BEFORE incrementing to avoid wasting quota on rejected requests.
  */
@@ -352,7 +352,7 @@ function checkRateLimitMemoryWithUnits(
   // - If rejected: count is unchanged
   // In both cases, remaining = maxRequests - count gives the correct available slots
   const remaining = Math.max(0, config.maxRequests - entry.count);
-  
+
   return {
     allowed: wouldBeAllowed,
     remaining,
@@ -390,7 +390,7 @@ function consumeRateLimitMemory(
 
   const remaining = Math.max(0, config.maxRequests - entry.count);
   const allowed = entry.count <= config.maxRequests;
-  
+
   return {
     allowed,
     remaining,
@@ -401,7 +401,7 @@ function consumeRateLimitMemory(
 
 /**
  * Memory-based rate limit peek with unit support (read-only, no increment)
- * 
+ *
  * Note: `remaining` represents the current available quota (not after hypothetical consumption).
  * The `allowed` field indicates whether the specified units would fit within limits.
  */
@@ -596,5 +596,58 @@ export const RATE_LIMITS = {
     windowMs: 60 * 1000,
     maxRequests: 5,
     keyPrefix: "calendar-connect",
+  } as RateLimitConfig,
+
+  // ─────────────────────────────────────────────────────────────
+  // Kroger Integration Rate Limits
+  // ─────────────────────────────────────────────────────────────
+
+  /** Kroger callback: 10 per minute */
+  krogerCallback: {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    keyPrefix: "kroger-callback",
+  } as RateLimitConfig,
+
+  /** Kroger connection/disconnection: 5 per minute */
+  krogerConnect: {
+    windowMs: 60 * 1000,
+    maxRequests: 5,
+    keyPrefix: "kroger-connect",
+  } as RateLimitConfig,
+
+  /** Kroger store search: 30 per minute */
+  krogerStoreSearch: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "kroger-store-search",
+  } as RateLimitConfig,
+
+  /** Kroger product search: 30 per minute */
+  krogerProductSearch: {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: "kroger-product-search",
+  } as RateLimitConfig,
+
+  /** Kroger cart operations: 20 per minute */
+  krogerCartOperations: {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    keyPrefix: "kroger-cart-operations",
+  } as RateLimitConfig,
+
+  /** Kroger ingredient resolution: 20 per minute */
+  krogerIngredientResolution: {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    keyPrefix: "kroger-ingredient-resolution",
+  } as RateLimitConfig,
+
+  /** Kroger cart builder: 20 per minute */
+  krogerCartBuilder: {
+    windowMs: 60 * 1000,
+    maxRequests: 20,
+    keyPrefix: "kroger-cart-builder",
   } as RateLimitConfig,
 } as const;

@@ -111,16 +111,16 @@ The primary authentication flow using Google OAuth via NextAuth.js.
 
 ### Sign-In Flow Summary
 
-| Step | Component | Action |
-|------|-----------|--------|
-| 1-2 | Browser → App | User clicks "Sign In with Google" |
-| 3-4 | NextAuth | Generates OAuth URL, redirects to Google |
-| 5-6 | Google | User consents to basic permissions |
-| 7 | Google | Redirects back with authorization code |
-| 8-9 | NextAuth | Exchanges code for OAuth tokens |
+| Step  | Component     | Action                                   |
+| ----- | ------------- | ---------------------------------------- |
+| 1-2   | Browser → App | User clicks "Sign In with Google"        |
+| 3-4   | NextAuth      | Generates OAuth URL, redirects to Google |
+| 5-6   | Google        | User consents to basic permissions       |
+| 7     | Google        | Redirects back with authorization code   |
+| 8-9   | NextAuth      | Exchanges code for OAuth tokens          |
 | 10-11 | NextAuth + DB | Creates user, encrypts and stores tokens |
-| 12-13 | NextAuth | Creates JWT session, sets cookie |
-| 14-15 | Middleware | Validates JWT on subsequent requests |
+| 12-13 | NextAuth      | Creates JWT session, sets cookie         |
+| 14-15 | Middleware    | Validates JWT on subsequent requests     |
 
 ---
 
@@ -263,31 +263,31 @@ The flow for connecting Gmail after initial authentication. This upgrades the us
 
 ### Gmail Connection Flow Summary
 
-| Step | Component | Action |
-|------|-----------|--------|
-| 1-2 | Browser → API | User clicks "Connect Gmail", POST to connect endpoint |
-| 3-4 | API | Verify session, check current scopes |
-| 5 | API → Browser | Return `signInRequired: true` + `authorizationParams` |
-| 6-7 | Browser → NextAuth | Call `signIn("google", ...)` with Gmail scopes |
-| 8-9 | Google | User consents to Gmail permissions, redirects back |
-| 10-12 | NextAuth | Verify PKCE, exchange code for tokens |
-| 13 | NextAuth | Encrypt tokens, update Account with merged scopes |
-| 14-15 | NextAuth | Detect Gmail scopes granted, start email sync |
-| 16-17 | Browser | Redirect to settings, confirm connection |
+| Step  | Component          | Action                                                |
+| ----- | ------------------ | ----------------------------------------------------- |
+| 1-2   | Browser → API      | User clicks "Connect Gmail", POST to connect endpoint |
+| 3-4   | API                | Verify session, check current scopes                  |
+| 5     | API → Browser      | Return `signInRequired: true` + `authorizationParams` |
+| 6-7   | Browser → NextAuth | Call `signIn("google", ...)` with Gmail scopes        |
+| 8-9   | Google             | User consents to Gmail permissions, redirects back    |
+| 10-12 | NextAuth           | Verify PKCE, exchange code for tokens                 |
+| 13    | NextAuth           | Encrypt tokens, update Account with merged scopes     |
+| 14-15 | NextAuth           | Detect Gmail scopes granted, start email sync         |
+| 16-17 | Browser            | Redirect to settings, confirm connection              |
 
 ---
 
 ## Key Differences Between Flows
 
-| Aspect | OAuth Sign-In | Gmail Connection |
-|--------|---------------|------------------|
-| **Entry Point** | Login page | Settings page |
-| **Initial State** | Unauthenticated | Already authenticated |
-| **Scopes Requested** | Basic (openid, email, profile) | Gmail + Contacts scopes |
-| **`include_granted_scopes`** | Not needed | `true` (preserves existing scopes) |
-| **Post-Auth Action** | Create user, JWT session | Start Gmail sync jobs |
-| **Redirect Target** | `/chat` (dashboard) | `/settings/integrations/gmail` |
-| **OAuth Initiation** | `signIn("google")` from login page | `signIn("google", {...}, authParams)` from API response |
+| Aspect                       | OAuth Sign-In                      | Gmail Connection                                        |
+| ---------------------------- | ---------------------------------- | ------------------------------------------------------- |
+| **Entry Point**              | Login page                         | Settings page                                           |
+| **Initial State**            | Unauthenticated                    | Already authenticated                                   |
+| **Scopes Requested**         | Basic (openid, email, profile)     | Gmail + Contacts scopes                                 |
+| **`include_granted_scopes`** | Not needed                         | `true` (preserves existing scopes)                      |
+| **Post-Auth Action**         | Create user, JWT session           | Start Gmail sync jobs                                   |
+| **Redirect Target**          | `/chat` (dashboard)                | `/settings/integrations/gmail`                          |
+| **OAuth Initiation**         | `signIn("google")` from login page | `signIn("google", {...}, authParams)` from API response |
 
 **Note:** Both flows use NextAuth.js's `signIn()` function to ensure proper PKCE handling. The Gmail connection flow receives authorization parameters from the API, then uses the client-side `signIn()` to initiate OAuth.
 
@@ -298,11 +298,13 @@ The flow for connecting Gmail after initial authentication. This upgrades the us
 Both flows use NextAuth.js's built-in `state` parameter handling for security:
 
 ### Sign-In Flow State
+
 - Managed by NextAuth internally
 - Contains CSRF protection token
 - Includes `callbackUrl` for post-auth redirect
 
 ### Gmail Connection Flow State
+
 - Also managed by NextAuth internally (via `signIn()` function)
 - Contains CSRF protection token and PKCE code verifier
 - `callbackUrl` passed as parameter to `signIn()` for post-auth redirect
@@ -314,6 +316,7 @@ Both flows use NextAuth.js's built-in `state` parameter handling for security:
 ## Error Handling Flows
 
 ### Sign-In Error Flow
+
 ```
 User → Google → Denies Access
                      ↓
@@ -325,6 +328,7 @@ User → Google → Denies Access
 ```
 
 ### Gmail Connection Error Flow
+
 ```
 User → Google → Denies Access
                      ↓
@@ -344,4 +348,3 @@ User → Google → Denies Access
 - [AUTH_SECURITY.md](./AUTH_SECURITY.md) - Detailed authentication configuration
 - [INTEGRATIONS.md](./INTEGRATIONS.md) - Integration architecture
 - [services/GMAIL_SERVICE.md](./services/GMAIL_SERVICE.md) - Gmail sync details
-

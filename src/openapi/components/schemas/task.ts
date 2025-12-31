@@ -36,9 +36,12 @@ export const TaskCreateSchema = z
       .openapi({
         description: "Task status",
       }),
-    priority: z.enum(["low", "medium", "high", "urgent"]).default("medium").openapi({
-      description: "Task priority",
-    }),
+    priority: z
+      .enum(["low", "medium", "high", "urgent"])
+      .default("medium")
+      .openapi({
+        description: "Task priority",
+      }),
     dueDate: z.string().datetime().optional().nullable().openapi({
       description: "Due date (ISO 8601)",
       example: "2024-01-20T17:00:00Z",
@@ -46,10 +49,16 @@ export const TaskCreateSchema = z
     startDate: z.string().datetime().optional().nullable().openapi({
       description: "Start date (ISO 8601)",
     }),
-    estimatedMinutes: z.coerce.number().int().positive().optional().nullable().openapi({
-      description: "Estimated time in minutes",
-      example: 60,
-    }),
+    estimatedMinutes: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .nullable()
+      .openapi({
+        description: "Estimated time in minutes",
+        example: 60,
+      }),
     notes: z.string().optional().nullable().openapi({
       description: "Private notes",
     }),
@@ -72,7 +81,9 @@ export const TaskUpdateSchema = z
     title: z.string().min(1).max(500).optional(),
     description: z.string().optional().nullable(),
     parentId: z.string().optional().nullable(),
-    status: z.enum(["pending", "in_progress", "completed", "cancelled", "deferred"]).optional(),
+    status: z
+      .enum(["pending", "in_progress", "completed", "cancelled", "deferred"])
+      .optional(),
     priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
     dueDate: z.string().datetime().optional().nullable(),
     startDate: z.string().datetime().optional().nullable(),
@@ -98,7 +109,13 @@ export const TaskSchema = BaseEntitySchema.merge(SoftDeleteSchema)
     title: z.string(),
     description: z.string().nullable(),
     parentId: z.string().nullable(),
-    status: z.enum(["pending", "in_progress", "completed", "cancelled", "deferred"]),
+    status: z.enum([
+      "pending",
+      "in_progress",
+      "completed",
+      "cancelled",
+      "deferred",
+    ]),
     priority: z.enum(["low", "medium", "high", "urgent"]),
     dueDate: z.string().datetime().nullable(),
     startDate: z.string().datetime().nullable(),
@@ -152,4 +169,3 @@ export const TaskListQuerySchema = z
 // ─────────────────────────────────────────────────────────────
 
 export const PaginatedTasksSchema = createPaginatedSchema(TaskSchema, "Tasks");
-

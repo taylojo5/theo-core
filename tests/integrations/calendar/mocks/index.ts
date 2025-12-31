@@ -37,5 +37,3 @@ export type {
   CreateDbApprovalOptions,
   CreateDbSyncStateOptions,
 } from "./mock-factories";
-
-

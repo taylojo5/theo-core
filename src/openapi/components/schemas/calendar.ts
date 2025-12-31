@@ -335,4 +335,3 @@ export const CalendarApprovalResultSchema = z
       .optional(),
   })
   .openapi("CalendarApprovalResult");
-

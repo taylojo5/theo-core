@@ -32,7 +32,7 @@ const SAME_TIME_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Detect scheduling conflicts for a proposed event time
- * 
+ *
  * @param userId - User ID to check conflicts for
  * @param start - Proposed start time
  * @param end - Proposed end time
@@ -91,7 +91,7 @@ export async function detectConflicts(
 
       // Determine conflict type and severity
       const conflictInfo = analyzeConflict(event, start, end, bufferMinutes);
-      
+
       if (conflictInfo) {
         conflicts.push(conflictInfo);
       }
@@ -105,7 +105,8 @@ export async function detectConflicts(
     // Sort by severity (high first) then by start time
     conflicts.sort((a, b) => {
       const severityOrder = { high: 0, medium: 1, low: 2 };
-      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      const severityDiff =
+        severityOrder[a.severity] - severityOrder[b.severity];
       if (severityDiff !== 0) return severityDiff;
       return a.startsAt.getTime() - b.startsAt.getTime();
     });
@@ -136,7 +137,7 @@ export async function hasHighSeverityConflicts(
     ...options,
     maxConflicts: 1,
   });
-  return conflicts.some(c => c.severity === "high");
+  return conflicts.some((c) => c.severity === "high");
 }
 
 /**
@@ -147,17 +148,19 @@ export function summarizeConflicts(conflicts: ConflictInfo[]): string {
     return "No conflicts detected.";
   }
 
-  const highCount = conflicts.filter(c => c.severity === "high").length;
-  const mediumCount = conflicts.filter(c => c.severity === "medium").length;
-  const lowCount = conflicts.filter(c => c.severity === "low").length;
+  const highCount = conflicts.filter((c) => c.severity === "high").length;
+  const mediumCount = conflicts.filter((c) => c.severity === "medium").length;
+  const lowCount = conflicts.filter((c) => c.severity === "low").length;
 
   const parts: string[] = [];
-  
+
   if (highCount > 0) {
     parts.push(`${highCount} overlapping event${highCount > 1 ? "s" : ""}`);
   }
   if (mediumCount > 0) {
-    parts.push(`${mediumCount} back-to-back event${mediumCount > 1 ? "s" : ""}`);
+    parts.push(
+      `${mediumCount} back-to-back event${mediumCount > 1 ? "s" : ""}`
+    );
   }
   if (lowCount > 0) {
     parts.push(`${lowCount} potential conflict${lowCount > 1 ? "s" : ""}`);
@@ -186,16 +189,18 @@ function analyzeConflict(
   const hasOverlap = eventStart < proposedEnd && eventEnd > proposedStart;
 
   // Check for same-time start
-  const isSameTime = Math.abs(eventStart.getTime() - proposedStart.getTime()) < SAME_TIME_THRESHOLD_MS;
+  const isSameTime =
+    Math.abs(eventStart.getTime() - proposedStart.getTime()) <
+    SAME_TIME_THRESHOLD_MS;
 
   // Check for back-to-back (within buffer time)
   const bufferMs = bufferMinutes * 60 * 1000;
-  const isBackToBack = !hasOverlap && (
-    (eventEnd.getTime() >= proposedStart.getTime() - bufferMs && 
-     eventEnd.getTime() <= proposedStart.getTime()) ||
-    (proposedEnd.getTime() >= eventStart.getTime() - bufferMs && 
-     proposedEnd.getTime() <= eventStart.getTime())
-  );
+  const isBackToBack =
+    !hasOverlap &&
+    ((eventEnd.getTime() >= proposedStart.getTime() - bufferMs &&
+      eventEnd.getTime() <= proposedStart.getTime()) ||
+      (proposedEnd.getTime() >= eventStart.getTime() - bufferMs &&
+        proposedEnd.getTime() <= eventStart.getTime()));
 
   // Determine conflict type and severity
   let conflictType: ConflictType;
@@ -244,10 +249,10 @@ export function formatConflictForDisplay(conflict: ConflictInfo): string {
     hour12: true,
   };
 
-  const startTime = conflict.allDay 
-    ? "All day" 
+  const startTime = conflict.allDay
+    ? "All day"
     : conflict.startsAt.toLocaleTimeString("en-US", timeFormat);
-  
+
   const endTime = conflict.allDay
     ? ""
     : ` - ${conflict.endsAt.toLocaleTimeString("en-US", timeFormat)}`;
@@ -269,6 +274,5 @@ export function formatConflictForDisplay(conflict: ConflictInfo): string {
 export function shouldBlockAction(conflicts: ConflictInfo[]): boolean {
   // Only block if there are high-severity conflicts
   // Medium and low severity are warnings only
-  return conflicts.some(c => c.severity === "high");
+  return conflicts.some((c) => c.severity === "high");
 }
-

@@ -56,4 +56,3 @@ export type {
   ListRelationshipsOptions,
   RelatedEntity,
 } from "./types";
-

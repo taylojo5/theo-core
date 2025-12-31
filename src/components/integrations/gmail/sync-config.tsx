@@ -101,7 +101,7 @@ export function SyncConfigPanel({
     if (!editedConfig.syncLabels || editedConfig.syncLabels.length === 0) {
       return; // Button should be disabled anyway
     }
-    
+
     setIsSaving(true);
     try {
       await onSave(editedConfig);
@@ -153,7 +153,13 @@ export function SyncConfigPanel({
   }
 
   return (
-    <Card className={cn("relative", isSetupMode && "ring-2 ring-blue-500 ring-offset-2", className)}>
+    <Card
+      className={cn(
+        "relative",
+        isSetupMode && "ring-2 ring-blue-500 ring-offset-2",
+        className
+      )}
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -167,7 +173,7 @@ export function SyncConfigPanel({
               )}
             </CardTitle>
             <CardDescription>
-              {isSetupMode 
+              {isSetupMode
                 ? "Select which email labels you want to sync. Only emails with these labels will be imported."
                 : "Customize which emails are synced"}
             </CardDescription>
@@ -271,10 +277,11 @@ export function SyncConfigPanel({
                     <span className="text-destructive ml-1">*</span>
                   </label>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    Only emails with selected labels will be synced. Select at least one label.
+                    Only emails with selected labels will be synced. Select at
+                    least one label.
                   </p>
                 </div>
-                
+
                 {/* Show validation message if no labels selected in edit mode */}
                 {isEditing && (editedConfig.syncLabels?.length ?? 0) === 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
@@ -284,7 +291,7 @@ export function SyncConfigPanel({
                     </p>
                   </div>
                 )}
-                
+
                 <div className="flex flex-wrap gap-1.5">
                   {labels.slice(0, 20).map((label) => {
                     const isSelected = (editedConfig.syncLabels || []).includes(
@@ -299,9 +306,7 @@ export function SyncConfigPanel({
                           isEditing && !isSelected && "hover:bg-primary/20",
                           isEditing && isSelected && "hover:bg-primary/80"
                         )}
-                        onClick={() =>
-                          isEditing && toggleLabel(label.gmailId)
-                        }
+                        onClick={() => isEditing && toggleLabel(label.gmailId)}
                       >
                         {label.name}
                         {label.messageCount > 0 && (
@@ -326,7 +331,8 @@ export function SyncConfigPanel({
                 )}
                 {!isEditing && (editedConfig.syncLabels?.length || 0) > 0 && (
                   <p className="text-muted-foreground text-xs">
-                    Syncing {editedConfig.syncLabels?.length} label{editedConfig.syncLabels?.length === 1 ? "" : "s"}
+                    Syncing {editedConfig.syncLabels?.length} label
+                    {editedConfig.syncLabels?.length === 1 ? "" : "s"}
                   </p>
                 )}
               </div>
@@ -344,8 +350,8 @@ export function SyncConfigPanel({
                     Cancel
                   </Button>
                 )}
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={isSaving || !canSave}
                   className={isSetupMode ? "w-full sm:w-auto" : ""}
                 >

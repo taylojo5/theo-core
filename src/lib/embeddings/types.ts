@@ -285,4 +285,3 @@ export interface IEmbeddingService {
     content: string
   ): Promise<boolean>;
 }
-

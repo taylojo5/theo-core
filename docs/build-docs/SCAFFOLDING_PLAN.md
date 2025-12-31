@@ -489,6 +489,7 @@ export class GmailSyncWorker {
 ### 5.2 Tool System
 
 Core tools across categories:
+
 - **Query**: `query_context`, `search_emails`, `list_calendar_events`, `check_availability`
 - **Action**: `create_task`, `update_task`, `send_email`, `create_calendar_event`
 - **External**: Integration-specific tools with approval requirements
@@ -578,12 +579,12 @@ Core tools across categories:
 
 ### 7.2 Question Types
 
-| Type | Description |
-| --- | --- |
-| Disambiguation | Multiple interpretations possible |
+| Type                | Description                               |
+| ------------------- | ----------------------------------------- |
+| Disambiguation      | Multiple interpretations possible         |
 | Preference Proposal | Theo infers a preference, asks to confirm |
-| Reconfirmation | Outdated memory needs refresh |
-| Missing Context | Cannot proceed without information |
+| Reconfirmation      | Outdated memory needs refresh             |
+| Missing Context     | Cannot proceed without information        |
 
 ### 7.3 UX Patterns
 
@@ -742,12 +743,12 @@ Unlike Kroger (API-based), Walmart requires **browser automation** because they 
 
 ### 10.3 Key Differences from Kroger
 
-| Aspect | Kroger (Phase 9) | Walmart (Phase 10) |
-| --- | --- | --- |
-| Type | API-based | Browser automation |
-| Auth | OAuth | Cookie/session |
-| Reliability | High | Best-effort |
-| Maintenance | Stable | Selector updates needed |
+| Aspect      | Kroger (Phase 9) | Walmart (Phase 10)      |
+| ----------- | ---------------- | ----------------------- |
+| Type        | API-based        | Browser automation      |
+| Auth        | OAuth            | Cookie/session          |
+| Reliability | High             | Best-effort             |
+| Maintenance | Stable           | Selector updates needed |
 
 ### Deliverables
 
@@ -791,13 +792,13 @@ Enable users to communicate with Theo via SMS, and allow Theo to proactively rea
 
 ### 11.2 Key Features
 
-| Feature | Description |
-| --- | --- |
-| Inbound SMS | User texts Theo, gets response |
+| Feature                 | Description                                   |
+| ----------------------- | --------------------------------------------- |
+| Inbound SMS             | User texts Theo, gets response                |
 | Proactive notifications | Calendar reminders, urgent emails, cart ready |
-| Confirmation workflow | YES/NO replies for approvals |
-| Quiet hours | Respect user's do-not-disturb times |
-| System commands | STOP, HELP, YES, NO handling |
+| Confirmation workflow   | YES/NO replies for approvals                  |
+| Quiet hours             | Respect user's do-not-disturb times           |
+| System commands         | STOP, HELP, YES, NO handling                  |
 
 ### 11.3 Notification Categories
 
@@ -898,7 +899,7 @@ Enable users to communicate with Theo via SMS, and allow Theo to proactively rea
 - [ ] Memory system with proposal workflow
 - [ ] Continuous learning with Open Questions
 - [ ] Full audit trail visible to user
-- [ ] >80% of relevant actions cite memory items
+- [ ] > 80% of relevant actions cite memory items
 - [ ] <10% of memories require correction on confirm
 
 ### Full Integration MVP (End of Phase 11)

@@ -178,7 +178,9 @@ async function processBulkEntityEmbedding(
     }
 
     if (i < entityIds.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+      await new Promise((resolve) =>
+        setTimeout(resolve, EMBEDDING_THROTTLE_MS)
+      );
     }
   }
 }
@@ -258,7 +260,11 @@ async function processCalendarEventEmbedding(
   if (operation === "delete") {
     try {
       const embeddingService = getEmbeddingService();
-      await embeddingService.deleteEmbeddings(userId, "calendar_event", eventId);
+      await embeddingService.deleteEmbeddings(
+        userId,
+        "calendar_event",
+        eventId
+      );
     } catch (err) {
       console.error(
         `[EmbeddingWorker] Failed to delete calendar event embedding:`,
@@ -313,7 +319,7 @@ async function processCalendarEventEmbedding(
     );
     const errorMessage = err instanceof Error ? err.message : String(err);
     await markEventEmbeddingFailed(eventId, errorMessage);
-    
+
     // Still try to update stats
     try {
       await updateCalendarEmbeddingStatsInSyncState(userId);
@@ -387,7 +393,9 @@ async function processBulkCalendarEventEmbedding(
     }
 
     if (i < eventIds.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+      await new Promise((resolve) =>
+        setTimeout(resolve, EMBEDDING_THROTTLE_MS)
+      );
     }
   }
 

@@ -31,7 +31,7 @@ export function DashboardHeader({
   return (
     <header
       className={cn(
-        "flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "bg-background/95 supports-[backdrop-filter]:bg-background/60 flex h-14 items-center justify-between border-b px-4 backdrop-blur",
         className
       )}
     >
@@ -81,4 +81,3 @@ export function DashboardHeader({
     </header>
   );
 }
-

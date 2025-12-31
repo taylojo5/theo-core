@@ -59,4 +59,3 @@ export {
   getEventsByPlace,
   upsertEventsFromSource,
 } from "./events-service";
-

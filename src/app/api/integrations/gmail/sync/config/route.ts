@@ -98,13 +98,19 @@ export async function GET(
         if (syncState.syncStatus !== "syncing") {
           await triggerMetadataSync(userId);
           metadataSyncing = true;
-          apiLogger.info("Triggered metadata sync from config endpoint", { userId });
+          apiLogger.info("Triggered metadata sync from config endpoint", {
+            userId,
+          });
         } else {
           // Sync is already in progress
           metadataSyncing = true;
         }
       } catch (syncError) {
-        apiLogger.error("Failed to trigger metadata sync", { userId }, syncError);
+        apiLogger.error(
+          "Failed to trigger metadata sync",
+          { userId },
+          syncError
+        );
         // Don't fail the request - just log and continue
       }
     }
@@ -133,7 +139,11 @@ export async function GET(
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    apiLogger.error("Failed to get sync config", { userId, errorMessage }, error);
+    apiLogger.error(
+      "Failed to get sync config",
+      { userId, errorMessage },
+      error
+    );
 
     return NextResponse.json(
       {
@@ -314,4 +324,3 @@ export async function PUT(
     );
   }
 }
-

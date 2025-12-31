@@ -11,15 +11,16 @@ declare global {
   var bullmqRedis: Redis | undefined;
 }
 
-const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const redisCacheUrl = process.env.REDIS_CACHE_URL || process.env.REDIS_URL || "redis://localhost:6381";
+const redisBullmqUrl = process.env.REDIS_BULLMQ_URL || "redis://localhost:6380";
 
 /**
- * Create Redis client with optimized settings
+ * Create Redis client with optimized settings (for caching, rate limiting, sessions)
  */
 function createRedisClient(): Redis {
-  const client = new Redis(redisUrl, {
+  const client = new Redis(redisCacheUrl, {
     maxRetriesPerRequest: 3,
-    lazyConnect: true,
+    lazyConnect: false,
     retryStrategy(times) {
       // Exponential backoff with max 30 seconds
       const delay = Math.min(times * 100, 30000);
@@ -48,11 +49,11 @@ function createRedisClient(): Redis {
 }
 
 /**
- * Create Redis client for BullMQ
+ * Create Redis client for BullMQ (job queues)
  * BullMQ requires maxRetriesPerRequest: null because it handles retries internally
  */
 function createBullMQRedisClient(): Redis {
-  const client = new Redis(redisUrl, {
+  const client = new Redis(redisBullmqUrl, {
     maxRetriesPerRequest: null, // Required by BullMQ
     lazyConnect: true,
     retryStrategy(times) {
@@ -78,10 +79,10 @@ function createBullMQRedisClient(): Redis {
 }
 
 // Export singleton instances
-export const redis = globalThis.redis ?? createRedisClient();
+export const redis = createRedisClient();
 
 /** Redis client configured for BullMQ (maxRetriesPerRequest: null) */
-export const bullmqRedis = globalThis.bullmqRedis ?? createBullMQRedisClient();
+export const bullmqRedis = createBullMQRedisClient();
 
 // Preserve instances across hot reloads in development
 if (process.env.NODE_ENV !== "production") {
@@ -97,21 +98,40 @@ let connectionPromise: Promise<void> | null = null;
 
 /**
  * Ensure Redis is connected before performing operations
+ * Waits for the 'ready' state, not just 'connect'
  */
 export async function ensureRedisConnection(): Promise<void> {
   if (redis.status === "ready") return;
 
   if (!connectionPromise) {
-    connectionPromise = redis
-      .connect()
-      .then(() => {
-        console.log("[Redis] Connection established");
-      })
-      .catch((err) => {
-        console.error("[Redis] Connection failed:", err.message);
-        connectionPromise = null;
-        throw err;
-      });
+    connectionPromise = new Promise<void>((resolve, reject) => {
+      // If already connecting, wait for ready event
+      if (redis.status === "connect" || redis.status === "connecting") {
+        const onReady = () => {
+          redis.off("error", onError);
+          resolve();
+        };
+        const onError = (err: Error) => {
+          redis.off("ready", onReady);
+          connectionPromise = null;
+          reject(err);
+        };
+        redis.once("ready", onReady);
+        redis.once("error", onError);
+      } else if (redis.status === "wait") {
+        // Not connected yet, initiate connection
+        redis
+          .connect()
+          .then(() => resolve())
+          .catch((err) => {
+            connectionPromise = null;
+            reject(err);
+          });
+      } else {
+        // Already ready or reconnecting
+        resolve();
+      }
+    });
   }
 
   return connectionPromise;
@@ -148,5 +168,7 @@ export async function closeRedisConnection(): Promise<void> {
  * Check if Redis is available (non-blocking)
  */
 export function isRedisConnected(): boolean {
+  console.log("[Redis] Connection status:", redis.status);
+  console.log("[Redis] Connection ready:", redis.status === "ready");
   return redis.status === "ready";
 }

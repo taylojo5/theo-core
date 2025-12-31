@@ -38,14 +38,17 @@ export const LimitParam = z.coerce
     example: 20,
   });
 
-export const CursorParam = z.string().optional().openapi({
-  param: {
-    name: "cursor",
-    in: "query",
-  },
-  description: "Pagination cursor from previous response",
-  example: "clx9876543210fedcba",
-});
+export const CursorParam = z
+  .string()
+  .optional()
+  .openapi({
+    param: {
+      name: "cursor",
+      in: "query",
+    },
+    description: "Pagination cursor from previous response",
+    example: "clx9876543210fedcba",
+  });
 
 export const OffsetParam = z.coerce
   .number()
@@ -65,23 +68,29 @@ export const OffsetParam = z.coerce
 // Filter Parameters
 // ─────────────────────────────────────────────────────────────
 
-export const SearchParam = z.string().optional().openapi({
-  param: {
-    name: "search",
-    in: "query",
-  },
-  description: "Text search query",
-  example: "john",
-});
+export const SearchParam = z
+  .string()
+  .optional()
+  .openapi({
+    param: {
+      name: "search",
+      in: "query",
+    },
+    description: "Text search query",
+    example: "john",
+  });
 
-export const TagsParam = z.string().optional().openapi({
-  param: {
-    name: "tags",
-    in: "query",
-  },
-  description: "Comma-separated list of tags to filter by",
-  example: "work,important",
-});
+export const TagsParam = z
+  .string()
+  .optional()
+  .openapi({
+    param: {
+      name: "tags",
+      in: "query",
+    },
+    description: "Comma-separated list of tags to filter by",
+    example: "work,important",
+  });
 
 export const IncludeDeletedParam = z
   .string()
@@ -112,23 +121,31 @@ export const SourceParam = z
 // Date Range Parameters
 // ─────────────────────────────────────────────────────────────
 
-export const StartDateParam = z.string().datetime().optional().openapi({
-  param: {
-    name: "startDate",
-    in: "query",
-  },
-  description: "Filter by start date (ISO 8601)",
-  example: "2024-01-01T00:00:00Z",
-});
+export const StartDateParam = z
+  .string()
+  .datetime()
+  .optional()
+  .openapi({
+    param: {
+      name: "startDate",
+      in: "query",
+    },
+    description: "Filter by start date (ISO 8601)",
+    example: "2024-01-01T00:00:00Z",
+  });
 
-export const EndDateParam = z.string().datetime().optional().openapi({
-  param: {
-    name: "endDate",
-    in: "query",
-  },
-  description: "Filter by end date (ISO 8601)",
-  example: "2024-12-31T23:59:59Z",
-});
+export const EndDateParam = z
+  .string()
+  .datetime()
+  .optional()
+  .openapi({
+    param: {
+      name: "endDate",
+      in: "query",
+    },
+    description: "Filter by end date (ISO 8601)",
+    example: "2024-12-31T23:59:59Z",
+  });
 
 // ─────────────────────────────────────────────────────────────
 // Search Parameters

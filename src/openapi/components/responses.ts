@@ -14,14 +14,23 @@ export function registerCommonResponses(registry: OpenAPIRegistry) {
   const errorSchema = {
     type: "object" as const,
     properties: {
-      error: { type: "string" as const, description: "Human-readable error message" },
-      code: { type: "string" as const, description: "Machine-readable error code" },
+      error: {
+        type: "string" as const,
+        description: "Human-readable error message",
+      },
+      code: {
+        type: "string" as const,
+        description: "Machine-readable error code",
+      },
       details: {
         type: "array" as const,
         items: {
           type: "object" as const,
           properties: {
-            path: { type: "array" as const, items: { type: "string" as const } },
+            path: {
+              type: "array" as const,
+              items: { type: "string" as const },
+            },
             message: { type: "string" as const },
           },
         },

@@ -3,7 +3,10 @@
 // Generates the complete OpenAPI 3.1 specification for Theo API
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { OpenAPIRegistry, OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
+import {
+  OpenAPIRegistry,
+  OpenApiGeneratorV31,
+} from "@asteasolutions/zod-to-openapi";
 import { registerSecuritySchemes } from "./components/security";
 import { registerCommonResponses } from "./components/responses";
 import {
@@ -134,7 +137,8 @@ Errors return a consistent JSON structure:
       },
       {
         name: "Context - People",
-        description: "Manage people and contacts in your personal knowledge graph",
+        description:
+          "Manage people and contacts in your personal knowledge graph",
       },
       {
         name: "Context - Places",

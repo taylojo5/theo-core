@@ -39,7 +39,11 @@ import {
   upsertPlacesFromSource,
   PlacesServiceError,
 } from "@/services/context/places";
-import type { CreatePlaceInput, UpdatePlaceInput, Place } from "@/services/context/places";
+import type {
+  CreatePlaceInput,
+  UpdatePlaceInput,
+  Place,
+} from "@/services/context/places";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -177,12 +181,20 @@ describe("createPlace", () => {
   it("handles duplicate sourceId constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "source", "sourceId"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "source", "sourceId"] },
+      }
     );
     vi.mocked(db.place.create).mockRejectedValue(prismaError);
 
     await expect(
-      createPlace(mockUserId, { ...mockCreateInput, source: "calendar", sourceId: "123" })
+      createPlace(mockUserId, {
+        ...mockCreateInput,
+        source: "calendar",
+        sourceId: "123",
+      })
     ).rejects.toMatchObject({
       code: "DUPLICATE_SOURCE_ID",
     });
@@ -339,7 +351,10 @@ describe("restorePlace", () => {
   it("restores soft-deleted place", async () => {
     const deletedPlace = { ...mockPlace, deletedAt: new Date() };
     vi.mocked(db.place.findFirst).mockResolvedValue(deletedPlace);
-    vi.mocked(db.place.update).mockResolvedValue({ ...mockPlace, deletedAt: null });
+    vi.mocked(db.place.update).mockResolvedValue({
+      ...mockPlace,
+      deletedAt: null,
+    });
 
     const result = await restorePlace(mockUserId, mockPlaceId);
 
@@ -353,9 +368,11 @@ describe("restorePlace", () => {
   it("throws error when deleted place not found", async () => {
     vi.mocked(db.place.findFirst).mockResolvedValue(null);
 
-    await expect(restorePlace(mockUserId, "nonexistent")).rejects.toMatchObject({
-      code: "PLACE_NOT_FOUND",
-    });
+    await expect(restorePlace(mockUserId, "nonexistent")).rejects.toMatchObject(
+      {
+        code: "PLACE_NOT_FOUND",
+      }
+    );
   });
 });
 
@@ -477,7 +494,11 @@ describe("findPlaceBySource", () => {
   });
 
   it("finds place by source and sourceId", async () => {
-    const calendarPlace = { ...mockPlace, source: "calendar", sourceId: "cal-123" };
+    const calendarPlace = {
+      ...mockPlace,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.place.findFirst).mockResolvedValue(calendarPlace);
 
     const result = await findPlaceBySource(mockUserId, "calendar", "cal-123");
@@ -618,9 +639,16 @@ describe("upsertPlacesFromSource", () => {
   });
 
   it("updates existing places when data changed", async () => {
-    const existingPlace = { ...mockPlace, source: "calendar", sourceId: "cal-123" };
+    const existingPlace = {
+      ...mockPlace,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.place.findFirst).mockResolvedValue(existingPlace);
-    vi.mocked(db.place.update).mockResolvedValue({ ...existingPlace, name: "New Office" });
+    vi.mocked(db.place.update).mockResolvedValue({
+      ...existingPlace,
+      name: "New Office",
+    });
 
     const result = await upsertPlacesFromSource(mockUserId, "calendar", [
       {
@@ -679,4 +707,3 @@ describe("PlacesServiceError", () => {
     expect(error.details).toEqual({ latitude: 100 });
   });
 });
-

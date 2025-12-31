@@ -42,7 +42,11 @@ export async function createMessage(
     }
 
     // Auto-generate title from first user message if not set
-    if (!conversation.title && input.role === "user" && conversation.messages.length === 0) {
+    if (
+      !conversation.title &&
+      input.role === "user" &&
+      conversation.messages.length === 0
+    ) {
       const title = generateTitleFromContent(input.content);
       await updateConversation(
         input.conversationId,
@@ -231,4 +235,3 @@ function truncateContent(content: string, maxLength: number = 200): string {
   }
   return content.slice(0, maxLength) + "...";
 }
-

@@ -22,13 +22,13 @@ Learning happens through **Open Questions** — small, well-timed prompts that c
 
 ## Guiding Principles
 
-| Principle | Description |
-| --- | --- |
-| **Continuous** | Learning is ongoing, not front-loaded during onboarding |
-| **Respectful** | User attention is scarce — ask only what matters |
-| **Valuable** | Every question has a clear payoff |
-| **Explicit** | Memory is inspectable and reversible; never silent assumptions |
-| **Skippable** | All questions can be snoozed, dismissed, or ignored |
+| Principle      | Description                                                    |
+| -------------- | -------------------------------------------------------------- |
+| **Continuous** | Learning is ongoing, not front-loaded during onboarding        |
+| **Respectful** | User attention is scarce — ask only what matters               |
+| **Valuable**   | Every question has a clear payoff                              |
+| **Explicit**   | Memory is inspectable and reversible; never silent assumptions |
+| **Skippable**  | All questions can be snoozed, dismissed, or ignored            |
 
 ---
 
@@ -75,12 +75,12 @@ An `OpenQuestion` is a pending clarification or confirmation that Theo wants ans
 
 **Question Types:**
 
-| Type | Description | Urgency |
-| --- | --- | --- |
-| `disambiguation` | Multiple options, need user choice | Often blocking |
-| `preference_proposal` | Theo noticed a pattern, wants to save it | Non-blocking |
-| `reconfirm` | Stale memory needs validation | Non-blocking |
-| `missing_context` | Can't proceed without info | Blocking |
+| Type                  | Description                              | Urgency        |
+| --------------------- | ---------------------------------------- | -------------- |
+| `disambiguation`      | Multiple options, need user choice       | Often blocking |
+| `preference_proposal` | Theo noticed a pattern, wants to save it | Non-blocking   |
+| `reconfirm`           | Stale memory needs validation            | Non-blocking   |
+| `missing_context`     | Can't proceed without info               | Blocking       |
 
 **Question States:**
 
@@ -97,6 +97,7 @@ open → asked → answered
 Continuously observes system behavior to identify learning opportunities.
 
 **Inputs:**
+
 - User edits, overrides, rejections
 - Acceptance or dismissal of suggestions
 - Confidence scores from decision-making
@@ -105,6 +106,7 @@ Continuously observes system behavior to identify learning opportunities.
 - Integration errors (out-of-stock, ambiguity)
 
 **Outputs:**
+
 - New `OpenQuestion`
 - Memory proposal (via Phase 9)
 - Reconfirmation request
@@ -114,6 +116,7 @@ Continuously observes system behavior to identify learning opportunities.
 A persistent queue of unresolved Open Questions.
 
 **Responsibilities:**
+
 - Store all open questions with metadata
 - Track status and resolution history
 - Support priority-based retrieval
@@ -124,16 +127,19 @@ A persistent queue of unresolved Open Questions.
 Controls the timing and delivery of questions.
 
 **Timing Rules:**
+
 - Ask immediately only if blocking progress
 - Defer non-urgent questions to low-friction moments
 - Batch related questions when possible
 
 **Throttling Rules:**
+
 - Max 1 non-urgent question per session
 - Max 1-2 questions per day (unless user opts in)
 - Respect "snooze" and "ask later"
 
 **Delivery Channels:**
+
 - In-chat (default)
 - Email digest (weekly check-in)
 - Slack DM (future)
@@ -144,6 +150,7 @@ Controls the timing and delivery of questions.
 Converts user responses into concrete system updates.
 
 **Possible Outcomes:**
+
 - Create/update hard memory (Phase 9)
 - Create/update soft memory (Phase 9)
 - Save product/service mappings
@@ -156,10 +163,12 @@ Converts user responses into concrete system updates.
 Keeps memory accurate over time through promotion and decay.
 
 **Promotion (Soft → Hard):**
+
 - Requires explicit confirmation, OR
 - Repeated acceptance (3+) followed by confirmation prompt
 
 **Decay (Staleness):**
+
 - Hard memory flagged after configurable time period
 - Behavior drift triggers reconfirmation
 - Contradictory actions create `reconfirm` questions
@@ -170,35 +179,35 @@ Keeps memory accurate over time through promotion and decay.
 
 ### OpenQuestion
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | Owner |
-| type | enum | `disambiguation`, `preference_proposal`, `reconfirm`, `missing_context` |
-| domain | string | Food, schedule, shopping, etc. |
-| prompt | string | User-facing question text |
-| context | json | Evidence, options, defaults |
-| priority | number | 0-100, computed score |
-| urgency | enum | `blocking`, `non_blocking` |
-| status | enum | `open`, `asked`, `snoozed`, `answered`, `dismissed`, `expired` |
-| sourceEventId | string | What triggered this question |
-| memoryItemId | string? | Related memory (if reconfirm) |
-| expiresAt | datetime? | Auto-expire if not answered |
-| createdAt | datetime | |
-| askedAt | datetime? | When presented to user |
-| answeredAt | datetime? | When resolved |
+| Field         | Type      | Description                                                             |
+| ------------- | --------- | ----------------------------------------------------------------------- |
+| id            | string    | Unique identifier                                                       |
+| userId        | string    | Owner                                                                   |
+| type          | enum      | `disambiguation`, `preference_proposal`, `reconfirm`, `missing_context` |
+| domain        | string    | Food, schedule, shopping, etc.                                          |
+| prompt        | string    | User-facing question text                                               |
+| context       | json      | Evidence, options, defaults                                             |
+| priority      | number    | 0-100, computed score                                                   |
+| urgency       | enum      | `blocking`, `non_blocking`                                              |
+| status        | enum      | `open`, `asked`, `snoozed`, `answered`, `dismissed`, `expired`          |
+| sourceEventId | string    | What triggered this question                                            |
+| memoryItemId  | string?   | Related memory (if reconfirm)                                           |
+| expiresAt     | datetime? | Auto-expire if not answered                                             |
+| createdAt     | datetime  |                                                                         |
+| askedAt       | datetime? | When presented to user                                                  |
+| answeredAt    | datetime? | When resolved                                                           |
 
 ### LearningEvent (Audit Trail)
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | Owner |
-| eventType | enum | `override`, `reject`, `accept`, `skip`, `pattern_detected`, `stale_memory` |
-| domain | string | Affected domain |
-| payload | json | Event-specific data |
-| questionId | string? | Related question if any |
-| createdAt | datetime | |
+| Field      | Type     | Description                                                                |
+| ---------- | -------- | -------------------------------------------------------------------------- |
+| id         | string   | Unique identifier                                                          |
+| userId     | string   | Owner                                                                      |
+| eventType  | enum     | `override`, `reject`, `accept`, `skip`, `pattern_detected`, `stale_memory` |
+| domain     | string   | Affected domain                                                            |
+| payload    | json     | Event-specific data                                                        |
+| questionId | string?  | Related question if any                                                    |
+| createdAt  | datetime |                                                                            |
 
 ---
 
@@ -255,6 +264,7 @@ Keeps memory accurate over time through promotion and decay.
 A low-friction summary designed to avoid annoyance.
 
 **Characteristics:**
+
 - 1-3 highest-value questions only
 - Mix of reconfirmations and proposals
 - Fully skippable ("I'll handle these later")
@@ -266,17 +276,18 @@ A low-friction summary designed to avoid annoyance.
 
 Each OpenQuestion is scored by:
 
-| Factor | Weight | Description |
-| --- | --- | --- |
-| Value | High | Time saved or errors prevented if answered |
-| Frequency | Medium | How often this ambiguity occurs |
-| Confidence Gap | Medium | How uncertain Theo currently is |
-| Temporal Relevance | Low | Is this needed soon? |
-| Annoyance Budget | Negative | Penalize if user has been asked recently |
+| Factor             | Weight   | Description                                |
+| ------------------ | -------- | ------------------------------------------ |
+| Value              | High     | Time saved or errors prevented if answered |
+| Frequency          | Medium   | How often this ambiguity occurs            |
+| Confidence Gap     | Medium   | How uncertain Theo currently is            |
+| Temporal Relevance | Low      | Is this needed soon?                       |
+| Annoyance Budget   | Negative | Penalize if user has been asked recently   |
 
 **Priority Formula (conceptual):**
+
 ```
-priority = (value * 0.4) + (frequency * 0.25) + (confidence_gap * 0.2) 
+priority = (value * 0.4) + (frequency * 0.25) + (confidence_gap * 0.2)
          + (temporal * 0.1) - (recent_asks * 0.15)
 ```
 
@@ -287,6 +298,7 @@ Only questions above threshold are surfaced.
 ## UX Patterns
 
 ### Micro-Confirmation
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 💡 Save this as a preference?               │
@@ -298,6 +310,7 @@ Only questions above threshold are surfaced.
 ```
 
 ### Evidence-Based Prompt
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📊 You chose Fairlife milk 6 of the last    │
@@ -308,6 +321,7 @@ Only questions above threshold are surfaced.
 ```
 
 ### Snooze Option
+
 ```
 ┌─────────────────────────────────────────────┐
 │ ⏰ Ask me later                             │
@@ -317,6 +331,7 @@ Only questions above threshold are surfaced.
 ```
 
 ### Weekly Digest
+
 ```
 Subject: Theo Check-in (3 quick questions)
 
@@ -325,7 +340,7 @@ Hey! I have a few things I'd like to confirm:
 1. You've been ordering from Whole Foods. Still your preferred store?
    [Yes] [No, changed] [Skip]
 
-2. I noticed you always remove cilantro from recipes. 
+2. I noticed you always remove cilantro from recipes.
    Should I remember this?
    [Yes] [No] [Skip]
 
@@ -364,25 +379,25 @@ Hey! I have a few things I'd like to confirm:
 
 ### Endpoints
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/learning/questions` | List open questions for user |
-| GET | `/api/learning/questions/:id` | Get question details |
-| POST | `/api/learning/questions/:id/answer` | Submit answer |
-| POST | `/api/learning/questions/:id/snooze` | Snooze question |
-| POST | `/api/learning/questions/:id/dismiss` | Permanently dismiss |
-| GET | `/api/learning/digest` | Get weekly digest content |
-| GET | `/api/learning/stats` | Learning analytics |
+| Method | Path                                  | Description                  |
+| ------ | ------------------------------------- | ---------------------------- |
+| GET    | `/api/learning/questions`             | List open questions for user |
+| GET    | `/api/learning/questions/:id`         | Get question details         |
+| POST   | `/api/learning/questions/:id/answer`  | Submit answer                |
+| POST   | `/api/learning/questions/:id/snooze`  | Snooze question              |
+| POST   | `/api/learning/questions/:id/dismiss` | Permanently dismiss          |
+| GET    | `/api/learning/digest`                | Get weekly digest content    |
+| GET    | `/api/learning/stats`                 | Learning analytics           |
 
 ### Internal Services
 
-| Service | Responsibility |
-| --- | --- |
-| `LearningDetectorService` | Observe events, generate questions |
-| `QuestionBacklogService` | CRUD for questions, priority scoring |
+| Service                       | Responsibility                        |
+| ----------------------------- | ------------------------------------- |
+| `LearningDetectorService`     | Observe events, generate questions    |
+| `QuestionBacklogService`      | CRUD for questions, priority scoring  |
 | `QuestionOrchestratorService` | Timing, throttling, channel selection |
-| `AnswerInterpreterService` | Process answers, update system state |
-| `MemoryReinforcementService` | Staleness checks, promotion logic |
+| `AnswerInterpreterService`    | Process answers, update system state  |
+| `MemoryReinforcementService`  | Staleness checks, promotion logic     |
 
 ---
 
@@ -428,15 +443,15 @@ Hey! I have a few things I'd like to confirm:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| Question answer rate | >60% | % of asked questions that get answered |
-| Preference save rate | >50% | % of proposals that become memories |
-| Snooze rate | <20% | Low indicates good timing |
-| Dismissal rate | <15% | Low indicates relevant questions |
-| Time to answer | <2 min | For blocking questions |
-| Memory accuracy | >90% | User-reported accuracy of saved prefs |
-| Questions per week | 2-5 | Right balance of learning vs. annoyance |
+| Metric               | Target | Description                             |
+| -------------------- | ------ | --------------------------------------- |
+| Question answer rate | >60%   | % of asked questions that get answered  |
+| Preference save rate | >50%   | % of proposals that become memories     |
+| Snooze rate          | <20%   | Low indicates good timing               |
+| Dismissal rate       | <15%   | Low indicates relevant questions        |
+| Time to answer       | <2 min | For blocking questions                  |
+| Memory accuracy      | >90%   | User-reported accuracy of saved prefs   |
+| Questions per week   | 2-5    | Right balance of learning vs. annoyance |
 
 ---
 
@@ -444,22 +459,22 @@ Hey! I have a few things I'd like to confirm:
 
 ### User Settings
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `maxQuestionsPerDay` | 2 | Non-blocking question limit |
-| `digestFrequency` | weekly | weekly, biweekly, monthly, off |
-| `digestChannel` | email | email, slack, in-app only |
-| `autoSnoozeHours` | 24 | Delay for snoozed questions |
-| `staleDays` | 90 | Memory staleness threshold |
+| Setting              | Default | Description                    |
+| -------------------- | ------- | ------------------------------ |
+| `maxQuestionsPerDay` | 2       | Non-blocking question limit    |
+| `digestFrequency`    | weekly  | weekly, biweekly, monthly, off |
+| `digestChannel`      | email   | email, slack, in-app only      |
+| `autoSnoozeHours`    | 24      | Delay for snoozed questions    |
+| `staleDays`          | 90      | Memory staleness threshold     |
 
 ### System Settings
 
-| Setting | Value | Description |
-| --- | --- | --- |
-| `minPriorityThreshold` | 30 | Don't ask below this score |
-| `patternThreshold` | 3 | Consistent actions before proposing |
-| `confidenceThreshold` | 0.7 | Below this, consider asking |
-| `questionExpireDays` | 30 | Auto-expire unanswered questions |
+| Setting                | Value | Description                         |
+| ---------------------- | ----- | ----------------------------------- |
+| `minPriorityThreshold` | 30    | Don't ask below this score          |
+| `patternThreshold`     | 3     | Consistent actions before proposing |
+| `confidenceThreshold`  | 0.7   | Below this, consider asking         |
+| `questionExpireDays`   | 30    | Auto-expire unanswered questions    |
 
 ---
 
@@ -476,19 +491,20 @@ Hey! I have a few things I'd like to confirm:
 
 ## Why This Works
 
-| Benefit | How |
-| --- | --- |
-| Treats learning as collaboration | Questions, not extraction |
-| Prevents silent assumptions | Every preference is explicit |
-| Scales with integrations | Each integration generates learning events |
-| Respects user attention | Throttling, prioritization, snoozing |
-| Keeps improving over time | Continuous, not one-time onboarding |
+| Benefit                          | How                                        |
+| -------------------------------- | ------------------------------------------ |
+| Treats learning as collaboration | Questions, not extraction                  |
+| Prevents silent assumptions      | Every preference is explicit               |
+| Scales with integrations         | Each integration generates learning events |
+| Respects user attention          | Throttling, prioritization, snoozing       |
+| Keeps improving over time        | Continuous, not one-time onboarding        |
 
 ---
 
 ## Appendix: Question Type Examples
 
 ### Disambiguation
+
 ```json
 {
   "type": "disambiguation",
@@ -504,6 +520,7 @@ Hey! I have a few things I'd like to confirm:
 ```
 
 ### Preference Proposal
+
 ```json
 {
   "type": "preference_proposal",
@@ -523,6 +540,7 @@ Hey! I have a few things I'd like to confirm:
 ```
 
 ### Reconfirm
+
 ```json
 {
   "type": "reconfirm",
@@ -534,4 +552,3 @@ Hey! I have a few things I'd like to confirm:
   }
 }
 ```
-

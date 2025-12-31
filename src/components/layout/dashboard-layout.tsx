@@ -29,7 +29,7 @@ export function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="bg-background flex h-screen flex-col">
       {/* Header */}
       <DashboardHeader
         showMobileMenu={!!sidebar}
@@ -70,4 +70,3 @@ export function DashboardLayout({
     </div>
   );
 }
-

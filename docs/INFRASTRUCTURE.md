@@ -6,6 +6,7 @@
 ## Overview
 
 This document covers Theo's infrastructure strategy:
+
 - **Local Development**: Docker Compose for instant, reproducible dev environment
 - **Staging**: AWS deployment for testing and validation
 - **Production**: AWS deployment with high availability and security
@@ -31,7 +32,7 @@ pnpm dev
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 
 services:
   # ─────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@theo.local
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
@@ -118,8 +119,8 @@ services:
     container_name: theo-localstack
     restart: unless-stopped
     ports:
-      - "4566:4566"  # LocalStack Gateway
-      - "4510-4559:4510-4559"  # External services
+      - "4566:4566" # LocalStack Gateway
+      - "4510-4559:4510-4559" # External services
     environment:
       SERVICES: s3,sqs,ses,secretsmanager
       DEBUG: 0
@@ -138,8 +139,8 @@ services:
     container_name: theo-mailpit
     restart: unless-stopped
     ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
     profiles:
       - tools
 
@@ -225,7 +226,7 @@ ENABLE_AGENT_ACTIONS="true"
     "dev:all": "docker compose up -d && pnpm dev",
     "dev:tools": "docker compose --profile tools up -d",
     "dev:aws": "docker compose --profile aws up -d",
-    
+
     "db:start": "docker compose up -d postgres redis",
     "db:stop": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d postgres redis && pnpm db:push",
@@ -233,7 +234,7 @@ ENABLE_AGENT_ACTIONS="true"
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed.ts",
-    
+
     "docker:clean": "docker compose down -v --remove-orphans",
     "docker:logs": "docker compose logs -f"
   }
@@ -325,17 +326,17 @@ pnpm docker:clean && pnpm db:reset
 
 ### Environment Comparison
 
-| Component | Local Dev | Staging | Production |
-|-----------|-----------|---------|------------|
-| **Compute** | Next.js dev server | ECS Fargate (1 task) | ECS Fargate (2+ tasks) |
-| **Database** | Docker PostgreSQL | RDS db.t3.small | RDS db.r6g.large + replica |
-| **Redis** | Docker Redis | ElastiCache t3.micro | ElastiCache r6g.large cluster |
-| **Storage** | Local filesystem | S3 bucket | S3 bucket + CloudFront |
-| **Queue** | BullMQ (Redis) | SQS | SQS |
-| **Email** | Mailpit | SES (sandbox) | SES (production) |
-| **Secrets** | .env.local | Secrets Manager | Secrets Manager |
-| **Logs** | Console | CloudWatch | CloudWatch |
-| **Domain** | localhost:3000 | staging.theo.app | theo.app |
+| Component    | Local Dev          | Staging              | Production                    |
+| ------------ | ------------------ | -------------------- | ----------------------------- |
+| **Compute**  | Next.js dev server | ECS Fargate (1 task) | ECS Fargate (2+ tasks)        |
+| **Database** | Docker PostgreSQL  | RDS db.t3.small      | RDS db.r6g.large + replica    |
+| **Redis**    | Docker Redis       | ElastiCache t3.micro | ElastiCache r6g.large cluster |
+| **Storage**  | Local filesystem   | S3 bucket            | S3 bucket + CloudFront        |
+| **Queue**    | BullMQ (Redis)     | SQS                  | SQS                           |
+| **Email**    | Mailpit            | SES (sandbox)        | SES (production)              |
+| **Secrets**  | .env.local         | Secrets Manager      | Secrets Manager               |
+| **Logs**     | Console            | CloudWatch           | CloudWatch                    |
+| **Domain**   | localhost:3000     | staging.theo.app     | theo.app                      |
 
 ---
 
@@ -349,13 +350,13 @@ pnpm docker:clean && pnpm db:reset
 # VPC with 3 AZs for high availability
 vpc "theo" {
   cidr_block = "10.0.0.0/16"
-  
+
   # Public subnets (for ALB, NAT)
   public_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  
+
   # Private subnets (for ECS, RDS)
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
-  
+
   # Database subnets (isolated)
   database_subnets = ["10.0.21.0/24", "10.0.22.0/24", "10.0.23.0/24"]
 }
@@ -398,7 +399,7 @@ ElastiCache Staging:
 ElastiCache Production:
   Engine: Redis 7
   NodeType: cache.r6g.large
-  NumCacheClusters: 2  # Primary + Replica
+  NumCacheClusters: 2 # Primary + Replica
   AutomaticFailover: enabled
   AtRestEncryption: true
   InTransitEncryption: true
@@ -410,8 +411,8 @@ ElastiCache Production:
 # Service: theo-web (Next.js application)
 theo-web:
   Image: ECR:theo-core:latest
-  CPU: 512  # 0.5 vCPU
-  Memory: 1024  # 1GB
+  CPU: 512 # 0.5 vCPU
+  Memory: 1024 # 1GB
   DesiredCount:
     Staging: 1
     Production: 2
@@ -456,13 +457,13 @@ Buckets:
     Lifecycle:
       - TransitionToIA: 90 days
       - TransitionToGlacier: 365 days
-    
+
   theo-exports-{env}:
     Purpose: User data exports
     Versioning: enabled
     Lifecycle:
       - Expiration: 30 days
-    
+
   theo-assets-{env}:
     Purpose: Static assets (CDN origin)
     PublicAccess: via CloudFront only
@@ -474,22 +475,22 @@ Buckets:
 Secrets:
   theo/{env}/database:
     - DATABASE_URL
-    
+
   theo/{env}/redis:
     - REDIS_URL
-    
+
   theo/{env}/auth:
     - NEXTAUTH_SECRET
-    
+
   theo/{env}/google:
     - GOOGLE_CLIENT_ID
     - GOOGLE_CLIENT_SECRET
-    
+
   theo/{env}/slack:
     - SLACK_CLIENT_ID
     - SLACK_CLIENT_SECRET
     - SLACK_SIGNING_SECRET
-    
+
   theo/{env}/ai:
     - OPENAI_API_KEY
     - ANTHROPIC_API_KEY
@@ -539,9 +540,9 @@ jobs:
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - run: pnpm install
       - run: pnpm lint
       - run: pnpm type-check
@@ -561,17 +562,17 @@ jobs:
       image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
-      
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -596,14 +597,14 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster theo-staging \
             --service theo-web \
             --force-new-deployment
-      
+
       - name: Run migrations
         run: |
           aws ecs run-task \
@@ -626,7 +627,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Deploy to ECS (Blue/Green)
         run: |
           aws deploy create-deployment \
@@ -708,7 +709,7 @@ Alarms:
     - HighMemory: > 90% for 5 minutes
     - High5xxRate: > 5% for 3 minutes
     - DatabaseConnections: > 80% max
-    
+
   Warning:
     - HighCPU: > 70% for 10 minutes
     - HighLatency: p99 > 2s for 5 minutes
@@ -721,15 +722,15 @@ Alarms:
 LogGroups:
   /ecs/theo-web:
     Retention: 30 days
-    
+
   /ecs/theo-worker:
     Retention: 30 days
-    
+
   /rds/theo:
     Retention: 90 days
-    
+
   /theo/audit:
-    Retention: 365 days  # Compliance requirement
+    Retention: 365 days # Compliance requirement
 ```
 
 ---
@@ -738,19 +739,19 @@ LogGroups:
 
 ### Monthly Costs (Approximate)
 
-| Resource | Staging | Production |
-|----------|---------|------------|
-| ECS Fargate | $30 | $150 |
-| RDS PostgreSQL | $25 | $300 |
-| ElastiCache Redis | $15 | $200 |
-| ALB | $20 | $25 |
-| CloudFront | $5 | $50 |
-| S3 | $5 | $20 |
-| Secrets Manager | $5 | $10 |
-| CloudWatch | $10 | $50 |
-| **Total** | **~$115/mo** | **~$805/mo** |
+| Resource          | Staging      | Production   |
+| ----------------- | ------------ | ------------ |
+| ECS Fargate       | $30          | $150         |
+| RDS PostgreSQL    | $25          | $300         |
+| ElastiCache Redis | $15          | $200         |
+| ALB               | $20          | $25          |
+| CloudFront        | $5           | $50          |
+| S3                | $5           | $20          |
+| Secrets Manager   | $5           | $10          |
+| CloudWatch        | $10          | $50          |
+| **Total**         | **~$115/mo** | **~$805/mo** |
 
-*Note: AI API costs (OpenAI/Anthropic) are usage-based and not included.*
+_Note: AI API costs (OpenAI/Anthropic) are usage-based and not included._
 
 ---
 
@@ -758,12 +759,12 @@ LogGroups:
 
 ### Backup Strategy
 
-| Data | Backup Frequency | Retention | RTO | RPO |
-|------|------------------|-----------|-----|-----|
-| RDS (automated) | Daily | 30 days | 4 hours | 24 hours |
-| RDS (manual) | Weekly | 90 days | 4 hours | 7 days |
-| S3 | Continuous (versioning) | 90 days | 1 hour | 0 |
-| Secrets | On change | 30 versions | 1 hour | 0 |
+| Data            | Backup Frequency        | Retention   | RTO     | RPO      |
+| --------------- | ----------------------- | ----------- | ------- | -------- |
+| RDS (automated) | Daily                   | 30 days     | 4 hours | 24 hours |
+| RDS (manual)    | Weekly                  | 90 days     | 4 hours | 7 days   |
+| S3              | Continuous (versioning) | 90 days     | 1 hour  | 0        |
+| Secrets         | On change               | 30 versions | 1 hour  | 0        |
 
 ### Recovery Procedures
 
@@ -785,24 +786,28 @@ aws rds restore-db-instance-to-point-in-time \
 ## Security Checklist
 
 ### Network
+
 - [ ] VPC with private subnets for compute/data
 - [ ] Security groups with minimal ingress
 - [ ] NAT Gateway for outbound traffic
 - [ ] VPC Flow Logs enabled
 
 ### Data
+
 - [ ] RDS encryption at rest (KMS)
 - [ ] Redis encryption at rest & in transit
 - [ ] S3 bucket encryption
 - [ ] Secrets in Secrets Manager (not env vars)
 
 ### Access
+
 - [ ] IAM roles with least privilege
 - [ ] No long-lived access keys
 - [ ] MFA for AWS console access
 - [ ] CloudTrail enabled
 
 ### Application
+
 - [ ] HTTPS only (redirect HTTP)
 - [ ] Security headers via CloudFront
 - [ ] WAF rules for common attacks
@@ -869,4 +874,3 @@ aws ecs run-task \
   --launch-type FARGATE \
   --network-configuration '{...}'
 ```
-

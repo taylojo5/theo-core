@@ -3,7 +3,14 @@
 // Relationship-specific types, DTOs, and interfaces
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { EntityRelationship, Person, Place, Event, Task, Deadline } from "@prisma/client";
+import type {
+  EntityRelationship,
+  Person,
+  Place,
+  Event,
+  Task,
+  Deadline,
+} from "@prisma/client";
 import type {
   CreateRelationshipInput,
   UpdateRelationshipInput,
@@ -213,4 +220,3 @@ export type {
   Task,
   Deadline,
 };
-

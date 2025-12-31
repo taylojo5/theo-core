@@ -358,7 +358,7 @@ describe("ContextSearchService", () => {
 
       // Should have results
       expect(results.length).toBeGreaterThanOrEqual(1);
-      
+
       // First result should be an exact match (if we have multiple results)
       if (results.length >= 2) {
         // The exact match "John" should score higher or equal than partial "Johnny Test"
@@ -679,7 +679,7 @@ describe("Edge Cases", () => {
 
     // Negative limit
     await service.search(testUserId, "test", { limit: -5 });
-    
+
     // Over max limit
     await service.search(testUserId, "test", { limit: 500 });
 
@@ -701,4 +701,3 @@ describe("Edge Cases", () => {
     ).rejects.toThrow("DB error");
   });
 });
-

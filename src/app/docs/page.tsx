@@ -31,7 +31,7 @@ export default function DocsPage() {
       id="api-reference"
       data-url="/api/openapi.json"
       data-configuration={JSON.stringify({
-        // Theme options: default, alternate, moon, purple, solarized, 
+        // Theme options: default, alternate, moon, purple, solarized,
         // kepler, mars, deepSpace, saturn, bluePlanet
         theme: "purple",
         layout: "modern",

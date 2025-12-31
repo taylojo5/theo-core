@@ -1,4 +1,5 @@
-# Walmart Grocery Integration  
+# Walmart Grocery Integration
+
 **Web Cart Builder (Browser-as-API)**
 
 > **Status:** V1 Design  
@@ -12,18 +13,21 @@ All constraints and guardrails from the base contract apply **without exception*
 ## Purpose
 
 Enable Theo to:
+
 - Plan meals
 - Generate recipes
 - Normalize ingredients
 - Add corresponding items to a **Walmart cart**
 
 While **never**:
+
 - Placing an order
 - Entering checkout
 - Selecting delivery/pickup times
 - Handling payment, substitutions, or confirmations
 
-The **terminal state** is always:  
+The **terminal state** is always:
+
 > **Cart built and ready for user review**
 
 ---
@@ -50,13 +54,13 @@ This is treated as a **best-effort convenience**, not a guaranteed system of rec
 
 Inherited from the base contract, plus Walmart-specific notes:
 
-| Capability | Supported | Notes |
-|----------|----------|------|
-| Product lookup | ✅ | Via saved URLs or on-site search |
-| Add to cart | ✅ | Button-based interaction only |
-| Set quantity | ✅ | Quantity dropdown / stepper |
-| Cart summary | ⚠️ | Best-effort scrape |
-| Checkout | ❌ | Explicitly blocked |
+| Capability     | Supported | Notes                            |
+| -------------- | --------- | -------------------------------- |
+| Product lookup | ✅        | Via saved URLs or on-site search |
+| Add to cart    | ✅        | Button-based interaction only    |
+| Set quantity   | ✅        | Quantity dropdown / stepper      |
+| Cart summary   | ⚠️        | Best-effort scrape               |
+| Checkout       | ❌        | Explicitly blocked               |
 
 ---
 
@@ -87,15 +91,18 @@ Cart Ready for Review  ← terminal
 3. On-site search fallback (least reliable)
 
 ### URL-First Model (Recommended V1)
+
 Each canonical ingredient may map to a saved Walmart product URL:
 
 Example:
+
 ```
 ingredient: milk.whole
 → https://www.walmart.com/ip/Great-Value-Whole-Milk-1-Gallon/...
 ```
 
 Benefits:
+
 - Stable
 - Predictable
 - User-correctable
@@ -108,6 +115,7 @@ Benefits:
 ### Component: `walmart_cart_runner`
 
 **Responsibilities**
+
 - Ensure authenticated Walmart session
 - Set correct store / ZIP context
 - Visit product pages
@@ -121,10 +129,12 @@ Benefits:
 ## Authentication Model
 
 ### First Run
+
 - User logs in manually in a real browser window
 - Theo never sees or stores credentials
 
 ### Ongoing Runs
+
 - Encrypted cookies / session storage reused
 - Expired sessions trigger re-auth request
 
@@ -133,6 +143,7 @@ Benefits:
 ## Store & Fulfillment Context
 
 Theo must:
+
 - Set or verify ZIP/store context before adding items
 - Respect the user’s preferred fulfillment mode:
   - Pickup
@@ -140,6 +151,7 @@ Theo must:
   - Shipping
 
 If fulfillment context is unclear or unavailable:
+
 - Pause and ask the user
 
 ---
@@ -147,7 +159,9 @@ If fulfillment context is unclear or unavailable:
 ## Guardrails: No-Checkout Enforcement
 
 ### 1. Allowlist Actions
+
 The agent may only click:
+
 - “Add to cart”
 - Quantity controls
 - “Continue shopping”
@@ -157,7 +171,9 @@ The agent may only click:
 ---
 
 ### 2. Blocklist Text Detection
+
 If any visible element contains:
+
 - “Checkout”
 - “Continue to checkout”
 - “Review order”
@@ -169,7 +185,9 @@ The agent must **halt immediately** and notify the user.
 ---
 
 ### 3. URL Path Guard
+
 If navigation enters paths such as:
+
 - `/checkout`
 - `/review-order`
 - `/payment`
@@ -209,6 +227,7 @@ No further automation occurs beyond this point.
 ## Observability & Debugging
 
 Each cart run should capture:
+
 - Step-by-step logs
 - Screenshots on failure
 - DOM snapshot hash (to detect UI drift)
@@ -219,6 +238,7 @@ Each cart run should capture:
 ## Data Model (Walmart-Specific)
 
 ### `saved_product_links`
+
 - `ingredient_key`
 - `walmart_product_url`
 - `title_snapshot`
@@ -229,6 +249,7 @@ Each cart run should capture:
 ---
 
 ### `cart_runs`
+
 - `id`
 - `shopping_list_id`
 - `status` (`RUNNING|NEEDS_USER|DONE|FAILED`)
@@ -271,6 +292,7 @@ These are surfaced clearly to the user to preserve trust.
 ## Summary
 
 The Walmart Grocery Integration:
+
 - Treats the browser as the API
 - Obeys strict no-checkout constraints
 - Ends at cart review, every time

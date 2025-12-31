@@ -26,9 +26,12 @@ export const DeadlineCreateSchema = z
     description: z.string().optional().nullable().openapi({
       description: "Detailed description",
     }),
-    type: z.enum(["deadline", "milestone", "reminder"]).default("deadline").openapi({
-      description: "Type of deadline",
-    }),
+    type: z
+      .enum(["deadline", "milestone", "reminder"])
+      .default("deadline")
+      .openapi({
+        description: "Type of deadline",
+      }),
     dueAt: z.string().datetime().openapi({
       description: "Due date/time (ISO 8601)",
       example: "2024-03-31T23:59:59Z",
@@ -124,9 +127,12 @@ export const DeadlineListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().optional(),
-    status: z.enum(["pending", "completed", "missed", "extended"]).optional().openapi({
-      description: "Filter by status",
-    }),
+    status: z
+      .enum(["pending", "completed", "missed", "extended"])
+      .optional()
+      .openapi({
+        description: "Filter by status",
+      }),
     type: z.enum(["deadline", "milestone", "reminder"]).optional().openapi({
       description: "Filter by type",
     }),
@@ -150,5 +156,7 @@ export const DeadlineListQuerySchema = z
 // Paginated Response
 // ─────────────────────────────────────────────────────────────
 
-export const PaginatedDeadlinesSchema = createPaginatedSchema(DeadlineSchema, "Deadlines");
-
+export const PaginatedDeadlinesSchema = createPaginatedSchema(
+  DeadlineSchema,
+  "Deadlines"
+);

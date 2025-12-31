@@ -239,7 +239,9 @@ export function calendarInputToUpsertPrisma(
  * @param calendar - Database calendar record
  * @returns Partial Google Calendar object
  */
-export function mapDbCalendarToGoogle(calendar: Calendar): Partial<GoogleCalendar> {
+export function mapDbCalendarToGoogle(
+  calendar: Calendar
+): Partial<GoogleCalendar> {
   return {
     id: calendar.googleCalendarId,
     summary: calendar.name,
@@ -357,7 +359,7 @@ export function mapEventStatus(googleStatus?: string): string {
 
 /**
  * Map event visibility from Google to internal format
- * 
+ *
  * Google Calendar API visibility values:
  * - "default": Uses the calendar's default visibility
  * - "public": Visible to everyone
@@ -554,26 +556,42 @@ export function mapDbEventToGoogleInput(event: Event): EventCreateInput {
   // Calculate end time/date when not provided
   let endDateTime: EventDateTime;
   if (event.endsAt) {
-    endDateTime = formatEventDateTime(event.endsAt, allDay, event.timezone ?? undefined);
+    endDateTime = formatEventDateTime(
+      event.endsAt,
+      allDay,
+      event.timezone ?? undefined
+    );
   } else if (allDay) {
     // For all-day events, Google Calendar expects end date to be the day AFTER the start
     // (the end date is exclusive). Add one day to startsAt.
     const endDate = new Date(event.startsAt);
     endDate.setUTCDate(endDate.getUTCDate() + 1);
-    endDateTime = formatEventDateTime(endDate, true, event.timezone ?? undefined);
+    endDateTime = formatEventDateTime(
+      endDate,
+      true,
+      event.timezone ?? undefined
+    );
   } else {
     // For timed events without an end time, default to 1 hour duration
     // Use UTC methods for consistency with all-day event handling
     const endDate = new Date(event.startsAt);
     endDate.setUTCHours(endDate.getUTCHours() + 1);
-    endDateTime = formatEventDateTime(endDate, false, event.timezone ?? undefined);
+    endDateTime = formatEventDateTime(
+      endDate,
+      false,
+      event.timezone ?? undefined
+    );
   }
 
   return {
     summary: event.title,
     description: event.description ?? undefined,
     location: event.location ?? undefined,
-    start: formatEventDateTime(event.startsAt, allDay, event.timezone ?? undefined),
+    start: formatEventDateTime(
+      event.startsAt,
+      allDay,
+      event.timezone ?? undefined
+    ),
     end: endDateTime,
     timeZone: event.timezone ?? undefined,
     visibility: event.visibility as EventCreateInput["visibility"],
@@ -639,7 +657,8 @@ export function mapEventUpdatesToGoogle(
   }
 
   if (updates.reminders !== undefined) {
-    result.reminders = (updates.reminders as EventReminders | null) ?? undefined;
+    result.reminders =
+      (updates.reminders as EventReminders | null) ?? undefined;
   }
 
   return result;
@@ -1092,7 +1111,10 @@ export function getEventDurationMinutes(event: GoogleEvent): number {
 /**
  * Check if event is currently happening
  */
-export function isEventHappening(event: GoogleEvent, now: Date = new Date()): boolean {
+export function isEventHappening(
+  event: GoogleEvent,
+  now: Date = new Date()
+): boolean {
   const start = parseEventDateTime(event.start);
   const end = event.end ? parseEventDateTime(event.end) : start;
 
@@ -1102,7 +1124,10 @@ export function isEventHappening(event: GoogleEvent, now: Date = new Date()): bo
 /**
  * Check if event is in the past
  */
-export function isEventPast(event: GoogleEvent, now: Date = new Date()): boolean {
+export function isEventPast(
+  event: GoogleEvent,
+  now: Date = new Date()
+): boolean {
   const end = event.end
     ? parseEventDateTime(event.end)
     : parseEventDateTime(event.start);
@@ -1113,8 +1138,10 @@ export function isEventPast(event: GoogleEvent, now: Date = new Date()): boolean
 /**
  * Check if event is in the future
  */
-export function isEventFuture(event: GoogleEvent, now: Date = new Date()): boolean {
+export function isEventFuture(
+  event: GoogleEvent,
+  now: Date = new Date()
+): boolean {
   const start = parseEventDateTime(event.start);
   return start > now;
 }
-

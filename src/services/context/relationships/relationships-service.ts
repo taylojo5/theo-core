@@ -125,10 +125,7 @@ export async function createRelationship(
   validateEntityType(data.targetType);
 
   // Prevent self-referential relationships
-  if (
-    data.sourceType === data.targetType &&
-    data.sourceId === data.targetId
-  ) {
+  if (data.sourceType === data.targetType && data.sourceId === data.targetId) {
     throw new RelationshipsError(
       "SELF_RELATIONSHIP",
       "Cannot create a relationship between an entity and itself"
@@ -136,8 +133,16 @@ export async function createRelationship(
   }
 
   // Verify both entities exist
-  await verifyEntityExists(userId, data.sourceType as EntityType, data.sourceId);
-  await verifyEntityExists(userId, data.targetType as EntityType, data.targetId);
+  await verifyEntityExists(
+    userId,
+    data.sourceType as EntityType,
+    data.sourceId
+  );
+  await verifyEntityExists(
+    userId,
+    data.targetType as EntityType,
+    data.targetId
+  );
 
   // Validate strength
   const strength =
@@ -238,7 +243,9 @@ export async function updateRelationship(
   const relationship = await db.entityRelationship.update({
     where: { id },
     data: {
-      ...(data.relationship !== undefined && { relationship: data.relationship }),
+      ...(data.relationship !== undefined && {
+        relationship: data.relationship,
+      }),
       ...(strength !== undefined && { strength }),
       ...(data.bidirectional !== undefined && {
         bidirectional: data.bidirectional,
@@ -631,7 +638,8 @@ export async function syncRelationships(
 
   // Find relationships to create (in new set but don't exist)
   const toCreate = input.relationships.filter(
-    (r) => !existingRelKeys.has(`${r.targetType}:${r.targetId}:${r.relationship}`)
+    (r) =>
+      !existingRelKeys.has(`${r.targetType}:${r.targetId}:${r.relationship}`)
   );
 
   // Delete removed relationships
@@ -787,4 +795,3 @@ export const RelationshipsService: IRelationshipsService = {
   createMany: createManyRelationships,
   deleteForEntity: deleteRelationshipsForEntity,
 };
-

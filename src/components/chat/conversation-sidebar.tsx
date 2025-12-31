@@ -56,7 +56,7 @@ export function ConversationSidebar({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r bg-sidebar transition-all duration-300",
+        "bg-sidebar flex h-full flex-col border-r transition-all duration-300",
         isCollapsed ? "w-0 overflow-hidden md:w-16" : "w-72",
         className
       )}
@@ -64,7 +64,7 @@ export function ConversationSidebar({
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b px-4">
         {!isCollapsed && (
-          <h2 className="text-sm font-semibold text-sidebar-foreground">
+          <h2 className="text-sidebar-foreground text-sm font-semibold">
             Conversations
           </h2>
         )}
@@ -141,7 +141,7 @@ export function ConversationSidebar({
         ) : conversations.length === 0 ? (
           // Empty state
           <div className="flex flex-col items-center justify-center p-6 text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               No conversations yet
             </p>
             <Button
@@ -162,7 +162,9 @@ export function ConversationSidebar({
                 conversation={conversation}
                 isActive={conversation.id === activeId}
                 onSelect={() => onSelect(conversation.id)}
-                onDelete={onDelete ? () => onDelete(conversation.id) : undefined}
+                onDelete={
+                  onDelete ? () => onDelete(conversation.id) : undefined
+                }
                 isCollapsed={isCollapsed}
               />
             ))}
@@ -259,12 +261,12 @@ function ConversationItem({
           <span className="truncate text-sm font-medium">
             {truncate(title, 24)}
           </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground">
+          <span className="text-muted-foreground shrink-0 text-[10px]">
             {formatRelativeTime(conversation.updatedAt)}
           </span>
         </div>
         {conversation.preview && (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          <p className="text-muted-foreground mt-0.5 truncate text-xs">
             {truncate(conversation.preview, 40)}
           </p>
         )}
@@ -277,7 +279,7 @@ function ConversationItem({
             e.stopPropagation();
             onDelete();
           }}
-          className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100"
           title="Delete conversation"
         >
           <svg
@@ -298,4 +300,3 @@ function ConversationItem({
     </button>
   );
 }
-

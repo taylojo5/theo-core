@@ -216,10 +216,7 @@ export {
 // Client
 // ─────────────────────────────────────────────────────────────
 
-export {
-  CalendarClient,
-  createCalendarClient,
-} from "./client";
+export { CalendarClient, createCalendarClient } from "./client";
 
 export type { CalendarClientConfig } from "./client";
 
@@ -346,11 +343,11 @@ export {
   // Full sync
   fullCalendarSync,
   resumeFullSync,
-  
+
   // Incremental sync
   incrementalCalendarSync,
   triggerIncrementalSync,
-  
+
   // Webhooks
   registerWebhook,
   stopWebhook,
@@ -358,7 +355,7 @@ export {
   parseWebhookHeaders,
   renewExpiringWebhooks,
   needsRenewal,
-  
+
   // Scheduler
   scheduleFullSync,
   scheduleIncrementalSync,
@@ -373,19 +370,19 @@ export {
   initializeSchedulers,
   shutdownSchedulers,
   hasRecurringSyncActive,
-  
+
   // Queue adapter (for use by API routes)
   getCalendarQueue,
-  
+
   // Initialization
   initializeCalendarSync,
-  
+
   // Job names
   CALENDAR_JOB_NAMES,
-  
+
   // Worker
   registerCalendarSyncWorker,
-  
+
   // Utilities
   queueEventEmbeddings,
   queueFullSyncEmbeddings,
@@ -412,14 +409,14 @@ export type {
   EventChange,
   SyncStatus,
   SyncState,
-  
+
   // Webhook types
   WebhookRegistration,
   WebhookNotification as SyncWebhookNotification,
   WebhookProcessResult,
   CalendarJobQueue,
   SchedulerConfig,
-  
+
   // Job types
   CalendarJobName,
   FullSyncJobData,
@@ -441,19 +438,19 @@ export {
   // Event creation
   requestEventCreation,
   executeEventCreation,
-  
+
   // Event update
   requestEventUpdate,
   executeEventUpdate,
-  
+
   // Event deletion
   requestEventDeletion,
   executeEventDeletion,
-  
+
   // Event response (RSVP)
   requestEventResponse,
   executeEventResponse,
-  
+
   // Approval workflow
   approveCalendarAction,
   rejectCalendarAction,
@@ -461,7 +458,7 @@ export {
   expireOldApprovals,
   getPendingApprovals,
   getApproval,
-  
+
   // Conflict detection
   detectConflicts,
   hasHighSeverityConflicts,
@@ -478,27 +475,26 @@ export type {
   DeleteEventRequest,
   RespondEventRequest,
   ActionRequest,
-  
+
   // Result types
   ActionRequestResult,
   ActionExecuteResult,
   ApprovalDecisionResult,
-  
+
   // Conflict types
   ConflictInfo,
   ConflictType,
   ConflictSeverity,
   ConflictDetectionOptions,
-  
+
   // Snapshot types
   EventSnapshot,
-  
+
   // Option types
   ActionExecuteOptions,
   ApprovalOptions,
-  
+
   // Validation types
   ValidationResult,
   ValidationError,
 } from "./actions";
-

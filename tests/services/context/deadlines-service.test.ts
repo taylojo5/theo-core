@@ -55,7 +55,11 @@ import {
   upsertDeadlinesFromSource,
   DeadlinesServiceError,
 } from "@/services/context/deadlines";
-import type { CreateDeadlineInput, UpdateDeadlineInput, Deadline } from "@/services/context/deadlines";
+import type {
+  CreateDeadlineInput,
+  UpdateDeadlineInput,
+  Deadline,
+} from "@/services/context/deadlines";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -181,7 +185,10 @@ describe("createDeadline", () => {
     const mockTask = { id: mockTaskId, userId: mockUserId, deletedAt: null };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.task.findFirst).mockResolvedValue(mockTask as any);
-    vi.mocked(db.deadline.create).mockResolvedValue({ ...mockDeadline, taskId: mockTaskId });
+    vi.mocked(db.deadline.create).mockResolvedValue({
+      ...mockDeadline,
+      taskId: mockTaskId,
+    });
 
     await createDeadline(mockUserId, {
       ...mockCreateInput,
@@ -210,7 +217,10 @@ describe("createDeadline", () => {
     const mockEvent = { id: mockEventId, userId: mockUserId, deletedAt: null };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.event.findFirst).mockResolvedValue(mockEvent as any);
-    vi.mocked(db.deadline.create).mockResolvedValue({ ...mockDeadline, eventId: mockEventId });
+    vi.mocked(db.deadline.create).mockResolvedValue({
+      ...mockDeadline,
+      eventId: mockEventId,
+    });
 
     await createDeadline(mockUserId, {
       ...mockCreateInput,
@@ -225,12 +235,20 @@ describe("createDeadline", () => {
   it("handles duplicate sourceId constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "source", "sourceId"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "source", "sourceId"] },
+      }
     );
     vi.mocked(db.deadline.create).mockRejectedValue(prismaError);
 
     await expect(
-      createDeadline(mockUserId, { ...mockCreateInput, source: "calendar", sourceId: "123" })
+      createDeadline(mockUserId, {
+        ...mockCreateInput,
+        source: "calendar",
+        sourceId: "123",
+      })
     ).rejects.toMatchObject({
       code: "DUPLICATE_SOURCE_ID",
     });
@@ -286,9 +304,14 @@ describe("getDeadlineByIdWithRelations", () => {
       event: null,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(db.deadline.findFirst).mockResolvedValue(deadlineWithRelations as any);
+    vi.mocked(db.deadline.findFirst).mockResolvedValue(
+      deadlineWithRelations as Deadline
+    );
 
-    const result = await getDeadlineByIdWithRelations(mockUserId, mockDeadlineId);
+    const result = await getDeadlineByIdWithRelations(
+      mockUserId,
+      mockDeadlineId
+    );
 
     expect(result).toBeDefined();
     expect(db.deadline.findFirst).toHaveBeenCalledWith(
@@ -317,7 +340,11 @@ describe("updateDeadline", () => {
     vi.mocked(db.deadline.update).mockResolvedValue(updatedDeadline);
 
     const updateInput: UpdateDeadlineInput = { title: "Updated Deadline" };
-    const result = await updateDeadline(mockUserId, mockDeadlineId, updateInput);
+    const result = await updateDeadline(
+      mockUserId,
+      mockDeadlineId,
+      updateInput
+    );
 
     expect(result.title).toBe("Updated Deadline");
     expect(logAuditEntry).toHaveBeenCalledWith(
@@ -371,16 +398,29 @@ describe("updateDeadlineStatus", () => {
   });
 
   it("allows valid status transitions", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "pending" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "completed" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "completed",
+    });
 
-    const result = await updateDeadlineStatus(mockUserId, mockDeadlineId, "completed");
+    const result = await updateDeadlineStatus(
+      mockUserId,
+      mockDeadlineId,
+      "completed"
+    );
 
     expect(result.status).toBe("completed");
   });
 
   it("throws error for invalid status transition", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "completed" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "completed",
+    });
 
     await expect(
       updateDeadlineStatus(mockUserId, mockDeadlineId, "missed")
@@ -396,8 +436,14 @@ describe("completeDeadline", () => {
   });
 
   it("completes a pending deadline", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "pending" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "completed" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "completed",
+    });
 
     const result = await completeDeadline(mockUserId, mockDeadlineId);
 
@@ -411,8 +457,14 @@ describe("markDeadlineMissed", () => {
   });
 
   it("marks a pending deadline as missed", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "pending" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "missed" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "missed",
+    });
 
     const result = await markDeadlineMissed(mockUserId, mockDeadlineId);
 
@@ -427,8 +479,15 @@ describe("extendDeadline", () => {
 
   it("extends a pending deadline to new due date", async () => {
     const newDueAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "pending" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "extended", dueAt: newDueAt });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "extended",
+      dueAt: newDueAt,
+    });
 
     const result = await extendDeadline(mockUserId, mockDeadlineId, newDueAt);
 
@@ -436,7 +495,10 @@ describe("extendDeadline", () => {
   });
 
   it("throws error when new due date is in the past", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "pending" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
 
     await expect(
       extendDeadline(mockUserId, mockDeadlineId, pastDate)
@@ -447,8 +509,15 @@ describe("extendDeadline", () => {
 
   it("extends a missed deadline", async () => {
     const newDueAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "missed" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "extended", dueAt: newDueAt });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "missed",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "extended",
+      dueAt: newDueAt,
+    });
 
     const result = await extendDeadline(mockUserId, mockDeadlineId, newDueAt);
 
@@ -462,8 +531,14 @@ describe("reopenDeadline", () => {
   });
 
   it("reopens a completed deadline", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "completed" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "pending" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "completed",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
 
     const result = await reopenDeadline(mockUserId, mockDeadlineId);
 
@@ -471,8 +546,14 @@ describe("reopenDeadline", () => {
   });
 
   it("reopens a missed deadline", async () => {
-    vi.mocked(db.deadline.findFirst).mockResolvedValue({ ...mockDeadline, status: "missed" });
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, status: "pending" });
+    vi.mocked(db.deadline.findFirst).mockResolvedValue({
+      ...mockDeadline,
+      status: "missed",
+    });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      status: "pending",
+    });
 
     const result = await reopenDeadline(mockUserId, mockDeadlineId);
 
@@ -513,7 +594,9 @@ describe("deleteDeadline", () => {
   it("throws error when deadline not found", async () => {
     vi.mocked(db.deadline.findFirst).mockResolvedValue(null);
 
-    await expect(deleteDeadline(mockUserId, "nonexistent")).rejects.toMatchObject({
+    await expect(
+      deleteDeadline(mockUserId, "nonexistent")
+    ).rejects.toMatchObject({
       code: "DEADLINE_NOT_FOUND",
     });
   });
@@ -531,7 +614,10 @@ describe("restoreDeadline", () => {
   it("restores soft-deleted deadline", async () => {
     const deletedDeadline = { ...mockDeadline, deletedAt: new Date() };
     vi.mocked(db.deadline.findFirst).mockResolvedValue(deletedDeadline);
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...mockDeadline, deletedAt: null });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...mockDeadline,
+      deletedAt: null,
+    });
 
     const result = await restoreDeadline(mockUserId, mockDeadlineId);
 
@@ -541,7 +627,9 @@ describe("restoreDeadline", () => {
   it("throws error when deleted deadline not found", async () => {
     vi.mocked(db.deadline.findFirst).mockResolvedValue(null);
 
-    await expect(restoreDeadline(mockUserId, "nonexistent")).rejects.toMatchObject({
+    await expect(
+      restoreDeadline(mockUserId, "nonexistent")
+    ).rejects.toMatchObject({
       code: "DEADLINE_NOT_FOUND",
     });
   });
@@ -802,7 +890,10 @@ describe("calculateDeadlineUrgency", () => {
   });
 
   it("calculates urgent urgency (due within 1 day)", () => {
-    const urgentDeadline = { ...mockDeadline, dueAt: new Date(Date.now() + 12 * 60 * 60 * 1000) }; // 12 hours
+    const urgentDeadline = {
+      ...mockDeadline,
+      dueAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+    }; // 12 hours
     const result = calculateDeadlineUrgency(urgentDeadline);
 
     expect(result.urgency).toBe("urgent");
@@ -810,7 +901,10 @@ describe("calculateDeadlineUrgency", () => {
   });
 
   it("calculates approaching urgency (due within 7 days)", () => {
-    const approachingDeadline = { ...mockDeadline, dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) }; // 5 days
+    const approachingDeadline = {
+      ...mockDeadline,
+      dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    }; // 5 days
     const result = calculateDeadlineUrgency(approachingDeadline);
 
     expect(result.urgency).toBe("approaching");
@@ -818,14 +912,20 @@ describe("calculateDeadlineUrgency", () => {
   });
 
   it("calculates normal urgency (due within 30 days)", () => {
-    const normalDeadline = { ...mockDeadline, dueAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) }; // 20 days
+    const normalDeadline = {
+      ...mockDeadline,
+      dueAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+    }; // 20 days
     const result = calculateDeadlineUrgency(normalDeadline);
 
     expect(result.urgency).toBe("normal");
   });
 
   it("calculates distant urgency (due after 30 days)", () => {
-    const distantDeadline = { ...mockDeadline, dueAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) }; // 60 days
+    const distantDeadline = {
+      ...mockDeadline,
+      dueAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    }; // 60 days
     const result = calculateDeadlineUrgency(distantDeadline);
 
     expect(result.urgency).toBe("distant");
@@ -842,7 +942,9 @@ describe("getDeadlinesByTask", () => {
   });
 
   it("returns deadlines for a task", async () => {
-    vi.mocked(db.deadline.findMany).mockResolvedValue([{ ...mockDeadline, taskId: mockTaskId }]);
+    vi.mocked(db.deadline.findMany).mockResolvedValue([
+      { ...mockDeadline, taskId: mockTaskId },
+    ]);
 
     const result = await getDeadlinesByTask(mockUserId, mockTaskId);
 
@@ -864,7 +966,9 @@ describe("getDeadlinesByEvent", () => {
   });
 
   it("returns deadlines for an event", async () => {
-    vi.mocked(db.deadline.findMany).mockResolvedValue([{ ...mockDeadline, eventId: mockEventId }]);
+    vi.mocked(db.deadline.findMany).mockResolvedValue([
+      { ...mockDeadline, eventId: mockEventId },
+    ]);
 
     const result = await getDeadlinesByEvent(mockUserId, mockEventId);
 
@@ -890,10 +994,18 @@ describe("findDeadlineBySource", () => {
   });
 
   it("finds deadline by source and sourceId", async () => {
-    const calendarDeadline = { ...mockDeadline, source: "calendar", sourceId: "cal-123" };
+    const calendarDeadline = {
+      ...mockDeadline,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.deadline.findFirst).mockResolvedValue(calendarDeadline);
 
-    const result = await findDeadlineBySource(mockUserId, "calendar", "cal-123");
+    const result = await findDeadlineBySource(
+      mockUserId,
+      "calendar",
+      "cal-123"
+    );
 
     expect(result).toEqual(calendarDeadline);
   });
@@ -953,9 +1065,16 @@ describe("upsertDeadlinesFromSource", () => {
   });
 
   it("updates existing deadlines when data changed", async () => {
-    const existingDeadline = { ...mockDeadline, source: "calendar", sourceId: "cal-123" };
+    const existingDeadline = {
+      ...mockDeadline,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.deadline.findFirst).mockResolvedValue(existingDeadline);
-    vi.mocked(db.deadline.update).mockResolvedValue({ ...existingDeadline, title: "Updated Deadline" });
+    vi.mocked(db.deadline.update).mockResolvedValue({
+      ...existingDeadline,
+      title: "Updated Deadline",
+    });
 
     const result = await upsertDeadlinesFromSource(mockUserId, "calendar", [
       {
@@ -975,7 +1094,10 @@ describe("upsertDeadlinesFromSource", () => {
 
 describe("DeadlinesServiceError", () => {
   it("creates error with code and message", () => {
-    const error = new DeadlinesServiceError("DEADLINE_NOT_FOUND", "Deadline not found");
+    const error = new DeadlinesServiceError(
+      "DEADLINE_NOT_FOUND",
+      "Deadline not found"
+    );
 
     expect(error.code).toBe("DEADLINE_NOT_FOUND");
     expect(error.message).toBe("Deadline not found");
@@ -990,4 +1112,3 @@ describe("DeadlinesServiceError", () => {
     expect(error.details).toBeDefined();
   });
 });
-

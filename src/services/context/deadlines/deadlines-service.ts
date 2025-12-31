@@ -70,7 +70,9 @@ function calculateUrgencyLevel(
 /**
  * Add urgency information to a deadline
  */
-export function calculateDeadlineUrgency(deadline: Deadline): DeadlineWithUrgency {
+export function calculateDeadlineUrgency(
+  deadline: Deadline
+): DeadlineWithUrgency {
   const daysRemaining = calculateDaysRemaining(deadline.dueAt);
   const urgency = calculateUrgencyLevel(daysRemaining);
 
@@ -127,7 +129,10 @@ export async function createDeadline(
       where: { id: data.taskId, userId, ...softDeleteFilter() },
     });
     if (!task) {
-      throw new DeadlinesError("TASK_NOT_FOUND", `Task not found: ${data.taskId}`);
+      throw new DeadlinesError(
+        "TASK_NOT_FOUND",
+        `Task not found: ${data.taskId}`
+      );
     }
   }
 
@@ -137,7 +142,10 @@ export async function createDeadline(
       where: { id: data.eventId, userId, ...softDeleteFilter() },
     });
     if (!event) {
-      throw new DeadlinesError("EVENT_NOT_FOUND", `Event not found: ${data.eventId}`);
+      throw new DeadlinesError(
+        "EVENT_NOT_FOUND",
+        `Event not found: ${data.eventId}`
+      );
     }
   }
 
@@ -145,9 +153,8 @@ export async function createDeadline(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : [];
 
   // Validate importance
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : 5;
+  const importance =
+    data.importance !== undefined ? validateImportance(data.importance) : 5;
 
   try {
     const deadline = await db.deadline.create({
@@ -260,7 +267,10 @@ export async function updateDeadline(
       where: { id: data.taskId, userId, ...softDeleteFilter() },
     });
     if (!task) {
-      throw new DeadlinesError("TASK_NOT_FOUND", `Task not found: ${data.taskId}`);
+      throw new DeadlinesError(
+        "TASK_NOT_FOUND",
+        `Task not found: ${data.taskId}`
+      );
     }
   }
 
@@ -270,7 +280,10 @@ export async function updateDeadline(
       where: { id: data.eventId, userId, ...softDeleteFilter() },
     });
     if (!event) {
-      throw new DeadlinesError("EVENT_NOT_FOUND", `Event not found: ${data.eventId}`);
+      throw new DeadlinesError(
+        "EVENT_NOT_FOUND",
+        `Event not found: ${data.eventId}`
+      );
     }
   }
 
@@ -278,16 +291,19 @@ export async function updateDeadline(
   const normalizedTags = data.tags ? normalizeTags(data.tags) : undefined;
 
   // Validate importance if provided
-  const importance = data.importance !== undefined
-    ? validateImportance(data.importance)
-    : undefined;
+  const importance =
+    data.importance !== undefined
+      ? validateImportance(data.importance)
+      : undefined;
 
   try {
     const deadline = await db.deadline.update({
       where: { id },
       data: {
         ...(data.title !== undefined && { title: data.title }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.type !== undefined && { type: data.type }),
         ...(data.dueAt !== undefined && { dueAt: data.dueAt }),
         ...(data.reminderAt !== undefined && { reminderAt: data.reminderAt }),
@@ -296,7 +312,9 @@ export async function updateDeadline(
         ...(data.taskId !== undefined && { taskId: data.taskId }),
         ...(data.eventId !== undefined && { eventId: data.eventId }),
         ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.consequences !== undefined && { consequences: data.consequences }),
+        ...(data.consequences !== undefined && {
+          consequences: data.consequences,
+        }),
         ...(data.metadata !== undefined && {
           metadata: data.metadata as Prisma.InputJsonValue,
         }),
@@ -323,7 +341,10 @@ export async function updateDeadline(
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
-        throw new DeadlinesError("DUPLICATE_SOURCE_ID", `A deadline with this source ID already exists`);
+        throw new DeadlinesError(
+          "DUPLICATE_SOURCE_ID",
+          `A deadline with this source ID already exists`
+        );
       }
     }
     throw error;
@@ -474,7 +495,10 @@ export async function restoreDeadline(
   });
 
   if (!existing) {
-    throw new DeadlinesError("DEADLINE_NOT_FOUND", `Deleted deadline not found: ${id}`);
+    throw new DeadlinesError(
+      "DEADLINE_NOT_FOUND",
+      `Deleted deadline not found: ${id}`
+    );
   }
 
   const deadline = await db.deadline.update({
@@ -504,7 +528,10 @@ export async function listDeadlines(
   options: ListDeadlinesOptions = {}
 ): Promise<PaginatedResult<Deadline>> {
   const pagination = normalizePagination(options);
-  const orderBy = buildOrderBy(options.sortBy ?? "dueAt", options.sortOrder ?? "asc");
+  const orderBy = buildOrderBy(
+    options.sortBy ?? "dueAt",
+    options.sortOrder ?? "asc"
+  );
 
   const where: Prisma.DeadlineWhereInput = {
     userId,
@@ -515,13 +542,20 @@ export async function listDeadlines(
     ...(options.dueAfter && { dueAt: { gte: options.dueAfter } }),
     ...(options.taskId && { taskId: options.taskId }),
     ...(options.eventId && { eventId: options.eventId }),
-    ...(options.minImportance && { importance: { gte: options.minImportance } }),
+    ...(options.minImportance && {
+      importance: { gte: options.minImportance },
+    }),
     ...(options.source && { source: options.source }),
     ...(options.tags?.length && { tags: { hasSome: options.tags } }),
     ...(options.search && {
       OR: [
         { title: { contains: options.search, mode: "insensitive" as const } },
-        { description: { contains: options.search, mode: "insensitive" as const } },
+        {
+          description: {
+            contains: options.search,
+            mode: "insensitive" as const,
+          },
+        },
         { notes: { contains: options.search, mode: "insensitive" as const } },
       ],
     }),
@@ -641,7 +675,9 @@ export async function getDeadlinesByUrgency(
 
   // Calculate date range
   const now = new Date();
-  const approachingDate = new Date(now.getTime() + approachingDays * 24 * 60 * 60 * 1000);
+  const approachingDate = new Date(
+    now.getTime() + approachingDays * 24 * 60 * 60 * 1000
+  );
   const normalDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   // Determine date filter based on minUrgency
@@ -811,4 +847,3 @@ export const DeadlinesService: IDeadlinesService = {
   getByEvent: getDeadlinesByEvent,
   upsertFromSource: upsertDeadlinesFromSource,
 };
-

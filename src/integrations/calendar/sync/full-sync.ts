@@ -9,15 +9,9 @@ import {
   calendarEventRepository,
   calendarSyncStateRepository,
 } from "../repository";
-import {
-  mapGoogleCalendarToDb,
-  mapGoogleEventToDb,
-} from "../mappers";
+import { mapGoogleCalendarToDb, mapGoogleEventToDb } from "../mappers";
 import { syncLogger } from "../logger";
-import {
-  FULL_SYNC_MAX_PAGES,
-  DEFAULT_EVENT_PAGE_SIZE,
-} from "../constants";
+import { FULL_SYNC_MAX_PAGES, DEFAULT_EVENT_PAGE_SIZE } from "../constants";
 import {
   queueFullSyncEmbeddings,
   saveCheckpoint,
@@ -45,7 +39,12 @@ import type {
 /**
  * Get default options for full sync
  */
-function getDefaultOptions(): Required<Omit<FullCalendarSyncOptions, "calendarIds" | "excludeCalendarIds" | "timeMin" | "timeMax">> & {
+function getDefaultOptions(): Required<
+  Omit<
+    FullCalendarSyncOptions,
+    "calendarIds" | "excludeCalendarIds" | "timeMin" | "timeMax"
+  >
+> & {
   calendarIds?: string[];
   excludeCalendarIds?: string[];
   timeMin?: Date;
@@ -154,9 +153,10 @@ export async function fullCalendarSync(
     }
 
     // Step 2: Get time range for events
-    const { timeMin, timeMax } = opts.timeMin && opts.timeMax
-      ? { timeMin: opts.timeMin, timeMax: opts.timeMax }
-      : getDefaultSyncTimeRange();
+    const { timeMin, timeMax } =
+      opts.timeMin && opts.timeMax
+        ? { timeMin: opts.timeMin, timeMax: opts.timeMax }
+        : getDefaultSyncTimeRange();
 
     // Step 3: Sync events for each calendar
     const allNewEventIds: string[] = [];
@@ -167,7 +167,13 @@ export async function fullCalendarSync(
       const calendar = calendars[i];
 
       // Skip calendars before checkpoint
-      if (checkpoint?.currentCalendarId && i < calendars.findIndex(c => c.googleCalendarId === checkpoint.currentCalendarId)) {
+      if (
+        checkpoint?.currentCalendarId &&
+        i <
+          calendars.findIndex(
+            (c) => c.googleCalendarId === checkpoint.currentCalendarId
+          )
+      ) {
         continue;
       }
 
@@ -191,9 +197,10 @@ export async function fullCalendarSync(
             pageSize: opts.pageSize,
             singleEvents: opts.singleEvents,
             maxEvents: opts.maxEventsPerCalendar,
-            resumePageToken: checkpoint?.currentCalendarId === calendar.googleCalendarId
-              ? checkpoint.pageToken
-              : undefined,
+            resumePageToken:
+              checkpoint?.currentCalendarId === calendar.googleCalendarId
+                ? checkpoint.pageToken
+                : undefined,
           },
           result.errors,
           (pageProgress) => {
@@ -230,9 +237,12 @@ export async function fullCalendarSync(
           eventsAdded: stats.added,
           eventsUpdated: stats.updated,
         });
-
       } catch (error) {
-        const syncError = createSyncError(error, calendar.googleCalendarId, "calendar");
+        const syncError = createSyncError(
+          error,
+          calendar.googleCalendarId,
+          "calendar"
+        );
         result.errors.push(syncError);
 
         syncLogger.error("Failed to sync calendar events", {
@@ -306,7 +316,6 @@ export async function fullCalendarSync(
     });
 
     return result;
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -351,7 +360,12 @@ export async function resumeFullSync(
   accessToken: string,
   onProgress?: (progress: FullSyncProgress) => void
 ): Promise<CalendarSyncResult> {
-  return fullCalendarSync(userId, accessToken, { resumeFromCheckpoint: true }, onProgress);
+  return fullCalendarSync(
+    userId,
+    accessToken,
+    { resumeFromCheckpoint: true },
+    onProgress
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -360,7 +374,7 @@ export async function resumeFullSync(
 
 /**
  * Sync all calendars for a user
- * 
+ *
  * This syncs the calendar list from Google, then returns only calendars
  * that have isSelected = true (user opted-in to sync events).
  */
@@ -379,22 +393,29 @@ async function syncCalendars(
   let filteredCalendars = googleCalendars;
 
   if (options.calendarIds && options.calendarIds.length > 0) {
-    filteredCalendars = googleCalendars.filter(cal =>
+    filteredCalendars = googleCalendars.filter((cal) =>
       options.calendarIds!.includes(cal.id)
     );
   }
 
   if (options.excludeCalendarIds && options.excludeCalendarIds.length > 0) {
-    filteredCalendars = filteredCalendars.filter(cal =>
-      !options.excludeCalendarIds!.includes(cal.id)
+    filteredCalendars = filteredCalendars.filter(
+      (cal) => !options.excludeCalendarIds!.includes(cal.id)
     );
   }
 
   // Filter out hidden/deleted calendars
-  filteredCalendars = filteredCalendars.filter(cal => !cal.deleted && !cal.hidden);
+  filteredCalendars = filteredCalendars.filter(
+    (cal) => !cal.deleted && !cal.hidden
+  );
 
   // Upsert calendars to database (updates metadata but preserves isSelected)
-  const allCalendars: Array<{ id: string; googleCalendarId: string; name: string; isSelected: boolean }> = [];
+  const allCalendars: Array<{
+    id: string;
+    googleCalendarId: string;
+    name: string;
+    isSelected: boolean;
+  }> = [];
 
   for (const googleCal of filteredCalendars) {
     const input = mapGoogleCalendarToDb(googleCal, userId);
@@ -413,15 +434,15 @@ async function syncCalendars(
   });
 
   // Only return calendars that user has opted-in to sync (isSelected = true)
-  const selectedCalendars = allCalendars.filter(cal => cal.isSelected);
-  
+  const selectedCalendars = allCalendars.filter((cal) => cal.isSelected);
+
   syncLogger.info("Filtered calendars for event sync", {
     userId,
     totalCalendars: allCalendars.length,
     selectedCalendars: selectedCalendars.length,
   });
 
-  return selectedCalendars.map(cal => ({
+  return selectedCalendars.map((cal) => ({
     id: cal.id,
     googleCalendarId: cal.googleCalendarId,
     name: cal.name,
@@ -528,7 +549,6 @@ async function syncCalendarEvents(
           });
           return { eventIds, syncToken, stats };
         }
-
       } catch (error) {
         const syncError = createSyncError(error, googleEvent.id, "event");
         errors.push(syncError);
@@ -552,7 +572,6 @@ async function syncCalendarEvents(
         startedAt: new Date(),
       });
     }
-
   } while (pageToken);
 
   return { eventIds, syncToken, stats };
@@ -575,10 +594,18 @@ async function processEvent(
   }
 
   // Map to database format
-  const input = mapGoogleEventToDb(googleEvent, userId, googleCalendarId, calendarId);
+  const input = mapGoogleEventToDb(
+    googleEvent,
+    userId,
+    googleCalendarId,
+    calendarId
+  );
 
   // Check if event exists
-  const existing = await calendarEventRepository.findByGoogleId(userId, googleEvent.id);
+  const existing = await calendarEventRepository.findByGoogleId(
+    userId,
+    googleEvent.id
+  );
 
   // Upsert event
   const event = await calendarEventRepository.upsert(input);
@@ -588,4 +615,3 @@ async function processEvent(
     isNew: !existing,
   };
 }
-

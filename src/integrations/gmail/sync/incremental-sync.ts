@@ -96,7 +96,7 @@ export async function incrementalSync(
       syncLogger.info("Skipping incremental sync - sync not configured", {
         userId,
       });
-      
+
       // Return empty result - no emails should sync
       result.durationMs = Date.now() - startTime;
       result.unchanged = 1;
@@ -108,7 +108,7 @@ export async function incrementalSync(
       syncLogger.info("Skipping incremental sync - no labels selected", {
         userId,
       });
-      
+
       result.durationMs = Date.now() - startTime;
       result.unchanged = 1;
       return result;

@@ -53,13 +53,22 @@ export const EventCreateSchema = z
     placeId: z.string().optional().nullable().openapi({
       description: "Reference to a Place entity",
     }),
-    virtualUrl: z.string().url().optional().nullable().or(z.literal("")).openapi({
-      description: "Video call URL",
-      example: "https://meet.google.com/abc-defg-hij",
-    }),
-    status: z.enum(["tentative", "confirmed", "cancelled"]).default("confirmed").openapi({
-      description: "Event status",
-    }),
+    virtualUrl: z
+      .string()
+      .url()
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .openapi({
+        description: "Video call URL",
+        example: "https://meet.google.com/abc-defg-hij",
+      }),
+    status: z
+      .enum(["tentative", "confirmed", "cancelled"])
+      .default("confirmed")
+      .openapi({
+        description: "Event status",
+      }),
     visibility: z.enum(["private", "public"]).default("private").openapi({
       description: "Event visibility",
     }),
@@ -169,5 +178,7 @@ export const EventListQuerySchema = z
 // Paginated Response
 // ─────────────────────────────────────────────────────────────
 
-export const PaginatedEventsSchema = createPaginatedSchema(EventSchema, "Events");
-
+export const PaginatedEventsSchema = createPaginatedSchema(
+  EventSchema,
+  "Events"
+);

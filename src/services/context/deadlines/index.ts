@@ -65,4 +65,3 @@ export {
   getDeadlinesByEvent,
   upsertDeadlinesFromSource,
 } from "./deadlines-service";
-

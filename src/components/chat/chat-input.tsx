@@ -79,7 +79,7 @@ export function ChatInput({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        "border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "bg-background/95 supports-[backdrop-filter]:bg-background/60 border-t backdrop-blur",
         className
       )}
     >
@@ -95,9 +95,9 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             className={cn(
-              "w-full resize-none rounded-2xl border bg-muted/50 px-4 py-3 pr-12 text-sm",
+              "bg-muted/50 w-full resize-none rounded-2xl border px-4 py-3 pr-12 text-sm",
               "placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+              "focus:ring-ring focus:ring-2 focus:ring-offset-2 focus:outline-none",
               "disabled:cursor-not-allowed disabled:opacity-50",
               "max-h-[200px] min-h-[48px]"
             )}
@@ -105,7 +105,7 @@ export function ChatInput({
 
           {/* Character count (optional, shows when > 500 chars) */}
           {value.length > 500 && (
-            <span className="absolute bottom-2 right-14 text-xs text-muted-foreground">
+            <span className="text-muted-foreground absolute right-14 bottom-2 text-xs">
               {value.length}
             </span>
           )}
@@ -125,11 +125,7 @@ export function ChatInput({
         >
           {isProcessing ? (
             // Stop icon when processing
-            <svg
-              className="size-5"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="size-5" fill="currentColor" viewBox="0 0 24 24">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
           ) : (
@@ -155,12 +151,12 @@ export function ChatInput({
       </div>
 
       {/* Hint text */}
-      <div className="pb-2 text-center text-xs text-muted-foreground">
-        <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+      <div className="text-muted-foreground pb-2 text-center text-xs">
+        <kbd className="bg-muted rounded px-1.5 py-0.5 text-[10px] font-medium">
           Enter
         </kbd>{" "}
         to send,{" "}
-        <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+        <kbd className="bg-muted rounded px-1.5 py-0.5 text-[10px] font-medium">
           Shift + Enter
         </kbd>{" "}
         for new line
@@ -168,4 +164,3 @@ export function ChatInput({
     </form>
   );
 }
-

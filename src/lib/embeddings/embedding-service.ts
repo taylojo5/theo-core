@@ -252,7 +252,9 @@ export class EmbeddingService implements IEmbeddingService {
 
       // Throttle between chunks to avoid rate limits
       if (i < chunks.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+        await new Promise((resolve) =>
+          setTimeout(resolve, EMBEDDING_THROTTLE_MS)
+        );
       }
     }
   }
@@ -425,7 +427,9 @@ export class EmbeddingService implements IEmbeddingService {
       // Throttle between chunks to avoid rate limits
       // Only delay if there are more chunks to process
       if (i < chunks.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, EMBEDDING_THROTTLE_MS));
+        await new Promise((resolve) =>
+          setTimeout(resolve, EMBEDDING_THROTTLE_MS)
+        );
       }
     }
 

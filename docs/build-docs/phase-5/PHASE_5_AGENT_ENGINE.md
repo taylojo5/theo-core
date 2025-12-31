@@ -72,90 +72,90 @@ Build the "brain" of Theo — the Agent Engine that transforms simple chat into 
 
 The main orchestrator that processes messages and coordinates all layers.
 
-| Method | Description |
-| --- | --- |
+| Method                             | Description                        |
+| ---------------------------------- | ---------------------------------- |
 | `processMessage(message, context)` | Main entry point for user messages |
-| `executePlan(plan)` | Execute a multi-step plan |
-| `continueExecution(planId)` | Resume after approval |
-| `cancelExecution(planId)` | Abort in-progress plan |
+| `executePlan(plan)`                | Execute a multi-step plan          |
+| `continueExecution(planId)`        | Resume after approval              |
+| `cancelExecution(planId)`          | Abort in-progress plan             |
 
 ### 2. Intent Analyzer
 
 Understands what the user wants from their message.
 
-| Method | Description |
-| --- | --- |
-| `analyzeIntent(message, history)` | Extract intent and entities |
-| `detectAmbiguity(intent)` | Identify clarification needs |
-| `generateClarification(ambiguity)` | Create clarifying questions |
+| Method                             | Description                  |
+| ---------------------------------- | ---------------------------- |
+| `analyzeIntent(message, history)`  | Extract intent and entities  |
+| `detectAmbiguity(intent)`          | Identify clarification needs |
+| `generateClarification(ambiguity)` | Create clarifying questions  |
 
 **Intent Analysis Output:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| intent | string | Primary intent (e.g., `schedule_meeting`) |
-| confidence | float | 0.0-1.0 confidence score |
-| entities | Entity[] | Extracted people, dates, places, etc. |
-| impliedNeeds | string[] | Inferred but unstated needs |
-| clarificationNeeded | boolean | Whether to ask follow-up |
-| clarificationQuestions | string[] | Suggested questions |
-| assumptions | Assumption[] | Assumptions made with evidence |
+| Field                  | Type         | Description                               |
+| ---------------------- | ------------ | ----------------------------------------- |
+| intent                 | string       | Primary intent (e.g., `schedule_meeting`) |
+| confidence             | float        | 0.0-1.0 confidence score                  |
+| entities               | Entity[]     | Extracted people, dates, places, etc.     |
+| impliedNeeds           | string[]     | Inferred but unstated needs               |
+| clarificationNeeded    | boolean      | Whether to ask follow-up                  |
+| clarificationQuestions | string[]     | Suggested questions                       |
+| assumptions            | Assumption[] | Assumptions made with evidence            |
 
 ### 3. Context Retrieval Service
 
 Gathers relevant context from all sources.
 
-| Method | Description |
-| --- | --- |
-| `retrieveContext(intent, options)` | Multi-source context retrieval |
-| `searchSemantic(query, filters)` | Vector similarity search |
-| `getRecentInteractions(userId)` | Recent conversation context |
-| `rankContextRelevance(items, intent)` | Relevance scoring |
+| Method                                | Description                    |
+| ------------------------------------- | ------------------------------ |
+| `retrieveContext(intent, options)`    | Multi-source context retrieval |
+| `searchSemantic(query, filters)`      | Vector similarity search       |
+| `getRecentInteractions(userId)`       | Recent conversation context    |
+| `rankContextRelevance(items, intent)` | Relevance scoring              |
 
 **Context Sources:**
 
-| Source | Data |
-| --- | --- |
-| People | Relevant contacts, relationships |
-| Events | Upcoming/recent calendar events |
-| Tasks | Active tasks and deadlines |
-| Conversations | Recent message history |
-| Emails | Relevant email threads |
-| Semantic | Vector-matched content |
+| Source        | Data                             |
+| ------------- | -------------------------------- |
+| People        | Relevant contacts, relationships |
+| Events        | Upcoming/recent calendar events  |
+| Tasks         | Active tasks and deadlines       |
+| Conversations | Recent message history           |
+| Emails        | Relevant email threads           |
+| Semantic      | Vector-matched content           |
 
 ### 4. Planner
 
 Decomposes complex goals into executable steps.
 
-| Method | Description |
-| --- | --- |
-| `createPlan(goal, context)` | Generate execution plan |
-| `validatePlan(plan)` | Check feasibility and permissions |
-| `optimizePlan(plan)` | Parallelize independent steps |
-| `estimateApprovals(plan)` | Identify approval requirements |
+| Method                      | Description                       |
+| --------------------------- | --------------------------------- |
+| `createPlan(goal, context)` | Generate execution plan           |
+| `validatePlan(plan)`        | Check feasibility and permissions |
+| `optimizePlan(plan)`        | Parallelize independent steps     |
+| `estimateApprovals(plan)`   | Identify approval requirements    |
 
 **Plan Structure:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique plan identifier |
-| goal | Goal | Top-level goal description |
-| steps | PlanStep[] | Ordered execution steps |
-| currentStep | number | Current execution position |
-| status | enum | `planned`, `executing`, `paused`, `completed`, `failed` |
-| requiresApproval | boolean | Has pending approval steps |
-| approvedAt | datetime? | When approved |
+| Field            | Type       | Description                                             |
+| ---------------- | ---------- | ------------------------------------------------------- |
+| id               | string     | Unique plan identifier                                  |
+| goal             | Goal       | Top-level goal description                              |
+| steps            | PlanStep[] | Ordered execution steps                                 |
+| currentStep      | number     | Current execution position                              |
+| status           | enum       | `planned`, `executing`, `paused`, `completed`, `failed` |
+| requiresApproval | boolean    | Has pending approval steps                              |
+| approvedAt       | datetime?  | When approved                                           |
 
 ### 5. Tool Registry
 
 Type-safe registry of available tools/actions.
 
-| Method | Description |
-| --- | --- |
-| `registerTool(tool)` | Add tool to registry |
-| `getTool(name)` | Retrieve tool by name |
-| `listTools(category?)` | List available tools |
-| `validateToolCall(name, params)` | Validate parameters |
+| Method                           | Description           |
+| -------------------------------- | --------------------- |
+| `registerTool(tool)`             | Add tool to registry  |
+| `getTool(name)`                  | Retrieve tool by name |
+| `listTools(category?)`           | List available tools  |
+| `validateToolCall(name, params)` | Validate parameters   |
 
 ---
 
@@ -165,32 +165,32 @@ Type-safe registry of available tools/actions.
 
 Each tool has a consistent interface:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| name | string | Unique identifier |
-| description | string | For LLM tool selection |
-| category | enum | `query`, `compute`, `draft`, `create`, `update`, `delete`, `external` |
-| inputSchema | JSONSchema | Parameter validation |
-| outputSchema | JSONSchema | Response structure |
-| requiredIntegrations | string[] | Required connected accounts |
-| riskLevel | enum | `low`, `medium`, `high`, `critical` |
-| requiresApproval | boolean | Default approval requirement |
-| execute | function | Execution handler |
-| undo | function? | Rollback handler (if reversible) |
+| Field                | Type       | Description                                                           |
+| -------------------- | ---------- | --------------------------------------------------------------------- |
+| name                 | string     | Unique identifier                                                     |
+| description          | string     | For LLM tool selection                                                |
+| category             | enum       | `query`, `compute`, `draft`, `create`, `update`, `delete`, `external` |
+| inputSchema          | JSONSchema | Parameter validation                                                  |
+| outputSchema         | JSONSchema | Response structure                                                    |
+| requiredIntegrations | string[]   | Required connected accounts                                           |
+| riskLevel            | enum       | `low`, `medium`, `high`, `critical`                                   |
+| requiresApproval     | boolean    | Default approval requirement                                          |
+| execute              | function   | Execution handler                                                     |
+| undo                 | function?  | Rollback handler (if reversible)                                      |
 
 ### Core Tools
 
-| Tool | Category | Risk | Approval | Description |
-| --- | --- | --- | --- | --- |
-| `query_context` | query | low | no | Search user's context |
-| `search_emails` | query | low | no | Search email archive |
-| `list_calendar_events` | query | low | no | Query calendar |
-| `check_availability` | query | low | no | Find free time slots |
-| `create_task` | create | medium | optional | Create a task |
-| `update_task` | update | medium | optional | Modify a task |
-| `send_email` | external | high | yes | Send email via Gmail |
-| `create_calendar_event` | external | high | yes | Create calendar event |
-| `send_slack` | external | high | yes | Send Slack message |
+| Tool                    | Category | Risk   | Approval | Description           |
+| ----------------------- | -------- | ------ | -------- | --------------------- |
+| `query_context`         | query    | low    | no       | Search user's context |
+| `search_emails`         | query    | low    | no       | Search email archive  |
+| `list_calendar_events`  | query    | low    | no       | Query calendar        |
+| `check_availability`    | query    | low    | no       | Find free time slots  |
+| `create_task`           | create   | medium | optional | Create a task         |
+| `update_task`           | update   | medium | optional | Modify a task         |
+| `send_email`            | external | high   | yes      | Send email via Gmail  |
+| `create_calendar_event` | external | high   | yes      | Create calendar event |
+| `send_slack`            | external | high   | yes      | Send Slack message    |
 
 ### Tool Execution Flow
 
@@ -215,12 +215,12 @@ Each tool has a consistent interface:
 
 ### Approval Levels
 
-| Level | Description | Example |
-| --- | --- | --- |
-| `auto` | Execute immediately | Query tools, read-only |
-| `notify` | Execute and notify | Low-risk creates |
+| Level     | Description               | Example                 |
+| --------- | ------------------------- | ----------------------- |
+| `auto`    | Execute immediately       | Query tools, read-only  |
+| `notify`  | Execute and notify        | Low-risk creates        |
 | `confirm` | Require explicit approval | Sends, external actions |
-| `review` | Present draft for editing | Email drafts |
+| `review`  | Present draft for editing | Email drafts            |
 
 ### User Autonomy Settings
 
@@ -238,22 +238,22 @@ Users control approval requirements per action type:
 
 ### Action Approval Model
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| planId | string? | Parent plan if multi-step |
-| stepIndex | number? | Step in plan |
-| actionType | string | Tool name |
-| parameters | json | Tool parameters |
-| status | enum | `pending`, `approved`, `rejected`, `expired`, `executed` |
-| riskLevel | enum | `low`, `medium`, `high`, `critical` |
-| reasoning | string | Why agent proposed this |
-| requestedAt | datetime | When requested |
-| expiresAt | datetime? | Auto-expiration |
-| decidedAt | datetime? | When user decided |
-| result | json? | Execution result |
-| errorMessage | string? | Error if failed |
+| Field        | Type      | Description                                              |
+| ------------ | --------- | -------------------------------------------------------- |
+| id           | string    | Unique identifier                                        |
+| userId       | string    | FK to User                                               |
+| planId       | string?   | Parent plan if multi-step                                |
+| stepIndex    | number?   | Step in plan                                             |
+| actionType   | string    | Tool name                                                |
+| parameters   | json      | Tool parameters                                          |
+| status       | enum      | `pending`, `approved`, `rejected`, `expired`, `executed` |
+| riskLevel    | enum      | `low`, `medium`, `high`, `critical`                      |
+| reasoning    | string    | Why agent proposed this                                  |
+| requestedAt  | datetime  | When requested                                           |
+| expiresAt    | datetime? | Auto-expiration                                          |
+| decidedAt    | datetime? | When user decided                                        |
+| result       | json?     | Execution result                                         |
+| errorMessage | string?   | Error if failed                                          |
 
 ---
 
@@ -263,44 +263,44 @@ Users control approval requirements per action type:
 
 Every agent action generates an audit entry:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| sessionId | string? | Session context |
-| conversationId | string? | Conversation context |
-| actionType | string | What happened |
-| actionCategory | enum | Tool category |
-| intent | string | Agent's understanding |
-| reasoning | string | Why this action |
-| confidence | float | How certain |
-| assumptions | Assumption[] | Assumptions made |
-| entityType | string? | Affected entity type |
-| entityId | string? | Affected entity ID |
-| entityBefore | json? | State before |
-| entityAfter | json? | State after |
-| input | json | Action input |
-| output | json | Action output |
-| status | enum | `pending`, `completed`, `failed`, `rolled_back` |
-| errorMessage | string? | Error details |
-| durationMs | number | Execution time |
-| modelUsed | string? | LLM model |
-| tokensUsed | number? | Token consumption |
-| createdAt | datetime | Timestamp |
+| Field          | Type         | Description                                     |
+| -------------- | ------------ | ----------------------------------------------- |
+| id             | string       | Unique identifier                               |
+| userId         | string       | FK to User                                      |
+| sessionId      | string?      | Session context                                 |
+| conversationId | string?      | Conversation context                            |
+| actionType     | string       | What happened                                   |
+| actionCategory | enum         | Tool category                                   |
+| intent         | string       | Agent's understanding                           |
+| reasoning      | string       | Why this action                                 |
+| confidence     | float        | How certain                                     |
+| assumptions    | Assumption[] | Assumptions made                                |
+| entityType     | string?      | Affected entity type                            |
+| entityId       | string?      | Affected entity ID                              |
+| entityBefore   | json?        | State before                                    |
+| entityAfter    | json?        | State after                                     |
+| input          | json         | Action input                                    |
+| output         | json         | Action output                                   |
+| status         | enum         | `pending`, `completed`, `failed`, `rolled_back` |
+| errorMessage   | string?      | Error details                                   |
+| durationMs     | number       | Execution time                                  |
+| modelUsed      | string?      | LLM model                                       |
+| tokensUsed     | number?      | Token consumption                               |
+| createdAt      | datetime     | Timestamp                                       |
 
 ### Assumption Tracking
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| auditLogId | string | Parent audit entry |
-| statement | string | The assumption |
-| category | enum | `intent`, `context`, `preference`, `inference` |
-| evidence | json | Supporting evidence |
-| confidence | float | Confidence level |
-| verified | boolean? | User verified |
-| verifiedAt | datetime? | When verified |
-| correction | string? | User correction |
+| Field      | Type      | Description                                    |
+| ---------- | --------- | ---------------------------------------------- |
+| id         | string    | Unique identifier                              |
+| auditLogId | string    | Parent audit entry                             |
+| statement  | string    | The assumption                                 |
+| category   | enum      | `intent`, `context`, `preference`, `inference` |
+| evidence   | json      | Supporting evidence                            |
+| confidence | float     | Confidence level                               |
+| verified   | boolean?  | User verified                                  |
+| verifiedAt | datetime? | When verified                                  |
+| correction | string?   | User correction                                |
 
 ---
 
@@ -332,21 +332,21 @@ Response Format:
 
 ### Model Selection
 
-| Use Case | Recommended Model | Notes |
-| --- | --- | --- |
-| Intent analysis | GPT-4o-mini | Fast, good at classification |
-| Complex planning | Claude Opus / GPT-4 | Strong reasoning |
-| Tool selection | GPT-4o | Good function calling |
-| Response generation | GPT-4o | Balanced quality/speed |
+| Use Case            | Recommended Model   | Notes                        |
+| ------------------- | ------------------- | ---------------------------- |
+| Intent analysis     | GPT-4o-mini         | Fast, good at classification |
+| Complex planning    | Claude Opus / GPT-4 | Strong reasoning             |
+| Tool selection      | GPT-4o              | Good function calling        |
+| Response generation | GPT-4o              | Balanced quality/speed       |
 
 ### Token Management
 
-| Strategy | Implementation |
-| --- | --- |
-| Context window | Truncate old messages, keep system prompt |
-| Tool descriptions | Only include relevant tools |
-| Context injection | Summarize large context |
-| Streaming | SSE for real-time responses |
+| Strategy          | Implementation                            |
+| ----------------- | ----------------------------------------- |
+| Context window    | Truncate old messages, keep system prompt |
+| Tool descriptions | Only include relevant tools               |
+| Context injection | Summarize large context                   |
+| Streaming         | SSE for real-time responses               |
 
 ---
 
@@ -354,39 +354,39 @@ Response Format:
 
 ### Chat
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/chat/message` | Send message, get response |
-| GET | `/api/chat/conversations` | List conversations |
-| GET | `/api/chat/conversations/:id` | Get conversation with messages |
-| DELETE | `/api/chat/conversations/:id` | Delete conversation |
+| Method | Path                          | Description                    |
+| ------ | ----------------------------- | ------------------------------ |
+| POST   | `/api/chat/message`           | Send message, get response     |
+| GET    | `/api/chat/conversations`     | List conversations             |
+| GET    | `/api/chat/conversations/:id` | Get conversation with messages |
+| DELETE | `/api/chat/conversations/:id` | Delete conversation            |
 
 ### Actions
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/actions/pending` | List pending approvals |
-| GET | `/api/actions/:id` | Get action details |
-| POST | `/api/actions/:id/approve` | Approve action |
-| POST | `/api/actions/:id/reject` | Reject action |
-| POST | `/api/actions/:id/edit` | Edit and approve |
+| Method | Path                       | Description            |
+| ------ | -------------------------- | ---------------------- |
+| GET    | `/api/actions/pending`     | List pending approvals |
+| GET    | `/api/actions/:id`         | Get action details     |
+| POST   | `/api/actions/:id/approve` | Approve action         |
+| POST   | `/api/actions/:id/reject`  | Reject action          |
+| POST   | `/api/actions/:id/edit`    | Edit and approve       |
 
 ### Plans
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/plans/:id` | Get plan status |
-| POST | `/api/plans/:id/continue` | Resume after approval |
-| POST | `/api/plans/:id/cancel` | Cancel plan |
+| Method | Path                      | Description           |
+| ------ | ------------------------- | --------------------- |
+| GET    | `/api/plans/:id`          | Get plan status       |
+| POST   | `/api/plans/:id/continue` | Resume after approval |
+| POST   | `/api/plans/:id/cancel`   | Cancel plan           |
 
 ### Audit
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/audit` | Query audit log |
-| GET | `/api/audit/:id` | Get audit entry |
-| GET | `/api/audit/:id/assumptions` | Get assumptions |
-| POST | `/api/audit/:id/verify` | Verify assumption |
+| Method | Path                         | Description       |
+| ------ | ---------------------------- | ----------------- |
+| GET    | `/api/audit`                 | Query audit log   |
+| GET    | `/api/audit/:id`             | Get audit entry   |
+| GET    | `/api/audit/:id/assumptions` | Get assumptions   |
+| POST   | `/api/audit/:id/verify`      | Verify assumption |
 
 ---
 
@@ -394,29 +394,29 @@ Response Format:
 
 ### SSE Event Types
 
-| Event | Payload | Description |
-| --- | --- | --- |
-| `thinking` | `{ step: string }` | Agent reasoning step |
-| `tool_call` | `{ tool, params }` | Tool being called |
-| `tool_result` | `{ tool, result }` | Tool execution result |
+| Event             | Payload                 | Description            |
+| ----------------- | ----------------------- | ---------------------- |
+| `thinking`        | `{ step: string }`      | Agent reasoning step   |
+| `tool_call`       | `{ tool, params }`      | Tool being called      |
+| `tool_result`     | `{ tool, result }`      | Tool execution result  |
 | `approval_needed` | `{ actionId, details }` | Requires user approval |
-| `content` | `{ delta: string }` | Response text chunk |
-| `done` | `{ messageId }` | Response complete |
-| `error` | `{ message }` | Error occurred |
+| `content`         | `{ delta: string }`     | Response text chunk    |
+| `done`            | `{ messageId }`         | Response complete      |
+| `error`           | `{ message }`           | Error occurred         |
 
 ### Client Integration
 
 ```typescript
 // Example client usage
-const eventSource = new EventSource('/api/chat/message', {
-  method: 'POST',
-  body: JSON.stringify({ message, conversationId })
+const eventSource = new EventSource("/api/chat/message", {
+  method: "POST",
+  body: JSON.stringify({ message, conversationId }),
 });
 
-eventSource.on('thinking', (e) => showThinking(e.step));
-eventSource.on('content', (e) => appendContent(e.delta));
-eventSource.on('approval_needed', (e) => showApprovalDialog(e));
-eventSource.on('done', (e) => finalize(e.messageId));
+eventSource.on("thinking", (e) => showThinking(e.step));
+eventSource.on("content", (e) => appendContent(e.delta));
+eventSource.on("approval_needed", (e) => showApprovalDialog(e));
+eventSource.on("done", (e) => finalize(e.messageId));
 ```
 
 ---
@@ -425,24 +425,24 @@ eventSource.on('done', (e) => finalize(e.messageId));
 
 ### Error Types
 
-| Error | Cause | Recovery |
-| --- | --- | --- |
-| `IntentUnclear` | Can't understand request | Ask clarifying question |
-| `ContextMissing` | Required context unavailable | Explain what's needed |
-| `ToolNotAvailable` | Integration not connected | Prompt to connect |
-| `ApprovalTimeout` | User didn't approve in time | Notify, allow retry |
-| `ToolExecutionFailed` | Tool returned error | Explain, suggest alternative |
-| `PlanFailed` | Step in plan failed | Rollback if possible, explain |
-| `RateLimitExceeded` | Too many requests | Queue and retry |
+| Error                 | Cause                        | Recovery                      |
+| --------------------- | ---------------------------- | ----------------------------- |
+| `IntentUnclear`       | Can't understand request     | Ask clarifying question       |
+| `ContextMissing`      | Required context unavailable | Explain what's needed         |
+| `ToolNotAvailable`    | Integration not connected    | Prompt to connect             |
+| `ApprovalTimeout`     | User didn't approve in time  | Notify, allow retry           |
+| `ToolExecutionFailed` | Tool returned error          | Explain, suggest alternative  |
+| `PlanFailed`          | Step in plan failed          | Rollback if possible, explain |
+| `RateLimitExceeded`   | Too many requests            | Queue and retry               |
 
 ### Graceful Degradation
 
-| Failure | Fallback |
-| --- | --- |
-| LLM timeout | Retry with simpler prompt |
-| Context retrieval fails | Proceed with available context |
-| Tool fails | Try alternative tool or explain |
-| Full plan fails | Complete what's possible, explain rest |
+| Failure                 | Fallback                               |
+| ----------------------- | -------------------------------------- |
+| LLM timeout             | Retry with simpler prompt              |
+| Context retrieval fails | Proceed with available context         |
+| Tool fails              | Try alternative tool or explain        |
+| Full plan fails         | Complete what's possible, explain rest |
 
 ---
 
@@ -450,19 +450,19 @@ eventSource.on('done', (e) => finalize(e.messageId));
 
 ### Confidence Thresholds
 
-| Threshold | Value | Action |
-| --- | --- | --- |
-| Action threshold | 0.7 | Below = ask clarification |
-| Statement threshold | 0.5 | Below = express uncertainty |
-| High-risk threshold | 0.9 | Require for sensitive actions |
+| Threshold           | Value | Action                        |
+| ------------------- | ----- | ----------------------------- |
+| Action threshold    | 0.7   | Below = ask clarification     |
+| Statement threshold | 0.5   | Below = express uncertainty   |
+| High-risk threshold | 0.9   | Require for sensitive actions |
 
 ### Rate Limits
 
-| Limit | Value | Scope |
-| --- | --- | --- |
-| Actions per minute | 10 | Per user |
-| External calls per hour | 50 | Per user |
-| LLM tokens per hour | 100,000 | Per user |
+| Limit                   | Value   | Scope    |
+| ----------------------- | ------- | -------- |
+| Actions per minute      | 10      | Per user |
+| External calls per hour | 50      | Per user |
+| LLM tokens per hour     | 100,000 | Per user |
 
 ### Content Filtering
 
@@ -523,15 +523,15 @@ eventSource.on('done', (e) => finalize(e.messageId));
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| Intent accuracy | >90% | Correct intent classification |
-| Tool selection accuracy | >85% | Correct tool chosen |
-| Response latency (p50) | <2s | Time to first content |
-| Response latency (p95) | <5s | Including tool calls |
-| Plan completion rate | >80% | Multi-step plans succeed |
-| User approval rate | >70% | Actions approved vs rejected |
-| Audit coverage | 100% | All actions logged |
+| Metric                  | Target | Description                   |
+| ----------------------- | ------ | ----------------------------- |
+| Intent accuracy         | >90%   | Correct intent classification |
+| Tool selection accuracy | >85%   | Correct tool chosen           |
+| Response latency (p50)  | <2s    | Time to first content         |
+| Response latency (p95)  | <5s    | Including tool calls          |
+| Plan completion rate    | >80%   | Multi-step plans succeed      |
+| User approval rate      | >70%   | Actions approved vs rejected  |
+| Audit coverage          | 100%   | All actions logged            |
 
 ---
 
@@ -569,7 +569,7 @@ eventSource.on('done', (e) => finalize(e.messageId));
    - Result: Meeting tomorrow at 2pm
 
 4. Response:
-   "Your next meeting with Sarah Chen is tomorrow at 2:00 PM - 
+   "Your next meeting with Sarah Chen is tomorrow at 2:00 PM -
     'Q1 Planning Review' in Conference Room A."
 ```
 
@@ -643,4 +643,3 @@ Plan:
   "durationMs": 1250
 }
 ```
-

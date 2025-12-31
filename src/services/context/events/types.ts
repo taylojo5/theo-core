@@ -135,7 +135,10 @@ export interface IEventsService {
 
   getPast(userId: string, limit?: number): Promise<Event[]>;
 
-  getByTimeRange(userId: string, options: EventTimeRangeOptions): Promise<Event[]>;
+  getByTimeRange(
+    userId: string,
+    options: EventTimeRangeOptions
+  ): Promise<Event[]>;
 
   getOnDate(userId: string, date: Date): Promise<Event[]>;
 
@@ -189,4 +192,3 @@ export type {
   UpsertResult,
   EventStatus,
 };
-

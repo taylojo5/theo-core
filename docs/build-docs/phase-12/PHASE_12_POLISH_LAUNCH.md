@@ -29,48 +29,49 @@ Prepare Theo for production launch with comprehensive UI polish, robust error ha
 
 Every async operation should have appropriate loading feedback.
 
-| Component | Loading Pattern |
-| --- | --- |
-| Page transitions | Full-page skeleton |
-| Data fetching | Inline skeletons |
-| Button actions | Spinner + disabled state |
-| Chat messages | Typing indicator |
-| Form submissions | Button loading state |
-| Integrations sync | Progress indicator |
+| Component         | Loading Pattern          |
+| ----------------- | ------------------------ |
+| Page transitions  | Full-page skeleton       |
+| Data fetching     | Inline skeletons         |
+| Button actions    | Spinner + disabled state |
+| Chat messages     | Typing indicator         |
+| Form submissions  | Button loading state     |
+| Integrations sync | Progress indicator       |
 
 ### Design System Audit
 
-| Area | Requirements |
-| --- | --- |
-| Typography | Consistent scale, readable sizes |
-| Spacing | Consistent margins/padding |
-| Colors | Accessible contrast ratios |
-| Icons | Consistent icon set |
-| Shadows/Elevation | Defined hierarchy |
-| Animations | Smooth, purposeful motion |
+| Area              | Requirements                     |
+| ----------------- | -------------------------------- |
+| Typography        | Consistent scale, readable sizes |
+| Spacing           | Consistent margins/padding       |
+| Colors            | Accessible contrast ratios       |
+| Icons             | Consistent icon set              |
+| Shadows/Elevation | Defined hierarchy                |
+| Animations        | Smooth, purposeful motion        |
 
 ### Empty States
 
 Provide helpful guidance when no data exists:
 
-| Context | Empty State Content |
-| --- | --- |
-| No conversations | "Start a conversation with Theo" |
-| No integrations | "Connect your accounts to get started" |
-| No emails synced | "Syncing your emails..." or "Connect Gmail" |
-| No calendar events | "No upcoming events" |
-| No tasks | "You're all caught up!" |
-| No memories | "Theo hasn't learned anything yet" |
+| Context            | Empty State Content                         |
+| ------------------ | ------------------------------------------- |
+| No conversations   | "Start a conversation with Theo"            |
+| No integrations    | "Connect your accounts to get started"      |
+| No emails synced   | "Syncing your emails..." or "Connect Gmail" |
+| No calendar events | "No upcoming events"                        |
+| No tasks           | "You're all caught up!"                     |
+| No memories        | "Theo hasn't learned anything yet"          |
 
 ### Responsive Design
 
-| Breakpoint | Target |
-| --- | --- |
-| Mobile | 320px - 768px |
-| Tablet | 768px - 1024px |
-| Desktop | 1024px+ |
+| Breakpoint | Target         |
+| ---------- | -------------- |
+| Mobile     | 320px - 768px  |
+| Tablet     | 768px - 1024px |
+| Desktop    | 1024px+        |
 
 **Key Considerations:**
+
 - Chat interface works well on mobile
 - Sidebar collapses to hamburger menu
 - Settings accessible on all screen sizes
@@ -78,16 +79,16 @@ Provide helpful guidance when no data exists:
 
 ### Accessibility (WCAG 2.1 AA)
 
-| Requirement | Implementation |
-| --- | --- |
-| Keyboard navigation | All interactive elements focusable |
-| Screen reader support | Proper ARIA labels |
-| Color contrast | 4.5:1 minimum for text |
-| Focus indicators | Visible focus rings |
-| Form labels | Associated labels for all inputs |
-| Error messages | Announced to screen readers |
-| Skip links | Skip to main content |
-| Reduced motion | Respect `prefers-reduced-motion` |
+| Requirement           | Implementation                     |
+| --------------------- | ---------------------------------- |
+| Keyboard navigation   | All interactive elements focusable |
+| Screen reader support | Proper ARIA labels                 |
+| Color contrast        | 4.5:1 minimum for text             |
+| Focus indicators      | Visible focus rings                |
+| Form labels           | Associated labels for all inputs   |
+| Error messages        | Announced to screen readers        |
+| Skip links            | Skip to main content               |
+| Reduced motion        | Respect `prefers-reduced-motion`   |
 
 ---
 
@@ -110,37 +111,37 @@ Provide helpful guidance when no data exists:
 
 ### Error Types and Handling
 
-| Error Type | User Message | Recovery Action |
-| --- | --- | --- |
-| Network error | "Connection lost. Retrying..." | Auto-retry with backoff |
-| Auth expired | "Session expired. Please log in." | Redirect to login |
-| Rate limited | "Too many requests. Please wait." | Show countdown timer |
-| Server error | "Something went wrong. Try again." | Retry button |
-| Validation error | Specific field-level message | Highlight invalid fields |
-| Integration error | "Gmail sync failed. Retry?" | Retry button |
-| Not found | "Page not found" | Link to home |
+| Error Type        | User Message                       | Recovery Action          |
+| ----------------- | ---------------------------------- | ------------------------ |
+| Network error     | "Connection lost. Retrying..."     | Auto-retry with backoff  |
+| Auth expired      | "Session expired. Please log in."  | Redirect to login        |
+| Rate limited      | "Too many requests. Please wait."  | Show countdown timer     |
+| Server error      | "Something went wrong. Try again." | Retry button             |
+| Validation error  | Specific field-level message       | Highlight invalid fields |
+| Integration error | "Gmail sync failed. Retry?"        | Retry button             |
+| Not found         | "Page not found"                   | Link to home             |
 
 ### API Error Response Format
 
 ```typescript
 interface ApiError {
-  code: string;           // Machine-readable: "RATE_LIMITED"
-  message: string;        // Human-readable: "Too many requests"
-  details?: object;       // Additional context
-  retryAfter?: number;    // Seconds until retry allowed
-  requestId?: string;     // For support/debugging
+  code: string; // Machine-readable: "RATE_LIMITED"
+  message: string; // Human-readable: "Too many requests"
+  details?: object; // Additional context
+  retryAfter?: number; // Seconds until retry allowed
+  requestId?: string; // For support/debugging
 }
 ```
 
 ### Client-Side Error Handling
 
-| Scenario | Behavior |
-| --- | --- |
-| Form submission fails | Show inline error, keep form data |
-| Chat message fails | Show retry button on message |
-| Integration sync fails | Show error badge on integration |
-| Background fetch fails | Silent retry, log for debugging |
-| WebSocket disconnects | Auto-reconnect with backoff |
+| Scenario               | Behavior                          |
+| ---------------------- | --------------------------------- |
+| Form submission fails  | Show inline error, keep form data |
+| Chat message fails     | Show retry button on message      |
+| Integration sync fails | Show error badge on integration   |
+| Background fetch fails | Silent retry, log for debugging   |
+| WebSocket disconnects  | Auto-reconnect with backoff       |
 
 ---
 
@@ -148,25 +149,26 @@ interface ApiError {
 
 ### Retry Logic
 
-| Operation | Max Retries | Backoff | Timeout |
-| --- | --- | --- | --- |
-| API calls | 3 | Exponential (1s, 2s, 4s) | 30s |
-| OAuth refresh | 3 | Exponential | 10s |
-| Integration sync | 3 | Exponential | 60s |
-| Chat messages | 2 | Linear (2s, 4s) | 30s |
-| Health checks | ∞ | Fixed (30s) | 5s |
+| Operation        | Max Retries | Backoff                  | Timeout |
+| ---------------- | ----------- | ------------------------ | ------- |
+| API calls        | 3           | Exponential (1s, 2s, 4s) | 30s     |
+| OAuth refresh    | 3           | Exponential              | 10s     |
+| Integration sync | 3           | Exponential              | 60s     |
+| Chat messages    | 2           | Linear (2s, 4s)          | 30s     |
+| Health checks    | ∞           | Fixed (30s)              | 5s      |
 
 ### Circuit Breaker Pattern
 
 Prevent cascading failures when external services are down:
 
-| State | Behavior |
-| --- | --- |
-| Closed | Normal operation |
-| Open | Fail fast, don't call service |
-| Half-Open | Allow one test request |
+| State     | Behavior                      |
+| --------- | ----------------------------- |
+| Closed    | Normal operation              |
+| Open      | Fail fast, don't call service |
+| Half-Open | Allow one test request        |
 
 **Thresholds:**
+
 - Open after 5 consecutive failures
 - Try half-open after 30 seconds
 - Close after 3 successful requests
@@ -175,23 +177,23 @@ Prevent cascading failures when external services are down:
 
 When services are unavailable:
 
-| Service Down | Degraded Behavior |
-| --- | --- |
-| Gmail API | Show cached emails, disable send |
+| Service Down | Degraded Behavior                  |
+| ------------ | ---------------------------------- |
+| Gmail API    | Show cached emails, disable send   |
 | Calendar API | Show cached events, disable create |
-| Slack API | Show cached messages, queue sends |
-| Kroger API | Use cached products only |
-| Redis | Fall back to in-memory cache |
-| Embeddings | Disable semantic search |
+| Slack API    | Show cached messages, queue sends  |
+| Kroger API   | Use cached products only           |
+| Redis        | Fall back to in-memory cache       |
+| Embeddings   | Disable semantic search            |
 
 ### Health Checks
 
-| Endpoint | Check | Frequency |
-| --- | --- | --- |
-| `/api/health` | App responsive | 30s |
-| `/api/health/db` | Database connected | 60s |
-| `/api/health/redis` | Redis connected | 60s |
-| `/api/health/integrations` | OAuth tokens valid | 5m |
+| Endpoint                   | Check              | Frequency |
+| -------------------------- | ------------------ | --------- |
+| `/api/health`              | App responsive     | 30s       |
+| `/api/health/db`           | Database connected | 60s       |
+| `/api/health/redis`        | Redis connected    | 60s       |
+| `/api/health/integrations` | OAuth tokens valid | 5m        |
 
 ---
 
@@ -199,53 +201,53 @@ When services are unavailable:
 
 ### Frontend Performance
 
-| Metric | Target | Optimization |
-| --- | --- | --- |
-| First Contentful Paint | <1.5s | Code splitting, preload |
-| Largest Contentful Paint | <2.5s | Image optimization, lazy load |
-| Time to Interactive | <3.0s | Defer non-critical JS |
-| Cumulative Layout Shift | <0.1 | Reserve space for async content |
-| Bundle size | <200KB gzipped | Tree shaking, dynamic imports |
+| Metric                   | Target         | Optimization                    |
+| ------------------------ | -------------- | ------------------------------- |
+| First Contentful Paint   | <1.5s          | Code splitting, preload         |
+| Largest Contentful Paint | <2.5s          | Image optimization, lazy load   |
+| Time to Interactive      | <3.0s          | Defer non-critical JS           |
+| Cumulative Layout Shift  | <0.1           | Reserve space for async content |
+| Bundle size              | <200KB gzipped | Tree shaking, dynamic imports   |
 
 ### Code Splitting Strategy
 
-| Route | Load Strategy |
-| --- | --- |
-| Login | Immediate |
-| Chat | Immediate (core experience) |
-| Settings | Lazy load |
-| Integrations | Lazy load |
-| Admin | Lazy load |
+| Route        | Load Strategy               |
+| ------------ | --------------------------- |
+| Login        | Immediate                   |
+| Chat         | Immediate (core experience) |
+| Settings     | Lazy load                   |
+| Integrations | Lazy load                   |
+| Admin        | Lazy load                   |
 
 ### Caching Strategy
 
-| Resource | Cache Duration | Strategy |
-| --- | --- | --- |
-| Static assets | 1 year | Immutable with hash |
-| API responses | Varies | stale-while-revalidate |
-| User data | 5 minutes | Revalidate on focus |
-| Integration data | 1 minute | Background refresh |
-| Embeddings | Indefinite | Until content changes |
+| Resource         | Cache Duration | Strategy               |
+| ---------------- | -------------- | ---------------------- |
+| Static assets    | 1 year         | Immutable with hash    |
+| API responses    | Varies         | stale-while-revalidate |
+| User data        | 5 minutes      | Revalidate on focus    |
+| Integration data | 1 minute       | Background refresh     |
+| Embeddings       | Indefinite     | Until content changes  |
 
 ### Database Optimization
 
-| Optimization | Implementation |
-| --- | --- |
-| Indexes | On all foreign keys, query fields |
-| Connection pooling | PgBouncer or Prisma pool |
-| Query optimization | Analyze slow queries |
-| Read replicas | For read-heavy operations |
-| Pagination | Cursor-based for large lists |
+| Optimization       | Implementation                    |
+| ------------------ | --------------------------------- |
+| Indexes            | On all foreign keys, query fields |
+| Connection pooling | PgBouncer or Prisma pool          |
+| Query optimization | Analyze slow queries              |
+| Read replicas      | For read-heavy operations         |
+| Pagination         | Cursor-based for large lists      |
 
 ### API Optimization
 
-| Optimization | Implementation |
-| --- | --- |
-| Response compression | gzip/brotli |
-| Pagination | Limit default to 20 items |
-| Field selection | Allow clients to specify fields |
-| Batch endpoints | Combine related requests |
-| ETags | Conditional requests |
+| Optimization         | Implementation                  |
+| -------------------- | ------------------------------- |
+| Response compression | gzip/brotli                     |
+| Pagination           | Limit default to 20 items       |
+| Field selection      | Allow clients to specify fields |
+| Batch endpoints      | Combine related requests        |
+| ETags                | Conditional requests            |
 
 ---
 
@@ -275,47 +277,47 @@ When services are unavailable:
 
 ### Environment Configuration
 
-| Environment | Purpose | URL |
-| --- | --- | --- |
-| Development | Local development | localhost:3000 |
-| Preview | PR preview deployments | *.vercel.app |
-| Staging | Pre-production testing | staging.theo.app |
-| Production | Live application | app.theo.app |
+| Environment | Purpose                | URL              |
+| ----------- | ---------------------- | ---------------- |
+| Development | Local development      | localhost:3000   |
+| Preview     | PR preview deployments | \*.vercel.app    |
+| Staging     | Pre-production testing | staging.theo.app |
+| Production  | Live application       | app.theo.app     |
 
 ### Required Environment Variables
 
-| Variable | Description | Required |
-| --- | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection | Yes |
-| `REDIS_URL` | Redis connection | Yes |
-| `NEXTAUTH_SECRET` | Auth encryption key | Yes |
-| `NEXTAUTH_URL` | App URL | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth | Yes |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth | Yes |
-| `OPENAI_API_KEY` | LLM API | Yes |
-| `ENCRYPTION_KEY` | Token encryption | Yes |
-| `SENTRY_DSN` | Error monitoring | Production |
-| `SLACK_CLIENT_ID` | Slack OAuth | Optional |
-| `SLACK_CLIENT_SECRET` | Slack OAuth | Optional |
-| `KROGER_CLIENT_ID` | Kroger OAuth | Optional |
-| `KROGER_CLIENT_SECRET` | Kroger OAuth | Optional |
+| Variable               | Description           | Required   |
+| ---------------------- | --------------------- | ---------- |
+| `DATABASE_URL`         | PostgreSQL connection | Yes        |
+| `REDIS_URL`            | Redis connection      | Yes        |
+| `NEXTAUTH_SECRET`      | Auth encryption key   | Yes        |
+| `NEXTAUTH_URL`         | App URL               | Yes        |
+| `GOOGLE_CLIENT_ID`     | Google OAuth          | Yes        |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth          | Yes        |
+| `OPENAI_API_KEY`       | LLM API               | Yes        |
+| `ENCRYPTION_KEY`       | Token encryption      | Yes        |
+| `SENTRY_DSN`           | Error monitoring      | Production |
+| `SLACK_CLIENT_ID`      | Slack OAuth           | Optional   |
+| `SLACK_CLIENT_SECRET`  | Slack OAuth           | Optional   |
+| `KROGER_CLIENT_ID`     | Kroger OAuth          | Optional   |
+| `KROGER_CLIENT_SECRET` | Kroger OAuth          | Optional   |
 
 ### Database Hosting Options
 
-| Provider | Pros | Cons |
-| --- | --- | --- |
-| Neon | Serverless, branching | Cold starts |
-| Supabase | Full Postgres, realtime | More setup |
-| PlanetScale | Serverless, branching | MySQL-like |
-| Railway | Simple, containers | Less serverless |
+| Provider    | Pros                    | Cons            |
+| ----------- | ----------------------- | --------------- |
+| Neon        | Serverless, branching   | Cold starts     |
+| Supabase    | Full Postgres, realtime | More setup      |
+| PlanetScale | Serverless, branching   | MySQL-like      |
+| Railway     | Simple, containers      | Less serverless |
 
 ### Redis Hosting Options
 
-| Provider | Pros | Cons |
-| --- | --- | --- |
-| Upstash | Serverless, pay-per-use | Latency |
-| Redis Cloud | Full Redis, persistence | Cost |
-| Railway | Simple | Manual scaling |
+| Provider    | Pros                    | Cons           |
+| ----------- | ----------------------- | -------------- |
+| Upstash     | Serverless, pay-per-use | Latency        |
+| Redis Cloud | Full Redis, persistence | Cost           |
+| Railway     | Simple                  | Manual scaling |
 
 ---
 
@@ -323,52 +325,52 @@ When services are unavailable:
 
 ### Error Tracking (Sentry)
 
-| Configuration | Value |
-| --- | --- |
-| Sample rate | 100% errors, 10% transactions |
-| Environment tagging | dev, staging, production |
-| User context | userId, email (anonymized) |
-| Release tracking | Git SHA |
-| Source maps | Uploaded on deploy |
+| Configuration       | Value                         |
+| ------------------- | ----------------------------- |
+| Sample rate         | 100% errors, 10% transactions |
+| Environment tagging | dev, staging, production      |
+| User context        | userId, email (anonymized)    |
+| Release tracking    | Git SHA                       |
+| Source maps         | Uploaded on deploy            |
 
 ### Logging Strategy
 
-| Level | Usage | Example |
-| --- | --- | --- |
-| Error | Unhandled exceptions | "Database connection failed" |
-| Warn | Degraded operation | "Cache miss, falling back to DB" |
-| Info | Important events | "User connected Gmail" |
-| Debug | Development details | "Query took 45ms" |
+| Level | Usage                | Example                          |
+| ----- | -------------------- | -------------------------------- |
+| Error | Unhandled exceptions | "Database connection failed"     |
+| Warn  | Degraded operation   | "Cache miss, falling back to DB" |
+| Info  | Important events     | "User connected Gmail"           |
+| Debug | Development details  | "Query took 45ms"                |
 
 ### Key Metrics
 
-| Metric | Source | Alert Threshold |
-| --- | --- | --- |
-| Error rate | Sentry | >1% of requests |
-| Response time (p95) | Vercel Analytics | >3s |
-| Database connections | Postgres | >80% pool |
-| Queue depth | Redis | >1000 jobs |
-| OAuth token refresh failures | Logs | >10/hour |
-| Active users | Analytics | N/A (growth metric) |
+| Metric                       | Source           | Alert Threshold     |
+| ---------------------------- | ---------------- | ------------------- |
+| Error rate                   | Sentry           | >1% of requests     |
+| Response time (p95)          | Vercel Analytics | >3s                 |
+| Database connections         | Postgres         | >80% pool           |
+| Queue depth                  | Redis            | >1000 jobs          |
+| OAuth token refresh failures | Logs             | >10/hour            |
+| Active users                 | Analytics        | N/A (growth metric) |
 
 ### Alerting
 
-| Condition | Severity | Channel |
-| --- | --- | --- |
-| Error rate spike | High | Slack + PagerDuty |
-| Service down | Critical | PagerDuty |
-| Database slow | Medium | Slack |
-| Queue backup | Medium | Slack |
-| OAuth failures spike | High | Slack |
+| Condition            | Severity | Channel           |
+| -------------------- | -------- | ----------------- |
+| Error rate spike     | High     | Slack + PagerDuty |
+| Service down         | Critical | PagerDuty         |
+| Database slow        | Medium   | Slack             |
+| Queue backup         | Medium   | Slack             |
+| OAuth failures spike | High     | Slack             |
 
 ### Uptime Monitoring
 
-| Check | Frequency | Timeout |
-| --- | --- | --- |
-| Homepage | 1 minute | 10s |
-| API health | 1 minute | 5s |
-| Login flow | 5 minutes | 30s |
-| Chat response | 5 minutes | 60s |
+| Check         | Frequency | Timeout |
+| ------------- | --------- | ------- |
+| Homepage      | 1 minute  | 10s     |
+| API health    | 1 minute  | 5s      |
+| Login flow    | 5 minutes | 30s     |
+| Chat response | 5 minutes | 60s     |
 
 ---
 
@@ -376,31 +378,31 @@ When services are unavailable:
 
 ### Headers
 
-| Header | Value | Purpose |
-| --- | --- | --- |
-| `Strict-Transport-Security` | max-age=31536000 | Force HTTPS |
-| `X-Content-Type-Options` | nosniff | Prevent MIME sniffing |
-| `X-Frame-Options` | DENY | Prevent clickjacking |
-| `Content-Security-Policy` | Configured | XSS protection |
-| `Referrer-Policy` | strict-origin-when-cross-origin | Privacy |
+| Header                      | Value                           | Purpose               |
+| --------------------------- | ------------------------------- | --------------------- |
+| `Strict-Transport-Security` | max-age=31536000                | Force HTTPS           |
+| `X-Content-Type-Options`    | nosniff                         | Prevent MIME sniffing |
+| `X-Frame-Options`           | DENY                            | Prevent clickjacking  |
+| `Content-Security-Policy`   | Configured                      | XSS protection        |
+| `Referrer-Policy`           | strict-origin-when-cross-origin | Privacy               |
 
 ### Rate Limiting (Production)
 
-| Endpoint | Limit | Window |
-| --- | --- | --- |
-| `/api/auth/*` | 10 requests | 1 minute |
-| `/api/chat/*` | 60 requests | 1 minute |
-| `/api/integrations/*` | 100 requests | 1 minute |
-| Global | 1000 requests | 1 minute |
+| Endpoint              | Limit         | Window   |
+| --------------------- | ------------- | -------- |
+| `/api/auth/*`         | 10 requests   | 1 minute |
+| `/api/chat/*`         | 60 requests   | 1 minute |
+| `/api/integrations/*` | 100 requests  | 1 minute |
+| Global                | 1000 requests | 1 minute |
 
 ### Secrets Management
 
-| Practice | Implementation |
-| --- | --- |
+| Practice           | Implementation             |
+| ------------------ | -------------------------- |
 | No secrets in code | Environment variables only |
-| Rotation | Quarterly for non-OAuth |
-| Access control | Limited to production team |
-| Audit logging | Track secret access |
+| Rotation           | Quarterly for non-OAuth    |
+| Access control     | Limited to production team |
+| Audit logging      | Track secret access        |
 
 ---
 
@@ -408,31 +410,31 @@ When services are unavailable:
 
 ### User Documentation
 
-| Document | Content |
-| --- | --- |
-| Getting Started | Account creation, first chat |
-| Connecting Integrations | Gmail, Calendar, Slack, Kroger |
-| Privacy & Data | What Theo stores, how to delete |
-| FAQ | Common questions and answers |
+| Document                | Content                         |
+| ----------------------- | ------------------------------- |
+| Getting Started         | Account creation, first chat    |
+| Connecting Integrations | Gmail, Calendar, Slack, Kroger  |
+| Privacy & Data          | What Theo stores, how to delete |
+| FAQ                     | Common questions and answers    |
 
 ### Developer Documentation
 
-| Document | Content |
-| --- | --- |
-| API Reference | All endpoints, auth, errors |
-| Architecture | System design, data flow |
-| Contributing | Setup, code style, PR process |
-| Deployment | How to deploy, environments |
+| Document      | Content                       |
+| ------------- | ----------------------------- |
+| API Reference | All endpoints, auth, errors   |
+| Architecture  | System design, data flow      |
+| Contributing  | Setup, code style, PR process |
+| Deployment    | How to deploy, environments   |
 
 ### In-App Onboarding
 
-| Step | Content |
-| --- | --- |
-| Welcome | Brief intro to Theo |
-| Connect Gmail | Guide through OAuth |
-| Connect Calendar | Guide through OAuth |
-| First Chat | Prompt for initial interaction |
-| Explore Features | Highlight key capabilities |
+| Step             | Content                        |
+| ---------------- | ------------------------------ |
+| Welcome          | Brief intro to Theo            |
+| Connect Gmail    | Guide through OAuth            |
+| Connect Calendar | Guide through OAuth            |
+| First Chat       | Prompt for initial interaction |
+| Explore Features | Highlight key capabilities     |
 
 ---
 
@@ -532,15 +534,15 @@ When services are unavailable:
 
 ## Success Metrics
 
-| Metric | Target | Measurement |
-| --- | --- | --- |
-| Uptime | 99.9% | Uptime monitoring |
-| Error rate | <0.5% | Sentry |
-| Page load time | <2s | Vercel Analytics |
-| API response time (p95) | <500ms | Vercel Analytics |
-| Lighthouse score | >90 | Lighthouse CI |
-| Accessibility score | 100% | axe audit |
-| User satisfaction | >4/5 | In-app feedback |
+| Metric                  | Target | Measurement       |
+| ----------------------- | ------ | ----------------- |
+| Uptime                  | 99.9%  | Uptime monitoring |
+| Error rate              | <0.5%  | Sentry            |
+| Page load time          | <2s    | Vercel Analytics  |
+| API response time (p95) | <500ms | Vercel Analytics  |
+| Lighthouse score        | >90    | Lighthouse CI     |
+| Accessibility score     | 100%   | axe audit         |
+| User satisfaction       | >4/5   | In-app feedback   |
 
 ---
 
@@ -548,28 +550,27 @@ When services are unavailable:
 
 ### JavaScript Bundle
 
-| Chunk | Max Size (gzipped) |
-| --- | --- |
-| Main bundle | 100KB |
-| Vendor bundle | 80KB |
-| Per-route chunk | 30KB |
-| Total initial | 200KB |
+| Chunk           | Max Size (gzipped) |
+| --------------- | ------------------ |
+| Main bundle     | 100KB              |
+| Vendor bundle   | 80KB               |
+| Per-route chunk | 30KB               |
+| Total initial   | 200KB              |
 
 ### Image Guidelines
 
-| Type | Format | Max Size |
-| --- | --- | --- |
-| Icons | SVG | 5KB |
-| UI images | WebP | 50KB |
-| User avatars | WebP | 10KB |
-| Hero images | WebP | 100KB |
+| Type         | Format | Max Size |
+| ------------ | ------ | -------- |
+| Icons        | SVG    | 5KB      |
+| UI images    | WebP   | 50KB     |
+| User avatars | WebP   | 10KB     |
+| Hero images  | WebP   | 100KB    |
 
 ### API Response Times
 
-| Endpoint Category | p50 | p95 | p99 |
-| --- | --- | --- | --- |
-| Auth | 100ms | 300ms | 500ms |
-| Chat | 500ms | 2s | 5s |
-| Data fetching | 100ms | 300ms | 500ms |
-| Integration sync | 1s | 5s | 10s |
-
+| Endpoint Category | p50   | p95   | p99   |
+| ----------------- | ----- | ----- | ----- |
+| Auth              | 100ms | 300ms | 500ms |
+| Chat              | 500ms | 2s    | 5s    |
+| Data fetching     | 100ms | 300ms | 500ms |
+| Integration sync  | 1s    | 5s    | 10s   |

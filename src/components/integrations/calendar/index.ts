@@ -38,4 +38,3 @@ export {
   type CalendarPendingApprovalsData,
   type CalendarPendingApprovalsProps,
 } from "./pending-approvals";
-

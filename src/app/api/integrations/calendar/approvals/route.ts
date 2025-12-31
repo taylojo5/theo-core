@@ -55,7 +55,13 @@ export async function GET(request: NextRequest) {
       // Get approvals by status
       approvals = await calendarApprovalRepository.findByStatus(
         userId,
-        status as "pending" | "approved" | "rejected" | "expired" | "executed" | "failed"
+        status as
+          | "pending"
+          | "approved"
+          | "rejected"
+          | "expired"
+          | "executed"
+          | "failed"
       );
     }
 
@@ -84,4 +90,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -329,4 +329,3 @@ export const DEFAULT_REMINDER_MINUTES = 30;
  * Default reminder method
  */
 export const DEFAULT_REMINDER_METHOD = "popup" as const;
-

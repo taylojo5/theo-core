@@ -71,7 +71,10 @@ export async function DELETE(
   const result = await revokeCalendarAccess(userId);
 
   if (!result.success) {
-    logger.error("Failed to revoke Calendar access", { userId, error: result.error });
+    logger.error("Failed to revoke Calendar access", {
+      userId,
+      error: result.error,
+    });
     return NextResponse.json(
       {
         success: false,
@@ -95,7 +98,11 @@ export async function DELETE(
     },
   }).catch((error) => {
     // Log audit failure but don't block the response
-    logger.warn("Failed to log Calendar disconnect audit entry", { userId }, error);
+    logger.warn(
+      "Failed to log Calendar disconnect audit entry",
+      { userId },
+      error
+    );
   });
 
   logger.info("Calendar disconnected successfully", { userId });
@@ -120,5 +127,3 @@ export async function POST(
   // Delegate to DELETE handler
   return DELETE(request);
 }
-
-

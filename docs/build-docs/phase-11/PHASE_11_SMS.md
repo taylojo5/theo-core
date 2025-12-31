@@ -43,7 +43,7 @@ User: Hey, what's on my calendar today?
 
 Theo: You have 3 meetings today:
 • 10am - Team standup (30 min)
-• 1pm - Sarah 1:1 (1 hour)  
+• 1pm - Sarah 1:1 (1 hour)
 • 3pm - Product review (1 hour)
 
 Want me to add anything?
@@ -128,22 +128,22 @@ Reply here or open in app: theo.app/email/xyz
 
 ### Twilio (Recommended)
 
-| Feature | Details |
-| --- | --- |
-| Inbound SMS | Webhook to `/api/sms/webhook` |
-| Outbound SMS | REST API |
-| Phone numbers | Provision via API |
-| Pricing | ~$0.0079/message (US) |
-| MMS support | Images, media |
-| Delivery receipts | Webhook callbacks |
+| Feature           | Details                       |
+| ----------------- | ----------------------------- |
+| Inbound SMS       | Webhook to `/api/sms/webhook` |
+| Outbound SMS      | REST API                      |
+| Phone numbers     | Provision via API             |
+| Pricing           | ~$0.0079/message (US)         |
+| MMS support       | Images, media                 |
+| Delivery receipts | Webhook callbacks             |
 
 ### Alternative Providers
 
-| Provider | Pros | Cons |
-| --- | --- | --- |
-| Vonage | Good international | More complex API |
-| MessageBird | EU-focused | Less US coverage |
-| AWS SNS | AWS integration | Less SMS-focused |
+| Provider    | Pros               | Cons             |
+| ----------- | ------------------ | ---------------- |
+| Vonage      | Good international | More complex API |
+| MessageBird | EU-focused         | Less US coverage |
+| AWS SNS     | AWS integration    | Less SMS-focused |
 
 ---
 
@@ -162,6 +162,7 @@ Reply here or open in app: theo.app/email/xyz
 ### Theo's Phone Number
 
 Options:
+
 - **Dedicated number per user** (expensive, best UX)
 - **Shared number with user context** (cost-effective, recommended)
 - **Short code** (high volume, requires approval)
@@ -170,11 +171,11 @@ Options:
 
 ### Phone Number Storage
 
-| Field | Encryption |
-| --- | --- |
-| Phone number | AES-256-GCM |
-| Verification status | Plain |
-| Preferences | Plain |
+| Field               | Encryption  |
+| ------------------- | ----------- |
+| Phone number        | AES-256-GCM |
+| Verification status | Plain       |
+| Preferences         | Plain       |
 
 ---
 
@@ -184,92 +185,92 @@ Options:
 
 Stores verified user phone numbers.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| phoneNumber | string | E.164 format (encrypted) |
-| phoneHash | string | For lookup (hashed) |
-| countryCode | string | ISO country code |
-| isVerified | boolean | Verification complete |
-| verifiedAt | datetime? | When verified |
-| verificationCode | string? | Current code (temporary) |
-| verificationExpiresAt | datetime? | Code expiration |
-| isActive | boolean | SMS enabled |
-| optedOutAt | datetime? | If user opted out |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field                 | Type      | Description              |
+| --------------------- | --------- | ------------------------ |
+| id                    | string    | Unique identifier        |
+| userId                | string    | FK to User               |
+| phoneNumber           | string    | E.164 format (encrypted) |
+| phoneHash             | string    | For lookup (hashed)      |
+| countryCode           | string    | ISO country code         |
+| isVerified            | boolean   | Verification complete    |
+| verifiedAt            | datetime? | When verified            |
+| verificationCode      | string?   | Current code (temporary) |
+| verificationExpiresAt | datetime? | Code expiration          |
+| isActive              | boolean   | SMS enabled              |
+| optedOutAt            | datetime? | If user opted out        |
+| createdAt             | datetime  |                          |
+| updatedAt             | datetime  |                          |
 
 ### SmsConversation
 
 Tracks SMS conversation sessions.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| phoneNumberId | string | FK to SmsPhoneNumber |
-| status | enum | `active`, `idle`, `closed` |
-| lastMessageAt | datetime | Last activity |
-| messageCount | int | Total messages in session |
-| context | json | Conversation context |
-| linkedConversationId | string? | FK to web Conversation |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field                | Type     | Description                |
+| -------------------- | -------- | -------------------------- |
+| id                   | string   | Unique identifier          |
+| userId               | string   | FK to User                 |
+| phoneNumberId        | string   | FK to SmsPhoneNumber       |
+| status               | enum     | `active`, `idle`, `closed` |
+| lastMessageAt        | datetime | Last activity              |
+| messageCount         | int      | Total messages in session  |
+| context              | json     | Conversation context       |
+| linkedConversationId | string?  | FK to web Conversation     |
+| createdAt            | datetime |                            |
+| updatedAt            | datetime |                            |
 
 ### SmsMessage
 
 Individual SMS messages.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| conversationId | string | FK to SmsConversation |
-| direction | enum | `inbound`, `outbound` |
-| content | string | Message text |
-| mediaUrls | string[]? | MMS attachments |
-| providerMessageId | string | Twilio message SID |
-| status | enum | `pending`, `sent`, `delivered`, `failed`, `received` |
-| statusUpdatedAt | datetime? | Last status update |
-| errorCode | string? | If failed |
-| errorMessage | string? | If failed |
-| costCents | int? | Message cost |
-| metadata | json | Additional data |
-| createdAt | datetime | |
+| Field             | Type      | Description                                          |
+| ----------------- | --------- | ---------------------------------------------------- |
+| id                | string    | Unique identifier                                    |
+| conversationId    | string    | FK to SmsConversation                                |
+| direction         | enum      | `inbound`, `outbound`                                |
+| content           | string    | Message text                                         |
+| mediaUrls         | string[]? | MMS attachments                                      |
+| providerMessageId | string    | Twilio message SID                                   |
+| status            | enum      | `pending`, `sent`, `delivered`, `failed`, `received` |
+| statusUpdatedAt   | datetime? | Last status update                                   |
+| errorCode         | string?   | If failed                                            |
+| errorMessage      | string?   | If failed                                            |
+| costCents         | int?      | Message cost                                         |
+| metadata          | json      | Additional data                                      |
+| createdAt         | datetime  |                                                      |
 
 ### SmsNotificationPreference
 
 User preferences for proactive messages.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| category | string | Notification type |
-| enabled | boolean | Category enabled |
-| quietHoursStart | time? | Don't disturb start |
-| quietHoursEnd | time? | Don't disturb end |
-| quietHoursTimezone | string? | User timezone |
-| maxPerDay | int? | Daily message limit |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field              | Type     | Description         |
+| ------------------ | -------- | ------------------- |
+| id                 | string   | Unique identifier   |
+| userId             | string   | FK to User          |
+| category           | string   | Notification type   |
+| enabled            | boolean  | Category enabled    |
+| quietHoursStart    | time?    | Don't disturb start |
+| quietHoursEnd      | time?    | Don't disturb end   |
+| quietHoursTimezone | string?  | User timezone       |
+| maxPerDay          | int?     | Daily message limit |
+| createdAt          | datetime |                     |
+| updatedAt          | datetime |                     |
 
 ### SmsNotificationTrigger
 
 Configurable triggers for proactive messages.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| triggerType | string | What triggers notification |
-| conditions | json | When to trigger |
-| messageTemplate | string? | Custom message template |
-| isEnabled | boolean | Trigger active |
-| lastTriggeredAt | datetime? | Last activation |
-| triggerCount | int | Times triggered |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field           | Type      | Description                |
+| --------------- | --------- | -------------------------- |
+| id              | string    | Unique identifier          |
+| userId          | string    | FK to User                 |
+| triggerType     | string    | What triggers notification |
+| conditions      | json      | When to trigger            |
+| messageTemplate | string?   | Custom message template    |
+| isEnabled       | boolean   | Trigger active             |
+| lastTriggeredAt | datetime? | Last activation            |
+| triggerCount    | int       | Times triggered            |
+| createdAt       | datetime  |                            |
+| updatedAt       | datetime  |                            |
 
 ---
 
@@ -279,65 +280,65 @@ Configurable triggers for proactive messages.
 
 Handles provider communication.
 
-| Method | Description |
-| --- | --- |
-| `sendMessage(to, content, options?)` | Send outbound SMS |
-| `sendVerificationCode(phoneNumber)` | Send verification |
-| `verifyCode(phoneNumber, code)` | Validate code |
-| `handleWebhook(payload)` | Process inbound |
-| `handleStatusCallback(payload)` | Update delivery status |
-| `getMessageStatus(messageId)` | Check message status |
+| Method                               | Description            |
+| ------------------------------------ | ---------------------- |
+| `sendMessage(to, content, options?)` | Send outbound SMS      |
+| `sendVerificationCode(phoneNumber)`  | Send verification      |
+| `verifyCode(phoneNumber, code)`      | Validate code          |
+| `handleWebhook(payload)`             | Process inbound        |
+| `handleStatusCallback(payload)`      | Update delivery status |
+| `getMessageStatus(messageId)`        | Check message status   |
 
 ### SmsConversationService
 
 Manages SMS conversation state.
 
-| Method | Description |
-| --- | --- |
-| `getOrCreateConversation(phoneNumber)` | Find/create session |
-| `addMessage(conversationId, message)` | Record message |
-| `getContext(conversationId)` | Get conversation context |
-| `updateContext(conversationId, context)` | Update context |
-| `linkToWebConversation(smsConvId, webConvId)` | Link sessions |
-| `closeConversation(conversationId)` | End session |
+| Method                                        | Description              |
+| --------------------------------------------- | ------------------------ |
+| `getOrCreateConversation(phoneNumber)`        | Find/create session      |
+| `addMessage(conversationId, message)`         | Record message           |
+| `getContext(conversationId)`                  | Get conversation context |
+| `updateContext(conversationId, context)`      | Update context           |
+| `linkToWebConversation(smsConvId, webConvId)` | Link sessions            |
+| `closeConversation(conversationId)`           | End session              |
 
 ### SmsInboundProcessor
 
 Processes incoming messages.
 
-| Method | Description |
-| --- | --- |
-| `processInbound(message)` | Main entry point |
-| `identifyUser(phoneNumber)` | Look up user |
-| `parseIntent(message)` | Quick intent detection |
-| `routeToAgent(userId, message, context)` | Send to agent |
-| `handleCommand(command)` | Process commands (STOP, HELP) |
-| `generateResponse(agentResponse)` | Format for SMS |
+| Method                                   | Description                   |
+| ---------------------------------------- | ----------------------------- |
+| `processInbound(message)`                | Main entry point              |
+| `identifyUser(phoneNumber)`              | Look up user                  |
+| `parseIntent(message)`                   | Quick intent detection        |
+| `routeToAgent(userId, message, context)` | Send to agent                 |
+| `handleCommand(command)`                 | Process commands (STOP, HELP) |
+| `generateResponse(agentResponse)`        | Format for SMS                |
 
 ### SmsOutboundProcessor
 
 Handles outgoing messages.
 
-| Method | Description |
-| --- | --- |
-| `queueMessage(userId, content, priority)` | Add to send queue |
-| `processQueue()` | Send queued messages |
-| `checkQuietHours(userId)` | Respect preferences |
-| `checkThrottling(userId)` | Prevent spam |
-| `formatForSms(content)` | Truncate, format |
-| `splitLongMessage(content)` | Handle >160 chars |
+| Method                                    | Description          |
+| ----------------------------------------- | -------------------- |
+| `queueMessage(userId, content, priority)` | Add to send queue    |
+| `processQueue()`                          | Send queued messages |
+| `checkQuietHours(userId)`                 | Respect preferences  |
+| `checkThrottling(userId)`                 | Prevent spam         |
+| `formatForSms(content)`                   | Truncate, format     |
+| `splitLongMessage(content)`               | Handle >160 chars    |
 
 ### SmsNotificationEngine
 
 Triggers proactive notifications.
 
-| Method | Description |
-| --- | --- |
-| `evaluateTrigger(event, userId)` | Check if should notify |
-| `generateNotification(trigger, data)` | Create message |
-| `scheduleNotification(userId, content, sendAt)` | Delayed send |
-| `cancelScheduled(notificationId)` | Cancel pending |
-| `getUpcoming(userId)` | List scheduled |
+| Method                                          | Description            |
+| ----------------------------------------------- | ---------------------- |
+| `evaluateTrigger(event, userId)`                | Check if should notify |
+| `generateNotification(trigger, data)`           | Create message         |
+| `scheduleNotification(userId, content, sendAt)` | Delayed send           |
+| `cancelScheduled(notificationId)`               | Cancel pending         |
+| `getUpcoming(userId)`                           | List scheduled         |
 
 ---
 
@@ -361,24 +362,24 @@ Triggers proactive notifications.
 
 ### System Commands
 
-| Command | Action |
-| --- | --- |
-| `STOP` | Opt out of all SMS |
-| `START` | Re-enable SMS |
-| `HELP` | Send help message |
-| `YES` | Confirm pending action |
-| `NO` | Cancel pending action |
-| `SKIP` | Dismiss notification |
-| `MORE` | Get more details |
+| Command | Action                 |
+| ------- | ---------------------- |
+| `STOP`  | Opt out of all SMS     |
+| `START` | Re-enable SMS          |
+| `HELP`  | Send help message      |
+| `YES`   | Confirm pending action |
+| `NO`    | Cancel pending action  |
+| `SKIP`  | Dismiss notification   |
+| `MORE`  | Get more details       |
 
 ### Message Formatting for SMS
 
-| Constraint | Handling |
-| --- | --- |
-| 160 char limit | Split into segments |
-| No rich formatting | Plain text only |
-| No long URLs | Use short links (theo.app/x) |
-| Conciseness | Agent prompted for brevity |
+| Constraint         | Handling                     |
+| ------------------ | ---------------------------- |
+| 160 char limit     | Split into segments          |
+| No rich formatting | Plain text only              |
+| No long URLs       | Use short links (theo.app/x) |
+| Conciseness        | Agent prompted for brevity   |
 
 ### Agent Context Injection
 
@@ -403,51 +404,52 @@ Recent SMS context:
 
 ### Notification Categories
 
-| Category | Examples | Default |
-| --- | --- | --- |
-| `calendar_reminder` | Upcoming meetings | Enabled |
-| `task_due` | Task deadlines | Enabled |
-| `email_urgent` | Important emails | Enabled |
-| `email_summary` | Daily digest | Disabled |
-| `shopping_ready` | Cart ready | Enabled |
-| `approval_needed` | Actions needing approval | Enabled |
+| Category            | Examples                      | Default  |
+| ------------------- | ----------------------------- | -------- |
+| `calendar_reminder` | Upcoming meetings             | Enabled  |
+| `task_due`          | Task deadlines                | Enabled  |
+| `email_urgent`      | Important emails              | Enabled  |
+| `email_summary`     | Daily digest                  | Disabled |
+| `shopping_ready`    | Cart ready                    | Enabled  |
+| `approval_needed`   | Actions needing approval      | Enabled  |
 | `learning_question` | Continuous learning questions | Disabled |
 
 ### Trigger Types
 
-| Trigger | Condition | Example Message |
-| --- | --- | --- |
-| `calendar_reminder` | Event starts in X minutes | "📅 Team standup in 15 min" |
-| `calendar_conflict` | Overlapping events detected | "⚠️ Conflict: 2 meetings at 3pm" |
-| `task_due_soon` | Task due within X hours | "📋 'Submit report' due in 2 hours" |
-| `task_overdue` | Task past due date | "⚠️ 'Submit report' is overdue" |
-| `email_from_vip` | Email from important contact | "✉️ Email from Sarah Chen: ..." |
-| `email_urgent_keywords` | Email with urgent language | "🚨 Urgent email: ..." |
-| `shopping_cart_ready` | Cart build complete | "🛒 Your cart is ready!" |
-| `approval_pending` | Action awaiting approval | "✋ Pending: Send email to..." |
-| `daily_briefing` | Scheduled time | "☀️ Good morning! Today you have..." |
+| Trigger                 | Condition                    | Example Message                      |
+| ----------------------- | ---------------------------- | ------------------------------------ |
+| `calendar_reminder`     | Event starts in X minutes    | "📅 Team standup in 15 min"          |
+| `calendar_conflict`     | Overlapping events detected  | "⚠️ Conflict: 2 meetings at 3pm"     |
+| `task_due_soon`         | Task due within X hours      | "📋 'Submit report' due in 2 hours"  |
+| `task_overdue`          | Task past due date           | "⚠️ 'Submit report' is overdue"      |
+| `email_from_vip`        | Email from important contact | "✉️ Email from Sarah Chen: ..."      |
+| `email_urgent_keywords` | Email with urgent language   | "🚨 Urgent email: ..."               |
+| `shopping_cart_ready`   | Cart build complete          | "🛒 Your cart is ready!"             |
+| `approval_pending`      | Action awaiting approval     | "✋ Pending: Send email to..."       |
+| `daily_briefing`        | Scheduled time               | "☀️ Good morning! Today you have..." |
 
 ### Quiet Hours
 
-| Setting | Default |
-| --- | --- |
-| Start time | 10:00 PM |
-| End time | 8:00 AM |
-| Timezone | User's timezone |
-| Override for urgent | Optional |
+| Setting             | Default         |
+| ------------------- | --------------- |
+| Start time          | 10:00 PM        |
+| End time            | 8:00 AM         |
+| Timezone            | User's timezone |
+| Override for urgent | Optional        |
 
 During quiet hours:
+
 - Non-urgent messages queued until morning
 - Urgent messages (configurable) can override
 - User can set per-category overrides
 
 ### Throttling
 
-| Limit | Default | Purpose |
-| --- | --- | --- |
-| Max per hour | 5 | Prevent spam |
-| Max per day | 20 | Cost control |
-| Min interval | 5 minutes | Batch related |
+| Limit                | Default   | Purpose        |
+| -------------------- | --------- | -------------- |
+| Max per hour         | 5         | Prevent spam   |
+| Max per day          | 20        | Cost control   |
+| Min interval         | 5 minutes | Batch related  |
 | Cooldown after reply | 2 minutes | Natural pacing |
 
 ---
@@ -469,21 +471,21 @@ Theo: ✓ Sent! Sarah will see your message.
 
 ### Pending Confirmations
 
-| Field | Description |
-| --- | --- |
-| Action type | What will happen |
-| Preview | What user will see |
-| Expiration | Auto-cancel after X minutes |
-| Reminder | Re-prompt if no response |
+| Field       | Description                 |
+| ----------- | --------------------------- |
+| Action type | What will happen            |
+| Preview     | What user will see          |
+| Expiration  | Auto-cancel after X minutes |
+| Reminder    | Re-prompt if no response    |
 
 ### Confirmation Commands
 
-| Reply | Action |
-| --- | --- |
-| `YES` / `Y` / `OK` | Approve |
-| `NO` / `N` / `CANCEL` | Reject |
-| `EDIT` | Modify (if supported) |
-| (no reply) | Expire after timeout |
+| Reply                 | Action                |
+| --------------------- | --------------------- |
+| `YES` / `Y` / `OK`    | Approve               |
+| `NO` / `N` / `CANCEL` | Reject                |
+| `EDIT`                | Modify (if supported) |
+| (no reply)            | Expire after timeout  |
 
 ---
 
@@ -491,45 +493,45 @@ Theo: ✓ Sent! Sarah will see your message.
 
 ### Phone Management
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/sms/phone/register` | Start verification |
-| POST | `/api/sms/phone/verify` | Complete verification |
-| GET | `/api/sms/phone` | Get phone status |
-| DELETE | `/api/sms/phone` | Remove phone |
+| Method | Path                      | Description           |
+| ------ | ------------------------- | --------------------- |
+| POST   | `/api/sms/phone/register` | Start verification    |
+| POST   | `/api/sms/phone/verify`   | Complete verification |
+| GET    | `/api/sms/phone`          | Get phone status      |
+| DELETE | `/api/sms/phone`          | Remove phone          |
 
 ### Preferences
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/sms/preferences` | Get all preferences |
-| PATCH | `/api/sms/preferences` | Update preferences |
-| GET | `/api/sms/preferences/quiet-hours` | Get quiet hours |
-| PATCH | `/api/sms/preferences/quiet-hours` | Set quiet hours |
+| Method | Path                               | Description         |
+| ------ | ---------------------------------- | ------------------- |
+| GET    | `/api/sms/preferences`             | Get all preferences |
+| PATCH  | `/api/sms/preferences`             | Update preferences  |
+| GET    | `/api/sms/preferences/quiet-hours` | Get quiet hours     |
+| PATCH  | `/api/sms/preferences/quiet-hours` | Set quiet hours     |
 
 ### Notifications
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/sms/triggers` | List triggers |
-| POST | `/api/sms/triggers` | Create trigger |
-| PATCH | `/api/sms/triggers/:id` | Update trigger |
+| Method | Path                    | Description    |
+| ------ | ----------------------- | -------------- |
+| GET    | `/api/sms/triggers`     | List triggers  |
+| POST   | `/api/sms/triggers`     | Create trigger |
+| PATCH  | `/api/sms/triggers/:id` | Update trigger |
 | DELETE | `/api/sms/triggers/:id` | Delete trigger |
 
 ### Conversations
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/sms/conversations` | List SMS conversations |
-| GET | `/api/sms/conversations/:id` | Get conversation |
-| GET | `/api/sms/conversations/:id/messages` | Get messages |
+| Method | Path                                  | Description            |
+| ------ | ------------------------------------- | ---------------------- |
+| GET    | `/api/sms/conversations`              | List SMS conversations |
+| GET    | `/api/sms/conversations/:id`          | Get conversation       |
+| GET    | `/api/sms/conversations/:id/messages` | Get messages           |
 
 ### Webhooks (Twilio)
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/sms/webhook/inbound` | Receive SMS |
-| POST | `/api/sms/webhook/status` | Delivery status |
+| Method | Path                       | Description     |
+| ------ | -------------------------- | --------------- |
+| POST   | `/api/sms/webhook/inbound` | Receive SMS     |
+| POST   | `/api/sms/webhook/status`  | Delivery status |
 
 ---
 
@@ -565,17 +567,18 @@ LINK HANDLING:
 
 ### Agent Tools for SMS
 
-| Tool | Description |
-| --- | --- |
-| `send_sms_notification` | Queue a proactive message |
-| `schedule_sms_reminder` | Set timed reminder |
-| `cancel_sms_reminder` | Cancel scheduled message |
-| `get_sms_preferences` | Check user SMS settings |
-| `request_sms_confirmation` | Set up YES/NO flow |
+| Tool                       | Description               |
+| -------------------------- | ------------------------- |
+| `send_sms_notification`    | Queue a proactive message |
+| `schedule_sms_reminder`    | Set timed reminder        |
+| `cancel_sms_reminder`      | Cancel scheduled message  |
+| `get_sms_preferences`      | Check user SMS settings   |
+| `request_sms_confirmation` | Set up YES/NO flow        |
 
 ### Cross-Channel Context
 
 SMS conversations should have access to:
+
 - Full conversation history (web + SMS)
 - All context entities
 - Memory system
@@ -587,30 +590,30 @@ SMS conversations should have access to:
 
 ### Per-Message Costs (Twilio US)
 
-| Type | Cost |
-| --- | --- |
-| Outbound SMS | ~$0.0079 |
-| Inbound SMS | ~$0.0079 |
+| Type         | Cost         |
+| ------------ | ------------ |
+| Outbound SMS | ~$0.0079     |
+| Inbound SMS  | ~$0.0079     |
 | Phone number | ~$1.00/month |
-| MMS | ~$0.02 |
+| MMS          | ~$0.02       |
 
 ### Cost Controls
 
-| Control | Implementation |
-| --- | --- |
-| Daily budget per user | Hard cap on messages |
-| Aggregate by time | Batch notifications |
-| Smart suppression | Don't repeat similar messages |
-| Preference defaults | Conservative notification defaults |
+| Control               | Implementation                     |
+| --------------------- | ---------------------------------- |
+| Daily budget per user | Hard cap on messages               |
+| Aggregate by time     | Batch notifications                |
+| Smart suppression     | Don't repeat similar messages      |
+| Preference defaults   | Conservative notification defaults |
 
 ### Cost Tracking
 
-| Metric | Tracking |
-| --- | --- |
-| Messages per user | Daily/monthly |
-| Total spend | Real-time |
+| Metric            | Tracking             |
+| ----------------- | -------------------- |
+| Messages per user | Daily/monthly        |
+| Total spend       | Real-time            |
 | Cost per category | By notification type |
-| Budget alerts | Threshold warnings |
+| Budget alerts     | Threshold warnings   |
 
 ---
 
@@ -618,13 +621,13 @@ SMS conversations should have access to:
 
 ### SMS Compliance Requirements
 
-| Requirement | Implementation |
-| --- | --- |
-| Opt-in consent | Explicit verification flow |
-| Opt-out handling | STOP command support |
-| Message identification | "Theo:" prefix |
-| No spam | Throttling, user control |
-| Data retention | Configurable message retention |
+| Requirement            | Implementation                 |
+| ---------------------- | ------------------------------ |
+| Opt-in consent         | Explicit verification flow     |
+| Opt-out handling       | STOP command support           |
+| Message identification | "Theo:" prefix                 |
+| No spam                | Throttling, user control       |
+| Data retention         | Configurable message retention |
 
 ### TCPA Compliance (US)
 
@@ -635,13 +638,13 @@ SMS conversations should have access to:
 
 ### Privacy Measures
 
-| Measure | Implementation |
-| --- | --- |
-| Phone encryption | AES-256-GCM at rest |
-| Message encryption | Encrypted in database |
-| Minimal retention | Configurable (default 30 days) |
-| No sensitive data in SMS | Summarize, link to app |
-| Audit logging | All SMS activity logged |
+| Measure                  | Implementation                 |
+| ------------------------ | ------------------------------ |
+| Phone encryption         | AES-256-GCM at rest            |
+| Message encryption       | Encrypted in database          |
+| Minimal retention        | Configurable (default 30 days) |
+| No sensitive data in SMS | Summarize, link to app         |
+| Audit logging            | All SMS activity logged        |
 
 ---
 
@@ -649,24 +652,24 @@ SMS conversations should have access to:
 
 ### Error Scenarios
 
-| Error | Handling |
-| --- | --- |
-| Invalid phone number | Reject during registration |
-| Delivery failed | Retry with backoff, notify user |
-| Rate limited (Twilio) | Queue and retry |
-| User opted out | Respect, don't retry |
-| Unknown sender | Ignore (security) |
-| Webhook failure | Retry queue, alerting |
+| Error                 | Handling                        |
+| --------------------- | ------------------------------- |
+| Invalid phone number  | Reject during registration      |
+| Delivery failed       | Retry with backoff, notify user |
+| Rate limited (Twilio) | Queue and retry                 |
+| User opted out        | Respect, don't retry            |
+| Unknown sender        | Ignore (security)               |
+| Webhook failure       | Retry queue, alerting           |
 
 ### Delivery Status Handling
 
-| Status | Action |
-| --- | --- |
-| `queued` | Wait |
-| `sent` | Update status |
-| `delivered` | Confirm success |
-| `failed` | Log error, notify if critical |
-| `undelivered` | Check carrier issues |
+| Status        | Action                        |
+| ------------- | ----------------------------- |
+| `queued`      | Wait                          |
+| `sent`        | Update status                 |
+| `delivered`   | Confirm success               |
+| `failed`      | Log error, notify if critical |
+| `undelivered` | Check carrier issues          |
 
 ---
 
@@ -739,15 +742,15 @@ SMS conversations should have access to:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| SMS registration rate | >30% | Users who add phone |
-| Response rate | >80% | Inbound messages answered |
-| Response time | <30s | Time to first response |
-| Delivery rate | >98% | Messages successfully delivered |
-| Opt-out rate | <5% | Users who disable SMS |
-| Notification engagement | >40% | Notifications acted upon |
-| Cost per user/month | <$2 | Average SMS cost |
+| Metric                  | Target | Description                     |
+| ----------------------- | ------ | ------------------------------- |
+| SMS registration rate   | >30%   | Users who add phone             |
+| Response rate           | >80%   | Inbound messages answered       |
+| Response time           | <30s   | Time to first response          |
+| Delivery rate           | >98%   | Messages successfully delivered |
+| Opt-out rate            | <5%    | Users who disable SMS           |
+| Notification engagement | >40%   | Notifications acted upon        |
+| Cost per user/month     | <$2    | Average SMS cost                |
 
 ---
 
@@ -842,4 +845,3 @@ SMS conversations should have access to:
   }
 }
 ```
-

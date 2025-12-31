@@ -59,7 +59,12 @@ export interface ToolResult {
 // Audit Types
 // ─────────────────────────────────────────────────────────────
 
-export type ActionCategory = "context" | "integration" | "agent" | "user" | "calendar";
+export type ActionCategory =
+  | "context"
+  | "integration"
+  | "agent"
+  | "user"
+  | "calendar";
 
 export type ActionType =
   | "query"

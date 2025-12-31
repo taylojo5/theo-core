@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
 import { checkCalendarScopes } from "@/lib/auth/scope-upgrade";
-import { ALL_CALENDAR_SCOPES, formatScopes, BASE_SCOPES } from "@/lib/auth/scopes";
+import {
+  ALL_CALENDAR_SCOPES,
+  formatScopes,
+  BASE_SCOPES,
+} from "@/lib/auth/scopes";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rate-limit/middleware";
 import { calendarLogger } from "@/integrations/calendar/logger";
 import { calendarSyncStateRepository } from "@/integrations/calendar/repository";
@@ -92,14 +96,16 @@ export async function POST(
     // Check if calendars have been synced (metadata sync)
     const syncState = await calendarSyncStateRepository.get(userId);
     const hasCalendars = syncState && syncState.calendarCount > 0;
-    
+
     // If calendars haven't been synced yet, do a metadata sync
     if (!hasCalendars) {
       try {
         const accessToken = await getValidAccessToken(userId);
         if (accessToken) {
           await syncCalendarMetadata(userId, accessToken);
-          logger.info("Synced calendar metadata for returning user", { userId });
+          logger.info("Synced calendar metadata for returning user", {
+            userId,
+          });
         }
       } catch (error) {
         // Log but don't fail the request if metadata sync fails
@@ -211,4 +217,3 @@ export async function GET(request: NextRequest): Promise<
     { headers }
   );
 }
-

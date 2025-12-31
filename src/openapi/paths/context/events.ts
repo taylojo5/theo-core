@@ -22,7 +22,8 @@ export function registerEventsPaths(registry: OpenAPIRegistry) {
     path: "/api/context/events",
     tags: ["Context - Events"],
     summary: "List events",
-    description: "Retrieve a paginated list of events with date range and status filtering.",
+    description:
+      "Retrieve a paginated list of events with date range and status filtering.",
     security: protectedEndpoint,
     request: { query: EventListQuerySchema },
     responses: {
@@ -45,7 +46,10 @@ export function registerEventsPaths(registry: OpenAPIRegistry) {
     description: "Create a new event/calendar item.",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: EventCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: EventCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -66,10 +70,15 @@ export function registerEventsPaths(registry: OpenAPIRegistry) {
     summary: "Get event by ID",
     security: protectedEndpoint,
     request: {
-      params: z.object({ id: z.string().openapi({ example: "clx1234567890abcdef" }) }),
+      params: z.object({
+        id: z.string().openapi({ example: "clx1234567890abcdef" }),
+      }),
     },
     responses: {
-      200: { description: "Event details", content: { "application/json": { schema: EventSchema } } },
+      200: {
+        description: "Event details",
+        content: { "application/json": { schema: EventSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -84,10 +93,16 @@ export function registerEventsPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: EventUpdateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: EventUpdateSchema } },
+      },
     },
     responses: {
-      200: { description: "Event updated", content: { "application/json": { schema: EventSchema } } },
+      200: {
+        description: "Event updated",
+        content: { "application/json": { schema: EventSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -100,14 +115,17 @@ export function registerEventsPaths(registry: OpenAPIRegistry) {
     path: "/api/context/events/{id}",
     tags: ["Context - Events"],
     summary: "Delete event",
-    description: "Soft-delete an event. Can be restored via PATCH with `{ restore: true }`.",
+    description:
+      "Soft-delete an event. Can be restored via PATCH with `{ restore: true }`.",
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Event deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Event deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
   });
 }
-

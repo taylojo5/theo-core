@@ -13,4 +13,3 @@ import { handlers } from "@/lib/auth";
  * - /api/auth/providers - List providers
  */
 export const { GET, POST } = handlers;
-

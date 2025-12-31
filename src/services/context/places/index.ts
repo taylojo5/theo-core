@@ -48,4 +48,3 @@ export {
   findPlacesNearby,
   upsertPlacesFromSource,
 } from "./places-service";
-

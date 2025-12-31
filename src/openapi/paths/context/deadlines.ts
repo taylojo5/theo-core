@@ -22,7 +22,8 @@ export function registerDeadlinesPaths(registry: OpenAPIRegistry) {
     path: "/api/context/deadlines",
     tags: ["Context - Deadlines"],
     summary: "List deadlines",
-    description: "Retrieve a paginated list of deadlines with status and date range filtering.",
+    description:
+      "Retrieve a paginated list of deadlines with status and date range filtering.",
     security: protectedEndpoint,
     request: { query: DeadlineListQuerySchema },
     responses: {
@@ -45,7 +46,10 @@ export function registerDeadlinesPaths(registry: OpenAPIRegistry) {
     description: "Create a new deadline or milestone.",
     security: protectedEndpoint,
     request: {
-      body: { required: true, content: { "application/json": { schema: DeadlineCreateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: DeadlineCreateSchema } },
+      },
     },
     responses: {
       201: {
@@ -66,10 +70,15 @@ export function registerDeadlinesPaths(registry: OpenAPIRegistry) {
     summary: "Get deadline by ID",
     security: protectedEndpoint,
     request: {
-      params: z.object({ id: z.string().openapi({ example: "clx1234567890abcdef" }) }),
+      params: z.object({
+        id: z.string().openapi({ example: "clx1234567890abcdef" }),
+      }),
     },
     responses: {
-      200: { description: "Deadline details", content: { "application/json": { schema: DeadlineSchema } } },
+      200: {
+        description: "Deadline details",
+        content: { "application/json": { schema: DeadlineSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
@@ -84,10 +93,16 @@ export function registerDeadlinesPaths(registry: OpenAPIRegistry) {
     security: protectedEndpoint,
     request: {
       params: z.object({ id: z.string() }),
-      body: { required: true, content: { "application/json": { schema: DeadlineUpdateSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: DeadlineUpdateSchema } },
+      },
     },
     responses: {
-      200: { description: "Deadline updated", content: { "application/json": { schema: DeadlineSchema } } },
+      200: {
+        description: "Deadline updated",
+        content: { "application/json": { schema: DeadlineSchema } },
+      },
       400: { $ref: "#/components/responses/ValidationError" },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
@@ -100,14 +115,17 @@ export function registerDeadlinesPaths(registry: OpenAPIRegistry) {
     path: "/api/context/deadlines/{id}",
     tags: ["Context - Deadlines"],
     summary: "Delete deadline",
-    description: "Soft-delete a deadline. Can be restored via PATCH with `{ restore: true }`.",
+    description:
+      "Soft-delete a deadline. Can be restored via PATCH with `{ restore: true }`.",
     security: protectedEndpoint,
     request: { params: z.object({ id: z.string() }) },
     responses: {
-      200: { description: "Deadline deleted", content: { "application/json": { schema: DeleteSuccessSchema } } },
+      200: {
+        description: "Deadline deleted",
+        content: { "application/json": { schema: DeleteSuccessSchema } },
+      },
       401: { $ref: "#/components/responses/Unauthorized" },
       404: { $ref: "#/components/responses/NotFound" },
     },
   });
 }
-

@@ -23,9 +23,9 @@ import type { CalendarApproval } from "@prisma/client";
 
 /**
  * Approve a calendar action request
- * 
+ *
  * Approves the request and optionally auto-executes the action.
- * 
+ *
  * @param userId - User approving the action
  * @param approvalId - ID of the approval to approve
  * @param options - Additional options
@@ -40,18 +40,22 @@ export async function approveCalendarAction(
   } = {}
 ): Promise<ApprovalDecisionResult> {
   const { autoExecute = true, decidedBy = "user" } = options;
-  
+
   const logger = calendarLogger.child("approveCalendarAction");
 
   try {
     // Get approval record
-    const approval = await calendarApprovalRepository.findByUserAndId(userId, approvalId);
-    
+    const approval = await calendarApprovalRepository.findByUserAndId(
+      userId,
+      approvalId
+    );
+
     if (!approval) {
       return {
         success: false,
         error: "Approval not found",
-        message: "The approval request does not exist or does not belong to you",
+        message:
+          "The approval request does not exist or does not belong to you",
       };
     }
 
@@ -73,12 +77,16 @@ export async function approveCalendarAction(
         success: false,
         error: "Approval expired",
         message: "This approval request has expired",
-        approval: await calendarApprovalRepository.findById(approvalId) || approval,
+        approval:
+          (await calendarApprovalRepository.findById(approvalId)) || approval,
       };
     }
 
     // Approve the request
-    const approvedApproval = await calendarApprovalRepository.approve(approvalId, decidedBy);
+    const approvedApproval = await calendarApprovalRepository.approve(
+      approvalId,
+      decidedBy
+    );
 
     // Log audit entry
     await logAuditEntry({
@@ -101,8 +109,11 @@ export async function approveCalendarAction(
 
     // Auto-execute if requested
     if (autoExecute) {
-      const executeResult = await executeApprovedAction(approvalId, approval.actionType);
-      
+      const executeResult = await executeApprovedAction(
+        approvalId,
+        approval.actionType
+      );
+
       return {
         success: executeResult.success,
         approval: executeResult.approval || approvedApproval,
@@ -119,7 +130,7 @@ export async function approveCalendarAction(
     };
   } catch (error) {
     logger.error("Error approving action", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -134,7 +145,7 @@ export async function approveCalendarAction(
 
 /**
  * Reject a calendar action request
- * 
+ *
  * @param userId - User rejecting the action
  * @param approvalId - ID of the approval to reject
  * @param options - Additional options
@@ -149,18 +160,22 @@ export async function rejectCalendarAction(
   } = {}
 ): Promise<ApprovalDecisionResult> {
   const { notes, decidedBy = "user" } = options;
-  
+
   const logger = calendarLogger.child("rejectCalendarAction");
 
   try {
     // Get approval record
-    const approval = await calendarApprovalRepository.findByUserAndId(userId, approvalId);
-    
+    const approval = await calendarApprovalRepository.findByUserAndId(
+      userId,
+      approvalId
+    );
+
     if (!approval) {
       return {
         success: false,
         error: "Approval not found",
-        message: "The approval request does not exist or does not belong to you",
+        message:
+          "The approval request does not exist or does not belong to you",
       };
     }
 
@@ -208,7 +223,7 @@ export async function rejectCalendarAction(
     };
   } catch (error) {
     logger.error("Error rejecting action", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -223,9 +238,9 @@ export async function rejectCalendarAction(
 
 /**
  * Expire all overdue approval requests
- * 
+ *
  * Should be called periodically (e.g., via scheduler).
- * 
+ *
  * @returns Number of approvals expired
  */
 export async function expireOldApprovals(): Promise<number> {
@@ -233,10 +248,10 @@ export async function expireOldApprovals(): Promise<number> {
 
   try {
     const expiredCount = await calendarApprovalRepository.expireAll();
-    
+
     if (expiredCount > 0) {
       logger.info("Expired old approvals", { count: expiredCount });
-      
+
       // Log aggregate audit entry (use system user for auto-expired)
       await logAuditEntry({
         userId: "system",
@@ -262,17 +277,19 @@ export async function expireOldApprovals(): Promise<number> {
 
 /**
  * Get all pending approvals for a user
- * 
+ *
  * @param userId - User to get approvals for
  * @returns Array of pending approvals
  */
-export async function getPendingApprovals(userId: string): Promise<CalendarApproval[]> {
+export async function getPendingApprovals(
+  userId: string
+): Promise<CalendarApproval[]> {
   return calendarApprovalRepository.findPending(userId);
 }
 
 /**
  * Get a specific approval by ID
- * 
+ *
  * @param userId - User requesting the approval
  * @param approvalId - ID of the approval
  * @returns The approval or null
@@ -290,7 +307,7 @@ export async function getApproval(
 
 /**
  * Execute an approved action based on its type
- * 
+ *
  * @param approvalId - ID of the approved request
  * @param actionType - Type of action to execute
  * @returns Result of execution
@@ -323,9 +340,9 @@ async function executeApprovedAction(
 
 /**
  * Cancel a pending approval request
- * 
+ *
  * Allows the requester (agent) to cancel a request before the user decides.
- * 
+ *
  * @param userId - User who owns the approval
  * @param approvalId - ID of the approval to cancel
  * @returns Result with updated approval
@@ -338,13 +355,17 @@ export async function cancelApproval(
 
   try {
     // Get approval record
-    const approval = await calendarApprovalRepository.findByUserAndId(userId, approvalId);
-    
+    const approval = await calendarApprovalRepository.findByUserAndId(
+      userId,
+      approvalId
+    );
+
     if (!approval) {
       return {
         success: false,
         error: "Approval not found",
-        message: "The approval request does not exist or does not belong to you",
+        message:
+          "The approval request does not exist or does not belong to you",
       };
     }
 
@@ -390,7 +411,7 @@ export async function cancelApproval(
     };
   } catch (error) {
     logger.error("Error cancelling action", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -398,4 +419,3 @@ export async function cancelApproval(
     };
   }
 }
-

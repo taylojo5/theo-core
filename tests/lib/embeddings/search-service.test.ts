@@ -9,7 +9,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Mock Dependencies (hoisted)
 // ─────────────────────────────────────────────────────────────
 
-const { mockQueryRaw, mockEmbeddingCount, mockEmbeddingFindMany, mockGenerateEmbedding } = vi.hoisted(() => ({
+const {
+  mockQueryRaw,
+  mockEmbeddingCount,
+  mockEmbeddingFindMany,
+  mockGenerateEmbedding,
+} = vi.hoisted(() => ({
   mockQueryRaw: vi.fn(),
   mockEmbeddingCount: vi.fn(),
   mockEmbeddingFindMany: vi.fn(),
@@ -220,9 +225,7 @@ describe("SemanticSearchService", () => {
     });
 
     it("uses source entity embedding for search", async () => {
-      mockEmbeddingFindMany.mockResolvedValue([
-        { id: "emb-1", chunkIndex: 0 },
-      ]);
+      mockEmbeddingFindMany.mockResolvedValue([{ id: "emb-1", chunkIndex: 0 }]);
       mockQueryRaw.mockResolvedValue(mockSearchResults);
 
       const results = await service.findSimilarToEntity({
@@ -236,9 +239,7 @@ describe("SemanticSearchService", () => {
     });
 
     it("excludes source entity by default", async () => {
-      mockEmbeddingFindMany.mockResolvedValue([
-        { id: "emb-1", chunkIndex: 0 },
-      ]);
+      mockEmbeddingFindMany.mockResolvedValue([{ id: "emb-1", chunkIndex: 0 }]);
       mockQueryRaw.mockResolvedValue([]);
 
       await service.findSimilarToEntity({
@@ -252,9 +253,7 @@ describe("SemanticSearchService", () => {
     });
 
     it("includes source entity when excludeSelf is false", async () => {
-      mockEmbeddingFindMany.mockResolvedValue([
-        { id: "emb-1", chunkIndex: 0 },
-      ]);
+      mockEmbeddingFindMany.mockResolvedValue([{ id: "emb-1", chunkIndex: 0 }]);
       mockQueryRaw.mockResolvedValue([]);
 
       await service.findSimilarToEntity({
@@ -268,9 +267,7 @@ describe("SemanticSearchService", () => {
     });
 
     it("filters by target entity types", async () => {
-      mockEmbeddingFindMany.mockResolvedValue([
-        { id: "emb-1", chunkIndex: 0 },
-      ]);
+      mockEmbeddingFindMany.mockResolvedValue([{ id: "emb-1", chunkIndex: 0 }]);
       mockQueryRaw.mockResolvedValue([]);
 
       await service.findSimilarToEntity({
@@ -527,4 +524,3 @@ describe("Edge Cases", () => {
     ).rejects.toThrow("API error");
   });
 });
-

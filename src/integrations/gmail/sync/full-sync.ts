@@ -43,7 +43,7 @@ function getDefaultOptions(): Omit<Required<FullSyncOptions>, "afterDate"> & {
   afterDate?: Date;
 } {
   const maxEmails = getMaxEmailsLimit();
-  
+
   return {
     maxEmails,
     labelIds: [],
@@ -143,7 +143,7 @@ export async function fullSync(
 
     // Step 3: Load sync configuration and verify labels are configured
     const syncState = await syncStateRepository.get(userId);
-    
+
     // Verify sync is configured (opt-in model - labels must be selected)
     if (!syncState.syncConfigured) {
       throw new GmailError(
@@ -152,7 +152,7 @@ export async function fullSync(
         false
       );
     }
-    
+
     // Verify at least one label is selected for sync
     if (!syncState.syncLabels || syncState.syncLabels.length === 0) {
       throw new GmailError(
@@ -161,7 +161,7 @@ export async function fullSync(
         false
       );
     }
-    
+
     const syncConfig: SyncConfig = {
       syncLabels: syncState.syncLabels,
       excludeLabels: syncState.excludeLabels,

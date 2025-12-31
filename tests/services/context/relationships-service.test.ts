@@ -606,7 +606,12 @@ describe("getRelationshipsFor", () => {
   it("returns all relationships for an entity", async () => {
     const relationships = [
       mockRelationship,
-      { ...mockRelationship, id: "rel-2", targetType: "place", targetId: mockPlaceId },
+      {
+        ...mockRelationship,
+        id: "rel-2",
+        targetType: "place",
+        targetId: mockPlaceId,
+      },
     ];
     vi.mocked(db.entityRelationship.findMany).mockResolvedValue(relationships);
 
@@ -1032,4 +1037,3 @@ describe("RelationshipsServiceError", () => {
     expect(error.details).toEqual({ entityType: "person", entityId: "123" });
   });
 });
-

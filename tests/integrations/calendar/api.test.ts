@@ -26,9 +26,21 @@ const mockApplyRateLimit = vi.fn();
 vi.mock("@/lib/rate-limit/middleware", () => ({
   applyRateLimit: (...args: unknown[]) => mockApplyRateLimit(...args),
   RATE_LIMITS: {
-    calendarConnect: { windowMs: 60000, maxRequests: 10, keyPrefix: "cal-connect" },
-    calendarCalendars: { windowMs: 60000, maxRequests: 100, keyPrefix: "cal-calendars" },
-    calendarApprovals: { windowMs: 60000, maxRequests: 50, keyPrefix: "cal-approvals" },
+    calendarConnect: {
+      windowMs: 60000,
+      maxRequests: 10,
+      keyPrefix: "cal-connect",
+    },
+    calendarCalendars: {
+      windowMs: 60000,
+      maxRequests: 100,
+      keyPrefix: "cal-calendars",
+    },
+    calendarApprovals: {
+      windowMs: 60000,
+      maxRequests: 50,
+      keyPrefix: "cal-approvals",
+    },
   },
 }));
 
@@ -48,11 +60,7 @@ vi.mock("@/lib/auth/scopes", () => ({
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events",
   ],
-  BASE_SCOPES: [
-    "openid",
-    "email",
-    "profile",
-  ],
+  BASE_SCOPES: ["openid", "email", "profile"],
   formatScopes: (scopes: string[]) => scopes.join(" "),
 }));
 
@@ -83,8 +91,10 @@ const mockCancelApproval = vi.fn();
 const mockGetPendingApprovals = vi.fn();
 vi.mock("@/integrations/calendar/actions", () => ({
   getApproval: (...args: unknown[]) => mockGetApproval(...args),
-  approveCalendarAction: (...args: unknown[]) => mockApproveCalendarAction(...args),
-  rejectCalendarAction: (...args: unknown[]) => mockRejectCalendarAction(...args),
+  approveCalendarAction: (...args: unknown[]) =>
+    mockApproveCalendarAction(...args),
+  rejectCalendarAction: (...args: unknown[]) =>
+    mockRejectCalendarAction(...args),
   cancelApproval: (...args: unknown[]) => mockCancelApproval(...args),
   getPendingApprovals: (...args: unknown[]) => mockGetPendingApprovals(...args),
 }));
@@ -98,9 +108,12 @@ const mockSyncCalendarMetadata = vi.fn();
 vi.mock("@/integrations/calendar/sync", () => ({
   getCalendarQueue: () => mockGetCalendarQueue(),
   startRecurringSync: (...args: unknown[]) => mockStartRecurringSync(...args),
-  scheduleIncrementalSync: (...args: unknown[]) => mockScheduleIncrementalSync(...args),
-  hasRecurringSyncActive: (...args: unknown[]) => mockHasRecurringSyncActive(...args),
-  syncCalendarMetadata: (...args: unknown[]) => mockSyncCalendarMetadata(...args),
+  scheduleIncrementalSync: (...args: unknown[]) =>
+    mockScheduleIncrementalSync(...args),
+  hasRecurringSyncActive: (...args: unknown[]) =>
+    mockHasRecurringSyncActive(...args),
+  syncCalendarMetadata: (...args: unknown[]) =>
+    mockSyncCalendarMetadata(...args),
 }));
 
 // Mock token refresh
@@ -220,9 +233,8 @@ describe("Calendar API Routes", () => {
       it("should return 401 when not authenticated", async () => {
         mockSession.mockResolvedValue(null);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/connect/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/connect/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/connect"
@@ -235,9 +247,8 @@ describe("Calendar API Routes", () => {
       });
 
       it("should return connection status when authenticated", async () => {
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/connect/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/connect/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/connect"
@@ -256,9 +267,8 @@ describe("Calendar API Routes", () => {
       it("should return 401 when not authenticated", async () => {
         mockSession.mockResolvedValue(null);
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/connect/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/connect/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/connect"
@@ -272,9 +282,8 @@ describe("Calendar API Routes", () => {
       });
 
       it("should return alreadyConnected when scopes are granted", async () => {
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/connect/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/connect/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/connect"
@@ -299,9 +308,8 @@ describe("Calendar API Routes", () => {
           ],
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/connect/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/connect/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/connect"
@@ -321,9 +329,8 @@ describe("Calendar API Routes", () => {
       it("should return 401 when not authenticated", async () => {
         mockSession.mockResolvedValue(null);
 
-        const { DELETE } = await import(
-          "@/app/api/integrations/calendar/disconnect/route"
-        );
+        const { DELETE } =
+          await import("@/app/api/integrations/calendar/disconnect/route");
         const request = createMockRequest(
           "DELETE",
           "/api/integrations/calendar/disconnect"
@@ -340,9 +347,8 @@ describe("Calendar API Routes", () => {
         mockIsCalendarConnected.mockResolvedValue(true);
         mockRevokeCalendarAccess.mockResolvedValue({ success: true });
 
-        const { DELETE } = await import(
-          "@/app/api/integrations/calendar/disconnect/route"
-        );
+        const { DELETE } =
+          await import("@/app/api/integrations/calendar/disconnect/route");
         const request = createMockRequest(
           "DELETE",
           "/api/integrations/calendar/disconnect"
@@ -358,9 +364,8 @@ describe("Calendar API Routes", () => {
       it("should return success when not connected", async () => {
         mockIsCalendarConnected.mockResolvedValue(false);
 
-        const { DELETE } = await import(
-          "@/app/api/integrations/calendar/disconnect/route"
-        );
+        const { DELETE } =
+          await import("@/app/api/integrations/calendar/disconnect/route");
         const request = createMockRequest(
           "DELETE",
           "/api/integrations/calendar/disconnect"
@@ -378,9 +383,8 @@ describe("Calendar API Routes", () => {
       it("should return 401 when not authenticated", async () => {
         mockSession.mockResolvedValue(null);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/calendars/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/calendars/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/calendars"
@@ -399,9 +403,8 @@ describe("Calendar API Routes", () => {
         ];
         mockCalendarRepository.findByUser.mockResolvedValue(mockCalendars);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/calendars/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/calendars/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/calendars"
@@ -421,9 +424,8 @@ describe("Calendar API Routes", () => {
       it("should return 401 when not authenticated", async () => {
         mockSession.mockResolvedValue(null);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/approvals/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/approvals/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/approvals"
@@ -442,9 +444,8 @@ describe("Calendar API Routes", () => {
         ];
         mockGetPendingApprovals.mockResolvedValue(mockApprovals);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/approvals/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/approvals/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/approvals"
@@ -481,9 +482,8 @@ describe("Calendar API Routes", () => {
         headers: rateLimitResponse.headers,
       });
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/connect/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/connect"
@@ -510,9 +510,8 @@ describe("Calendar API Routes", () => {
         headers: rateLimitResponse.headers,
       });
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/calendars/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/calendars/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/calendars"
@@ -523,9 +522,8 @@ describe("Calendar API Routes", () => {
     });
 
     it("should include rate limit headers in successful responses", async () => {
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/connect/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/connect"
@@ -546,9 +544,8 @@ describe("Calendar API Routes", () => {
       it("should return 404 when approval not found", async () => {
         mockGetApproval.mockResolvedValue(null);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/approvals/nonexistent"
@@ -570,9 +567,8 @@ describe("Calendar API Routes", () => {
         });
         mockGetApproval.mockResolvedValue(approval);
 
-        const { GET } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { GET } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "GET",
           "/api/integrations/calendar/approvals/approval-1"
@@ -600,9 +596,8 @@ describe("Calendar API Routes", () => {
           approval,
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -633,9 +628,8 @@ describe("Calendar API Routes", () => {
           approval,
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -661,9 +655,8 @@ describe("Calendar API Routes", () => {
           message: "Approval cancelled",
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -683,9 +676,8 @@ describe("Calendar API Routes", () => {
       });
 
       it("should return 400 for invalid action", async () => {
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -707,9 +699,8 @@ describe("Calendar API Routes", () => {
           message: "Approval has expired",
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -731,9 +722,8 @@ describe("Calendar API Routes", () => {
           approval: createMockDbApproval({ status: "approved" }),
         });
 
-        const { POST } = await import(
-          "@/app/api/integrations/calendar/approvals/[id]/route"
-        );
+        const { POST } =
+          await import("@/app/api/integrations/calendar/approvals/[id]/route");
         const request = createMockRequest(
           "POST",
           "/api/integrations/calendar/approvals/approval-1",
@@ -765,9 +755,8 @@ describe("Calendar API Routes", () => {
       ];
       mockCalendarRepository.findByUser.mockResolvedValue(mockCalendars);
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/calendars/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/calendars/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/calendars"
@@ -786,9 +775,8 @@ describe("Calendar API Routes", () => {
       ];
       mockCalendarRepository.findByUser.mockResolvedValue(mockCalendars);
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/calendars/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/calendars/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/calendars?includeHidden=true"
@@ -806,9 +794,8 @@ describe("Calendar API Routes", () => {
       ];
       mockCalendarRepository.findByUser.mockResolvedValue(mockCalendars);
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/calendars/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/calendars/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/calendars?selectedOnly=true"
@@ -829,9 +816,8 @@ describe("Calendar API Routes", () => {
     it("should NOT auto-start recurring sync (opt-in model)", async () => {
       // With opt-in model, recurring sync is not auto-started
       // User must configure sync preferences first
-      const { POST } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
+      const { POST } =
+        await import("@/app/api/integrations/calendar/connect/route");
       const request = createMockRequest(
         "POST",
         "/api/integrations/calendar/connect"
@@ -851,9 +837,8 @@ describe("Calendar API Routes", () => {
         recurringEnabled: false,
       });
 
-      const { POST } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
+      const { POST } =
+        await import("@/app/api/integrations/calendar/connect/route");
       const request = createMockRequest(
         "POST",
         "/api/integrations/calendar/connect"
@@ -869,9 +854,8 @@ describe("Calendar API Routes", () => {
     it("should return null sync state if not yet configured", async () => {
       mockCalendarSyncStateRepository.get.mockResolvedValue(null);
 
-      const { POST } = await import(
-        "@/app/api/integrations/calendar/connect/route"
-      );
+      const { POST } =
+        await import("@/app/api/integrations/calendar/connect/route");
       const request = createMockRequest(
         "POST",
         "/api/integrations/calendar/connect"
@@ -896,9 +880,8 @@ describe("Calendar API Routes", () => {
         new Error("Database error")
       );
 
-      const { GET } = await import(
-        "@/app/api/integrations/calendar/calendars/route"
-      );
+      const { GET } =
+        await import("@/app/api/integrations/calendar/calendars/route");
       const request = createMockRequest(
         "GET",
         "/api/integrations/calendar/calendars"
@@ -917,9 +900,8 @@ describe("Calendar API Routes", () => {
         error: "Token revocation failed",
       });
 
-      const { DELETE } = await import(
-        "@/app/api/integrations/calendar/disconnect/route"
-      );
+      const { DELETE } =
+        await import("@/app/api/integrations/calendar/disconnect/route");
       const request = createMockRequest(
         "DELETE",
         "/api/integrations/calendar/disconnect"
@@ -933,4 +915,3 @@ describe("Calendar API Routes", () => {
     });
   });
 });
-

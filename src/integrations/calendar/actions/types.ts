@@ -304,4 +304,3 @@ export interface ValidationError {
 // ─────────────────────────────────────────────────────────────
 
 export type { CalendarActionType, CalendarApprovalStatus };
-

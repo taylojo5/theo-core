@@ -54,7 +54,12 @@ import {
   upsertTasksFromSource,
   TasksServiceError,
 } from "@/services/context/tasks";
-import type { CreateTaskInput, UpdateTaskInput, Task, Person } from "@/services/context/tasks";
+import type {
+  CreateTaskInput,
+  UpdateTaskInput,
+  Task,
+  Person,
+} from "@/services/context/tasks";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -165,7 +170,10 @@ describe("createTask", () => {
     vi.mocked(db.task.findFirst)
       .mockResolvedValueOnce(mockParent) // Parent exists check
       .mockResolvedValueOnce(null); // Last sibling check
-    vi.mocked(db.task.create).mockResolvedValue({ ...mockTask, parentId: mockParentTaskId });
+    vi.mocked(db.task.create).mockResolvedValue({
+      ...mockTask,
+      parentId: mockParentTaskId,
+    });
 
     await createTask(mockUserId, {
       ...mockCreateInput,
@@ -195,9 +203,16 @@ describe("createTask", () => {
   });
 
   it("verifies assigned person exists", async () => {
-    const mockPerson = { id: mockPersonId, userId: mockUserId, deletedAt: null };
+    const mockPerson = {
+      id: mockPersonId,
+      userId: mockUserId,
+      deletedAt: null,
+    };
     vi.mocked(db.person.findFirst).mockResolvedValue(mockPerson as Person);
-    vi.mocked(db.task.create).mockResolvedValue({ ...mockTask, assignedToId: mockPersonId });
+    vi.mocked(db.task.create).mockResolvedValue({
+      ...mockTask,
+      assignedToId: mockPersonId,
+    });
 
     await createTask(mockUserId, {
       ...mockCreateInput,
@@ -215,7 +230,11 @@ describe("createTask", () => {
     vi.mocked(db.task.findFirst)
       .mockResolvedValueOnce(mockParent) // Parent exists check
       .mockResolvedValueOnce(lastSibling as Task); // Last sibling for position
-    vi.mocked(db.task.create).mockResolvedValue({ ...mockTask, parentId: mockParentTaskId, position: 3 });
+    vi.mocked(db.task.create).mockResolvedValue({
+      ...mockTask,
+      parentId: mockParentTaskId,
+      position: 3,
+    });
 
     await createTask(mockUserId, {
       ...mockCreateInput,
@@ -234,12 +253,20 @@ describe("createTask", () => {
   it("handles duplicate sourceId constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "source", "sourceId"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "source", "sourceId"] },
+      }
     );
     vi.mocked(db.task.create).mockRejectedValue(prismaError);
 
     await expect(
-      createTask(mockUserId, { ...mockCreateInput, source: "slack", sourceId: "123" })
+      createTask(mockUserId, {
+        ...mockCreateInput,
+        source: "slack",
+        sourceId: "123",
+      })
     ).rejects.toMatchObject({
       code: "DUPLICATE_SOURCE_ID",
     });
@@ -349,7 +376,10 @@ describe("updateTask", () => {
   });
 
   it("auto-sets completedAt when status changes to completed", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
     vi.mocked(db.task.update).mockResolvedValue({
       ...mockTask,
       status: "completed",
@@ -407,16 +437,29 @@ describe("updateTaskStatus", () => {
   });
 
   it("allows valid status transitions", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "in_progress" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "in_progress",
+    });
 
-    const result = await updateTaskStatus(mockUserId, mockTaskId, "in_progress");
+    const result = await updateTaskStatus(
+      mockUserId,
+      mockTaskId,
+      "in_progress"
+    );
 
     expect(result.status).toBe("in_progress");
   });
 
   it("throws error for invalid status transition", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "completed" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "completed",
+    });
 
     await expect(
       updateTaskStatus(mockUserId, mockTaskId, "deferred")
@@ -432,8 +475,15 @@ describe("completeTask", () => {
   });
 
   it("completes a pending task", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "completed", completedAt: new Date() });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "completed",
+      completedAt: new Date(),
+    });
 
     const result = await completeTask(mockUserId, mockTaskId);
 
@@ -447,8 +497,14 @@ describe("startTask", () => {
   });
 
   it("starts a pending task", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "in_progress" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "in_progress",
+    });
 
     const result = await startTask(mockUserId, mockTaskId);
 
@@ -462,8 +518,14 @@ describe("deferTask", () => {
   });
 
   it("defers a pending task", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "deferred" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "deferred",
+    });
 
     const result = await deferTask(mockUserId, mockTaskId);
 
@@ -477,8 +539,14 @@ describe("cancelTask", () => {
   });
 
   it("cancels a pending task", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "pending" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "cancelled" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "cancelled",
+    });
 
     const result = await cancelTask(mockUserId, mockTaskId);
 
@@ -492,8 +560,14 @@ describe("reopenTask", () => {
   });
 
   it("reopens a completed task", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, status: "completed" });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, status: "pending" });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      status: "completed",
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      status: "pending",
+    });
 
     const result = await reopenTask(mockUserId, mockTaskId);
 
@@ -543,16 +617,29 @@ describe("setTaskParent", () => {
       .mockResolvedValueOnce(mockTask) // Task exists check (in updateTask)
       .mockResolvedValueOnce(parentTask); // Parent exists check in updateTask
 
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, parentId: mockParentTaskId });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      parentId: mockParentTaskId,
+    });
 
-    const result = await setTaskParent(mockUserId, mockTaskId, mockParentTaskId);
+    const result = await setTaskParent(
+      mockUserId,
+      mockTaskId,
+      mockParentTaskId
+    );
 
     expect(result.parentId).toBe(mockParentTaskId);
   });
 
   it("removes parent when set to null", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, parentId: mockParentTaskId });
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, parentId: null });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      parentId: mockParentTaskId,
+    });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      parentId: null,
+    });
 
     const result = await setTaskParent(mockUserId, mockTaskId, null);
 
@@ -580,7 +667,10 @@ describe("reorderTask", () => {
   });
 
   it("reorders task within siblings", async () => {
-    vi.mocked(db.task.findFirst).mockResolvedValue({ ...mockTask, position: 0 });
+    vi.mocked(db.task.findFirst).mockResolvedValue({
+      ...mockTask,
+      position: 0,
+    });
     vi.mocked(db.task.findMany).mockResolvedValue([
       { ...mockTask, id: "task-1", position: 1 },
       { ...mockTask, id: "task-2", position: 2 },
@@ -654,7 +744,10 @@ describe("restoreTask", () => {
   it("restores soft-deleted task", async () => {
     const deletedTask = { ...mockTask, deletedAt: new Date() };
     vi.mocked(db.task.findFirst).mockResolvedValue(deletedTask);
-    vi.mocked(db.task.update).mockResolvedValue({ ...mockTask, deletedAt: null });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...mockTask,
+      deletedAt: null,
+    });
 
     const result = await restoreTask(mockUserId, mockTaskId);
 
@@ -882,7 +975,9 @@ describe("getTasksAssignedTo", () => {
   });
 
   it("returns tasks assigned to person", async () => {
-    vi.mocked(db.task.findMany).mockResolvedValue([{ ...mockTask, assignedToId: mockPersonId }]);
+    vi.mocked(db.task.findMany).mockResolvedValue([
+      { ...mockTask, assignedToId: mockPersonId },
+    ]);
 
     const result = await getTasksAssignedTo(mockUserId, mockPersonId);
 
@@ -893,10 +988,7 @@ describe("getTasksAssignedTo", () => {
         assignedToId: mockPersonId,
         deletedAt: null,
       },
-      orderBy: [
-        { status: "asc" },
-        { dueDate: "asc" },
-      ],
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
     });
   });
 });
@@ -974,9 +1066,16 @@ describe("upsertTasksFromSource", () => {
   });
 
   it("updates existing tasks when data changed", async () => {
-    const existingTask = { ...mockTask, source: "slack", sourceId: "slack-123" };
+    const existingTask = {
+      ...mockTask,
+      source: "slack",
+      sourceId: "slack-123",
+    };
     vi.mocked(db.task.findFirst).mockResolvedValue(existingTask);
-    vi.mocked(db.task.update).mockResolvedValue({ ...existingTask, title: "Updated Task" });
+    vi.mocked(db.task.update).mockResolvedValue({
+      ...existingTask,
+      title: "Updated Task",
+    });
 
     const result = await upsertTasksFromSource(mockUserId, "slack", [
       {
@@ -1012,4 +1111,3 @@ describe("TasksServiceError", () => {
     expect(error.details).toEqual({ taskId: "task-a", parentId: "task-b" });
   });
 });
-

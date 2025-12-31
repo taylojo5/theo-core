@@ -389,7 +389,9 @@ export async function revokeCalendarAccess(
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "Failed to revoke Calendar access",
+        error instanceof Error
+          ? error.message
+          : "Failed to revoke Calendar access",
     };
   }
 }

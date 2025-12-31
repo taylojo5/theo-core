@@ -62,11 +62,11 @@ Design this integration as a **self-contained module** with clear boundaries (AP
 
 ### Required Scopes
 
-| Scope | Purpose |
-| --- | --- |
-| `https://www.googleapis.com/auth/calendar.readonly` | Read calendars and events |
-| `https://www.googleapis.com/auth/calendar.events` | Create/modify/delete events |
-| `https://www.googleapis.com/auth/calendar` | Full calendar access (if needed) |
+| Scope                                               | Purpose                          |
+| --------------------------------------------------- | -------------------------------- |
+| `https://www.googleapis.com/auth/calendar.readonly` | Read calendars and events        |
+| `https://www.googleapis.com/auth/calendar.events`   | Create/modify/delete events      |
+| `https://www.googleapis.com/auth/calendar`          | Full calendar access (if needed) |
 
 ### Scope Upgrade Flow
 
@@ -85,95 +85,95 @@ Users may initially grant read-only access. The system should:
 
 Tracks sync progress per user (mirrors GmailSyncState pattern).
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User (unique) |
-| syncToken | string? | Google sync token for incremental sync |
-| syncTokenSetAt | datetime? | When sync token was obtained |
-| lastSyncAt | datetime? | Last successful sync |
-| lastFullSyncAt | datetime? | Last full sync |
-| fullSyncPageToken | string? | Resume token for interrupted full sync |
-| fullSyncProgress | int | Events processed in current full sync |
-| fullSyncStartedAt | datetime? | When full sync started |
-| syncStatus | enum | `idle`, `syncing`, `error` |
-| syncError | string? | Error message if failed |
-| eventCount | int | Total events synced |
-| calendarCount | int | Total calendars synced |
-| webhookChannelId | string? | Push notification channel ID |
-| webhookExpiration | datetime? | When webhook expires |
-| syncCalendarIds | string[] | Calendars to sync (empty = primary) |
-| excludeCalendarIds | string[] | Calendars to exclude |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field              | Type      | Description                            |
+| ------------------ | --------- | -------------------------------------- |
+| id                 | string    | Unique identifier                      |
+| userId             | string    | FK to User (unique)                    |
+| syncToken          | string?   | Google sync token for incremental sync |
+| syncTokenSetAt     | datetime? | When sync token was obtained           |
+| lastSyncAt         | datetime? | Last successful sync                   |
+| lastFullSyncAt     | datetime? | Last full sync                         |
+| fullSyncPageToken  | string?   | Resume token for interrupted full sync |
+| fullSyncProgress   | int       | Events processed in current full sync  |
+| fullSyncStartedAt  | datetime? | When full sync started                 |
+| syncStatus         | enum      | `idle`, `syncing`, `error`             |
+| syncError          | string?   | Error message if failed                |
+| eventCount         | int       | Total events synced                    |
+| calendarCount      | int       | Total calendars synced                 |
+| webhookChannelId   | string?   | Push notification channel ID           |
+| webhookExpiration  | datetime? | When webhook expires                   |
+| syncCalendarIds    | string[]  | Calendars to sync (empty = primary)    |
+| excludeCalendarIds | string[]  | Calendars to exclude                   |
+| createdAt          | datetime  |                                        |
+| updatedAt          | datetime  |                                        |
 
 ### Calendar
 
 Stores user's calendars for multi-calendar support.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| googleCalendarId | string | Google's calendar ID |
-| name | string | Display name |
-| description | string? | Calendar description |
-| timeZone | string | Calendar timezone |
-| isPrimary | boolean | Is user's primary calendar |
-| isOwner | boolean | User owns this calendar |
-| accessRole | enum | `owner`, `writer`, `reader`, `freeBusyReader` |
-| backgroundColor | string? | Hex color |
-| foregroundColor | string? | Hex color |
-| isSelected | boolean | User wants to sync this calendar |
-| isHidden | boolean | Hidden from UI |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field            | Type     | Description                                   |
+| ---------------- | -------- | --------------------------------------------- |
+| id               | string   | Unique identifier                             |
+| userId           | string   | FK to User                                    |
+| googleCalendarId | string   | Google's calendar ID                          |
+| name             | string   | Display name                                  |
+| description      | string?  | Calendar description                          |
+| timeZone         | string   | Calendar timezone                             |
+| isPrimary        | boolean  | Is user's primary calendar                    |
+| isOwner          | boolean  | User owns this calendar                       |
+| accessRole       | enum     | `owner`, `writer`, `reader`, `freeBusyReader` |
+| backgroundColor  | string?  | Hex color                                     |
+| foregroundColor  | string?  | Hex color                                     |
+| isSelected       | boolean  | User wants to sync this calendar              |
+| isHidden         | boolean  | Hidden from UI                                |
+| createdAt        | datetime |                                               |
+| updatedAt        | datetime |                                               |
 
 ### CalendarEvent (extends existing Event model)
 
 Add calendar-specific fields to the existing Event model:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| googleEventId | string? | Google's event ID |
-| googleCalendarId | string? | Which calendar this belongs to |
-| calendarId | string? | FK to Calendar |
-| recurringEventId | string? | Parent recurring event ID |
-| recurrence | json? | Recurrence rules (RRULE) |
-| attendees | json | Array of attendees with status |
-| organizer | json? | Event organizer info |
-| creator | json? | Event creator info |
-| conferenceData | json? | Video call info (Meet, Zoom) |
-| reminders | json? | Custom reminders |
-| iCalUID | string? | iCal UID for external sync |
-| sequence | int | Event version for conflict resolution |
-| etag | string? | For optimistic concurrency |
-| htmlLink | string? | Link to Google Calendar UI |
-| hangoutLink | string? | Google Meet link |
+| Field            | Type    | Description                           |
+| ---------------- | ------- | ------------------------------------- |
+| googleEventId    | string? | Google's event ID                     |
+| googleCalendarId | string? | Which calendar this belongs to        |
+| calendarId       | string? | FK to Calendar                        |
+| recurringEventId | string? | Parent recurring event ID             |
+| recurrence       | json?   | Recurrence rules (RRULE)              |
+| attendees        | json    | Array of attendees with status        |
+| organizer        | json?   | Event organizer info                  |
+| creator          | json?   | Event creator info                    |
+| conferenceData   | json?   | Video call info (Meet, Zoom)          |
+| reminders        | json?   | Custom reminders                      |
+| iCalUID          | string? | iCal UID for external sync            |
+| sequence         | int     | Event version for conflict resolution |
+| etag             | string? | For optimistic concurrency            |
+| htmlLink         | string? | Link to Google Calendar UI            |
+| hangoutLink      | string? | Google Meet link                      |
 
 ### EventApproval
 
 For agent-initiated event actions (mirrors EmailApproval pattern).
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | FK to User |
-| actionType | enum | `create`, `update`, `delete`, `respond` |
-| calendarId | string | Target calendar |
-| eventId | string? | Existing event (for update/delete) |
-| eventSnapshot | json | Full event data |
-| status | enum | `pending`, `approved`, `rejected`, `expired` |
-| requestedAt | datetime | When requested |
-| requestedBy | string? | Agent action ID |
-| expiresAt | datetime? | Auto-expiration |
-| decidedAt | datetime? | When user decided |
-| resultEventId | string? | Created/updated event ID |
-| errorMessage | string? | Error if failed |
-| notes | string? | User notes |
-| metadata | json | Additional context |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+| Field         | Type      | Description                                  |
+| ------------- | --------- | -------------------------------------------- |
+| id            | string    | Unique identifier                            |
+| userId        | string    | FK to User                                   |
+| actionType    | enum      | `create`, `update`, `delete`, `respond`      |
+| calendarId    | string    | Target calendar                              |
+| eventId       | string?   | Existing event (for update/delete)           |
+| eventSnapshot | json      | Full event data                              |
+| status        | enum      | `pending`, `approved`, `rejected`, `expired` |
+| requestedAt   | datetime  | When requested                               |
+| requestedBy   | string?   | Agent action ID                              |
+| expiresAt     | datetime? | Auto-expiration                              |
+| decidedAt     | datetime? | When user decided                            |
+| resultEventId | string?   | Created/updated event ID                     |
+| errorMessage  | string?   | Error if failed                              |
+| notes         | string?   | User notes                                   |
+| metadata      | json      | Additional context                           |
+| createdAt     | datetime  |                                              |
+| updatedAt     | datetime  |                                              |
 
 ---
 
@@ -183,58 +183,58 @@ For agent-initiated event actions (mirrors EmailApproval pattern).
 
 Thin wrapper over Google Calendar API with rate limiting.
 
-| Method | Description |
-| --- | --- |
-| `listCalendars()` | List all user calendars |
-| `getCalendar(id)` | Get calendar details |
-| `listEvents(calendarId, options)` | List events with filters |
-| `getEvent(calendarId, eventId)` | Get single event |
-| `createEvent(calendarId, event)` | Create new event |
-| `updateEvent(calendarId, eventId, event)` | Update existing event |
-| `deleteEvent(calendarId, eventId)` | Delete event |
-| `respondToEvent(calendarId, eventId, response)` | Accept/decline/tentative |
-| `watchCalendar(calendarId, webhookUrl)` | Set up push notifications |
-| `stopWatching(channelId, resourceId)` | Stop push notifications |
+| Method                                          | Description               |
+| ----------------------------------------------- | ------------------------- |
+| `listCalendars()`                               | List all user calendars   |
+| `getCalendar(id)`                               | Get calendar details      |
+| `listEvents(calendarId, options)`               | List events with filters  |
+| `getEvent(calendarId, eventId)`                 | Get single event          |
+| `createEvent(calendarId, event)`                | Create new event          |
+| `updateEvent(calendarId, eventId, event)`       | Update existing event     |
+| `deleteEvent(calendarId, eventId)`              | Delete event              |
+| `respondToEvent(calendarId, eventId, response)` | Accept/decline/tentative  |
+| `watchCalendar(calendarId, webhookUrl)`         | Set up push notifications |
+| `stopWatching(channelId, resourceId)`           | Stop push notifications   |
 
 ### CalendarRepository
 
 Database operations for calendar data.
 
-| Method | Description |
-| --- | --- |
-| `upsertCalendar(input)` | Create or update calendar |
-| `upsertEvent(input)` | Create or update event |
-| `deleteEvent(eventId)` | Soft delete event |
-| `findEvents(query)` | Query events with filters |
-| `findEventByGoogleId(googleEventId)` | Lookup by Google ID |
-| `findUpcomingEvents(userId, hours)` | Get events in next N hours |
-| `findConflictingEvents(userId, start, end)` | Find schedule conflicts |
+| Method                                      | Description                |
+| ------------------------------------------- | -------------------------- |
+| `upsertCalendar(input)`                     | Create or update calendar  |
+| `upsertEvent(input)`                        | Create or update event     |
+| `deleteEvent(eventId)`                      | Soft delete event          |
+| `findEvents(query)`                         | Query events with filters  |
+| `findEventByGoogleId(googleEventId)`        | Lookup by Google ID        |
+| `findUpcomingEvents(userId, hours)`         | Get events in next N hours |
+| `findConflictingEvents(userId, start, end)` | Find schedule conflicts    |
 
 ### CalendarSyncService
 
 Handles sync operations.
 
-| Method | Description |
-| --- | --- |
-| `fullSync(userId, options)` | Full calendar import |
-| `incrementalSync(userId)` | Delta sync using syncToken |
-| `resumeFullSync(userId)` | Resume interrupted full sync |
-| `processCalendarWebhook(payload)` | Handle push notifications |
-| `syncSingleCalendar(userId, calendarId)` | Sync specific calendar |
+| Method                                   | Description                  |
+| ---------------------------------------- | ---------------------------- |
+| `fullSync(userId, options)`              | Full calendar import         |
+| `incrementalSync(userId)`                | Delta sync using syncToken   |
+| `resumeFullSync(userId)`                 | Resume interrupted full sync |
+| `processCalendarWebhook(payload)`        | Handle push notifications    |
+| `syncSingleCalendar(userId, calendarId)` | Sync specific calendar       |
 
 ### CalendarActions
 
 Agent-facing actions with approval workflow.
 
-| Method | Description |
-| --- | --- |
-| `requestEventCreation(params)` | Request to create event |
-| `requestEventUpdate(eventId, changes)` | Request to modify event |
-| `requestEventDeletion(eventId, reason)` | Request to delete event |
+| Method                                    | Description                  |
+| ----------------------------------------- | ---------------------------- |
+| `requestEventCreation(params)`            | Request to create event      |
+| `requestEventUpdate(eventId, changes)`    | Request to modify event      |
+| `requestEventDeletion(eventId, reason)`   | Request to delete event      |
 | `requestEventResponse(eventId, response)` | Request to respond to invite |
-| `approveAction(approvalId)` | User approves action |
-| `rejectAction(approvalId, notes)` | User rejects action |
-| `executeApprovedAction(approvalId)` | Execute after approval |
+| `approveAction(approvalId)`               | User approves action         |
+| `rejectAction(approvalId, notes)`         | User rejects action          |
+| `executeApprovedAction(approvalId)`       | Execute after approval       |
 
 ---
 
@@ -258,6 +258,7 @@ Initial import of calendar data.
 ```
 
 **Resume Handling:**
+
 - Store `fullSyncPageToken` after each page
 - On failure, resume from last successful page
 - Track `fullSyncProgress` for UI feedback
@@ -277,6 +278,7 @@ Efficient delta updates using sync tokens.
 ```
 
 **Sync Token Expiration:**
+
 - Google sync tokens expire after ~7 days of inactivity
 - Detect `410 Gone` response → trigger full sync
 - Store `syncTokenSetAt` to proactively refresh
@@ -293,6 +295,7 @@ Real-time updates via Google Calendar API webhooks.
 ```
 
 **Webhook Endpoint:**
+
 - `POST /api/integrations/calendar/webhook`
 - Verify `X-Goog-Resource-ID` and `X-Goog-Channel-ID` headers
 - Queue sync job (don't process inline)
@@ -303,37 +306,37 @@ Real-time updates via Google Calendar API webhooks.
 
 ### Calendar Management
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/calendar/calendars` | List user's calendars |
-| PATCH | `/api/integrations/calendar/calendars/:id` | Update calendar settings |
-| POST | `/api/integrations/calendar/sync` | Trigger sync |
-| GET | `/api/integrations/calendar/status` | Get sync status |
+| Method | Path                                       | Description              |
+| ------ | ------------------------------------------ | ------------------------ |
+| GET    | `/api/integrations/calendar/calendars`     | List user's calendars    |
+| PATCH  | `/api/integrations/calendar/calendars/:id` | Update calendar settings |
+| POST   | `/api/integrations/calendar/sync`          | Trigger sync             |
+| GET    | `/api/integrations/calendar/status`        | Get sync status          |
 
 ### Event Management
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/calendar/events` | List events |
-| GET | `/api/integrations/calendar/events/:id` | Get event details |
-| POST | `/api/integrations/calendar/events` | Create event (with approval) |
-| PATCH | `/api/integrations/calendar/events/:id` | Update event (with approval) |
+| Method | Path                                    | Description                  |
+| ------ | --------------------------------------- | ---------------------------- |
+| GET    | `/api/integrations/calendar/events`     | List events                  |
+| GET    | `/api/integrations/calendar/events/:id` | Get event details            |
+| POST   | `/api/integrations/calendar/events`     | Create event (with approval) |
+| PATCH  | `/api/integrations/calendar/events/:id` | Update event (with approval) |
 | DELETE | `/api/integrations/calendar/events/:id` | Delete event (with approval) |
 
 ### Approval Workflow
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/integrations/calendar/approvals` | List pending approvals |
-| GET | `/api/integrations/calendar/approvals/:id` | Get approval details |
-| POST | `/api/integrations/calendar/approvals/:id/approve` | Approve action |
-| POST | `/api/integrations/calendar/approvals/:id/reject` | Reject action |
+| Method | Path                                               | Description            |
+| ------ | -------------------------------------------------- | ---------------------- |
+| GET    | `/api/integrations/calendar/approvals`             | List pending approvals |
+| GET    | `/api/integrations/calendar/approvals/:id`         | Get approval details   |
+| POST   | `/api/integrations/calendar/approvals/:id/approve` | Approve action         |
+| POST   | `/api/integrations/calendar/approvals/:id/reject`  | Reject action          |
 
 ### Webhooks
 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/integrations/calendar/webhook` | Google push notifications |
+| Method | Path                                 | Description               |
+| ------ | ------------------------------------ | ------------------------- |
+| POST   | `/api/integrations/calendar/webhook` | Google push notifications |
 
 ---
 
@@ -341,16 +344,16 @@ Real-time updates via Google Calendar API webhooks.
 
 ### Agent Tools
 
-| Tool | Description |
-| --- | --- |
-| `list_calendar_events` | Query user's schedule |
-| `get_event_details` | Get specific event info |
-| `check_availability` | Find free time slots |
-| `create_calendar_event` | Schedule new event (requires approval) |
-| `update_calendar_event` | Modify event (requires approval) |
-| `delete_calendar_event` | Cancel event (requires approval) |
-| `respond_to_invite` | Accept/decline invitation (requires approval) |
-| `find_meeting_time` | Find mutually available times |
+| Tool                    | Description                                   |
+| ----------------------- | --------------------------------------------- |
+| `list_calendar_events`  | Query user's schedule                         |
+| `get_event_details`     | Get specific event info                       |
+| `check_availability`    | Find free time slots                          |
+| `create_calendar_event` | Schedule new event (requires approval)        |
+| `update_calendar_event` | Modify event (requires approval)              |
+| `delete_calendar_event` | Cancel event (requires approval)              |
+| `respond_to_invite`     | Accept/decline invitation (requires approval) |
+| `find_meeting_time`     | Find mutually available times                 |
 
 ### Context Enrichment
 
@@ -390,12 +393,12 @@ Calendar data enriches agent context:
 
 ### Types of Conflicts
 
-| Conflict | Detection | Resolution |
-| --- | --- | --- |
-| Double-booking | Time overlap check | Warn user, suggest alternatives |
-| Travel time | Location distance analysis | Suggest buffer time |
-| Focus time | User preference (memory) | Respect blocked focus hours |
-| Outside hours | User preference (memory) | Warn about after-hours meetings |
+| Conflict       | Detection                  | Resolution                      |
+| -------------- | -------------------------- | ------------------------------- |
+| Double-booking | Time overlap check         | Warn user, suggest alternatives |
+| Travel time    | Location distance analysis | Suggest buffer time             |
+| Focus time     | User preference (memory)   | Respect blocked focus hours     |
+| Outside hours  | User preference (memory)   | Warn about after-hours meetings |
 
 ### Conflict Resolution Flow
 
@@ -417,13 +420,13 @@ Calendar data enriches agent context:
 
 ### Handling Recurrence
 
-| Scenario | Approach |
-| --- | --- |
-| Sync recurring series | Store master event + instances |
-| Modify single instance | Create exception, preserve master |
-| Modify entire series | Update master, regenerate instances |
-| Delete single instance | Mark instance as cancelled |
-| Delete entire series | Delete master + all instances |
+| Scenario               | Approach                            |
+| ---------------------- | ----------------------------------- |
+| Sync recurring series  | Store master event + instances      |
+| Modify single instance | Create exception, preserve master   |
+| Modify entire series   | Update master, regenerate instances |
+| Delete single instance | Mark instance as cancelled          |
+| Delete entire series   | Delete master + all instances       |
 
 ### Recurrence Storage
 
@@ -441,22 +444,24 @@ Calendar data enriches agent context:
 
 ### Error Types
 
-| Error | Cause | Recovery |
-| --- | --- | --- |
-| `401 Unauthorized` | Token expired | Refresh token, retry |
-| `403 Forbidden` | Insufficient scopes | Prompt scope upgrade |
-| `404 Not Found` | Event deleted externally | Remove from local DB |
-| `409 Conflict` | Concurrent modification | Refetch, merge changes |
-| `410 Gone` | Sync token expired | Trigger full sync |
-| `429 Too Many Requests` | Rate limit | Exponential backoff |
+| Error                   | Cause                    | Recovery               |
+| ----------------------- | ------------------------ | ---------------------- |
+| `401 Unauthorized`      | Token expired            | Refresh token, retry   |
+| `403 Forbidden`         | Insufficient scopes      | Prompt scope upgrade   |
+| `404 Not Found`         | Event deleted externally | Remove from local DB   |
+| `409 Conflict`          | Concurrent modification  | Refetch, merge changes |
+| `410 Gone`              | Sync token expired       | Trigger full sync      |
+| `429 Too Many Requests` | Rate limit               | Exponential backoff    |
 
 ### Rate Limiting
 
 Google Calendar API limits:
+
 - 1,000,000 queries/day (free tier)
 - ~10 queries/second sustained
 
 Implementation:
+
 - Token bucket rate limiter (shared with Gmail)
 - Exponential backoff on 429
 - Queue non-urgent syncs during high load
@@ -519,14 +524,14 @@ Implementation:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| Sync latency | <30s | Time from Google change to local update |
-| Full sync time | <2 min | For typical calendar (500 events) |
-| API reliability | >99% | Successful API calls |
-| Conflict detection | >95% | Correctly identified conflicts |
-| Webhook uptime | >99.5% | Webhook channel availability |
-| Event accuracy | 100% | No data loss or corruption |
+| Metric             | Target | Description                             |
+| ------------------ | ------ | --------------------------------------- |
+| Sync latency       | <30s   | Time from Google change to local update |
+| Full sync time     | <2 min | For typical calendar (500 events)       |
+| API reliability    | >99%   | Successful API calls                    |
+| Conflict detection | >95%   | Correctly identified conflicts          |
+| Webhook uptime     | >99.5% | Webhook channel availability            |
+| Event accuracy     | 100%   | No data loss or corruption              |
 
 ---
 
@@ -574,8 +579,17 @@ Implementation:
   "googleEventId": "abcdef123456",
   "googleCalendarId": "primary",
   "attendees": [
-    { "email": "sarah@example.com", "displayName": "Sarah", "responseStatus": "accepted" },
-    { "email": "user@example.com", "displayName": "User", "responseStatus": "accepted", "self": true }
+    {
+      "email": "sarah@example.com",
+      "displayName": "Sarah",
+      "responseStatus": "accepted"
+    },
+    {
+      "email": "user@example.com",
+      "displayName": "User",
+      "responseStatus": "accepted",
+      "self": true
+    }
   ],
   "organizer": { "email": "user@example.com", "self": true },
   "conferenceData": {
@@ -631,6 +645,7 @@ Implementation:
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -639,4 +654,3 @@ Implementation:
   "message": "I've drafted a calendar event for Team Lunch. Please review and approve."
 }
 ```
-

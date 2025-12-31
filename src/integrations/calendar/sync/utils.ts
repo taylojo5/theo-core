@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { addJob, QUEUE_NAMES } from "@/lib/queue";
-import { EMBEDDING_JOB_TYPES, type BulkCalendarEventEmbedJobData } from "@/lib/queue/jobs";
+import {
+  EMBEDDING_JOB_TYPES,
+  type BulkCalendarEventEmbedJobData,
+} from "@/lib/queue/jobs";
 import { syncLogger } from "../logger";
 import {
   FULL_SYNC_EMBEDDING_BATCH_SIZE,
@@ -80,12 +83,9 @@ export async function queueEventEmbeddings(
       eventIds: batch,
     };
 
-    await addJob(
-      QUEUE_NAMES.EMBEDDINGS,
-      "calendar-bulk-event-embed",
-      jobData,
-      { priority }
-    );
+    await addJob(QUEUE_NAMES.EMBEDDINGS, "calendar-bulk-event-embed", jobData, {
+      priority,
+    });
   }
 }
 
@@ -258,7 +258,10 @@ export function createSyncError(
   resourceType: "calendar" | "event"
 ): SyncOperationError {
   const message = error instanceof Error ? error.message : String(error);
-  const code = error instanceof Error && "code" in error ? String((error as { code?: unknown }).code) : undefined;
+  const code =
+    error instanceof Error && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : undefined;
 
   // Determine if error is retryable
   const retryable =
@@ -294,4 +297,3 @@ export async function updateEmbeddingStats(
     pending,
   });
 }
-

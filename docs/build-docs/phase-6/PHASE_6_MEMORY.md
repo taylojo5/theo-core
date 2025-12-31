@@ -12,13 +12,13 @@ Enable Theo to remember user preferences and context in a way that is **explicit
 
 ### Core Principles
 
-| Principle | Description |
-| --- | --- |
-| **Explicit** | Memory is stored and retrieved, never hidden in model state |
-| **Inspectable** | Users can view everything Theo remembers |
-| **Overrideable** | Users can edit or delete any memory instantly |
-| **Safe** | Sensitive domains require explicit opt-in; phrasing respects user autonomy |
-| **Cited** | All actions cite the memory items that influenced them |
+| Principle        | Description                                                                |
+| ---------------- | -------------------------------------------------------------------------- |
+| **Explicit**     | Memory is stored and retrieved, never hidden in model state                |
+| **Inspectable**  | Users can view everything Theo remembers                                   |
+| **Overrideable** | Users can edit or delete any memory instantly                              |
+| **Safe**         | Sensitive domains require explicit opt-in; phrasing respects user autonomy |
+| **Cited**        | All actions cite the memory items that influenced them                     |
 
 ---
 
@@ -50,12 +50,12 @@ User Action / Message
 
 Explicit preferences or constraints treated as **rules**.
 
-| Characteristic | Description |
-| --- | --- |
-| Structure | JSON key-value pairs or structured objects |
-| Authority | Always overrides soft memory |
-| Confirmation | Requires user confirmation or explicit statement |
-| Confidence | High (0.8+), user-confirmed |
+| Characteristic | Description                                      |
+| -------------- | ------------------------------------------------ |
+| Structure      | JSON key-value pairs or structured objects       |
+| Authority      | Always overrides soft memory                     |
+| Confirmation   | Requires user confirmation or explicit statement |
+| Confidence     | High (0.8+), user-confirmed                      |
 
 **Examples:**
 
@@ -70,12 +70,12 @@ Explicit preferences or constraints treated as **rules**.
 
 Narrative context that improves judgment but is **never treated as rules**.
 
-| Characteristic | Description |
-| --- | --- |
-| Structure | Short text chunks (300-500 tokens) |
-| Authority | Informs decisions but doesn't mandate |
-| Storage | Vector-embedded for semantic retrieval |
-| Decay | Recency-weighted, can expire |
+| Characteristic | Description                            |
+| -------------- | -------------------------------------- |
+| Structure      | Short text chunks (300-500 tokens)     |
+| Authority      | Informs decisions but doesn't mandate  |
+| Storage        | Vector-embedded for semantic retrieval |
+| Decay          | Recency-weighted, can expire           |
 
 **Examples:**
 
@@ -90,71 +90,71 @@ Narrative context that improves judgment but is **never treated as rules**.
 
 ### MemoryItem
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| userId | string | Owner |
-| type | enum | `HARD` or `SOFT` |
-| domain | string | Category (schedule, food, shopping, etc.) |
-| key | string | Structured key for lookup |
-| content | json | Flexible: string, array, or object |
-| contentText | string | Plain text for embedding/search |
-| confidence | float | 0.0-1.0 |
-| source | enum | `USER_EXPLICIT`, `USER_INFERRED`, `AGENT_PROPOSED`, `SYSTEM_DERIVED` |
-| evidence | json | Array of evidence supporting this memory |
-| status | enum | `PROPOSED`, `ACTIVE`, `INACTIVE`, `EXPIRED`, `SUPERSEDED` |
-| requiresOptIn | boolean | For sensitive domains |
-| expiresAt | datetime? | Optional expiration |
-| createdAt | datetime | |
-| confirmedAt | datetime? | When user confirmed |
-| lastConfirmedAt | datetime? | Most recent confirmation |
+| Field           | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| id              | string    | Unique identifier                                                    |
+| userId          | string    | Owner                                                                |
+| type            | enum      | `HARD` or `SOFT`                                                     |
+| domain          | string    | Category (schedule, food, shopping, etc.)                            |
+| key             | string    | Structured key for lookup                                            |
+| content         | json      | Flexible: string, array, or object                                   |
+| contentText     | string    | Plain text for embedding/search                                      |
+| confidence      | float     | 0.0-1.0                                                              |
+| source          | enum      | `USER_EXPLICIT`, `USER_INFERRED`, `AGENT_PROPOSED`, `SYSTEM_DERIVED` |
+| evidence        | json      | Array of evidence supporting this memory                             |
+| status          | enum      | `PROPOSED`, `ACTIVE`, `INACTIVE`, `EXPIRED`, `SUPERSEDED`            |
+| requiresOptIn   | boolean   | For sensitive domains                                                |
+| expiresAt       | datetime? | Optional expiration                                                  |
+| createdAt       | datetime  |                                                                      |
+| confirmedAt     | datetime? | When user confirmed                                                  |
+| lastConfirmedAt | datetime? | Most recent confirmation                                             |
 
 ### MemoryEmbedding
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| memoryItemId | string | FK to MemoryItem |
-| embedding | vector(1536) | Vector embedding for semantic search |
-| contentHash | string | Hash for change detection |
+| Field        | Type         | Description                          |
+| ------------ | ------------ | ------------------------------------ |
+| id           | string       | Unique identifier                    |
+| memoryItemId | string       | FK to MemoryItem                     |
+| embedding    | vector(1536) | Vector embedding for semantic search |
+| contentHash  | string       | Hash for change detection            |
 
 ### MemoryUsageLog
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| memoryItemId | string | FK to MemoryItem |
-| userId | string | Owner |
-| conversationId | string? | Context |
-| usageType | enum | `RETRIEVED`, `APPLIED`, `CITED`, `CONFLICTED`, `OVERRIDDEN` |
-| influence | string | How memory influenced the action |
-| createdAt | datetime | |
+| Field          | Type     | Description                                                 |
+| -------------- | -------- | ----------------------------------------------------------- |
+| id             | string   | Unique identifier                                           |
+| memoryItemId   | string   | FK to MemoryItem                                            |
+| userId         | string   | Owner                                                       |
+| conversationId | string?  | Context                                                     |
+| usageType      | enum     | `RETRIEVED`, `APPLIED`, `CITED`, `CONFLICTED`, `OVERRIDDEN` |
+| influence      | string   | How memory influenced the action                            |
+| createdAt      | datetime |                                                             |
 
 ### MemoryDomain
 
-| Field | Type | Description |
-| --- | --- | --- |
-| id | string | Unique identifier |
-| name | string | Unique key (schedule, food, etc.) |
-| displayName | string | Human-readable name |
-| isSensitive | boolean | Requires careful handling |
-| requiresOptIn | boolean | User must explicitly enable |
-| defaultExpiration | int? | Days until soft memories expire |
+| Field             | Type    | Description                       |
+| ----------------- | ------- | --------------------------------- |
+| id                | string  | Unique identifier                 |
+| name              | string  | Unique key (schedule, food, etc.) |
+| displayName       | string  | Human-readable name               |
+| isSensitive       | boolean | Requires careful handling         |
+| requiresOptIn     | boolean | User must explicitly enable       |
+| defaultExpiration | int?    | Days until soft memories expire   |
 
 ### Predefined Domains
 
-| Domain | Sensitive | Opt-in | Expiration |
-| --- | --- | --- | --- |
-| schedule | No | No | Never |
-| food | No | No | Never |
-| shopping | No | No | Never |
-| communication | No | No | Never |
-| travel | No | No | Never |
-| health | Yes | Yes | Never |
-| finance | Yes | Yes | Never |
-| work | No | No | 90 days |
-| personal | No | No | 60 days |
-| relationships | No | No | Never |
+| Domain        | Sensitive | Opt-in | Expiration |
+| ------------- | --------- | ------ | ---------- |
+| schedule      | No        | No     | Never      |
+| food          | No        | No     | Never      |
+| shopping      | No        | No     | Never      |
+| communication | No        | No     | Never      |
+| travel        | No        | No     | Never      |
+| health        | Yes       | Yes    | Never      |
+| finance       | Yes       | Yes    | Never      |
+| work          | No        | No     | 90 days    |
+| personal      | No        | No     | 60 days    |
+| relationships | No        | No     | Never      |
 
 ---
 
@@ -164,26 +164,26 @@ Narrative context that improves judgment but is **never treated as rules**.
 
 CRUD operations and memory lifecycle management.
 
-| Method | Description |
-| --- | --- |
-| `create(userId, input)` | Create a new confirmed memory |
-| `propose(userId, input)` | Create a proposed memory (requires confirmation) |
-| `confirm(userId, input)` | Confirm or reject a proposed memory |
-| `update(userId, id, input)` | Update an existing memory |
-| `delete(userId, id)` | Soft-delete a memory |
-| `get(userId, id)` | Retrieve single memory |
-| `list(userId, options)` | List memories with filtering |
-| `getPendingProposals(userId)` | Get unconfirmed proposals |
-| `logUsage(params)` | Log memory usage for audit |
-| `getStats(userId)` | Get memory analytics |
+| Method                        | Description                                      |
+| ----------------------------- | ------------------------------------------------ |
+| `create(userId, input)`       | Create a new confirmed memory                    |
+| `propose(userId, input)`      | Create a proposed memory (requires confirmation) |
+| `confirm(userId, input)`      | Confirm or reject a proposed memory              |
+| `update(userId, id, input)`   | Update an existing memory                        |
+| `delete(userId, id)`          | Soft-delete a memory                             |
+| `get(userId, id)`             | Retrieve single memory                           |
+| `list(userId, options)`       | List memories with filtering                     |
+| `getPendingProposals(userId)` | Get unconfirmed proposals                        |
+| `logUsage(params)`            | Log memory usage for audit                       |
+| `getStats(userId)`            | Get memory analytics                             |
 
 ### MemoryRetrievalService
 
 Retrieves relevant memories for prompt context.
 
-| Method | Description |
-| --- | --- |
-| `retrieve(params)` | Get relevant hard + soft memories |
+| Method                | Description                            |
+| --------------------- | -------------------------------------- |
+| `retrieve(params)`    | Get relevant hard + soft memories      |
 | `detectDomains(text)` | Identify relevant domains from message |
 
 **Retrieval Logic:**
@@ -223,27 +223,27 @@ Formats memories for LLM prompt injection.
 
 ### Endpoints
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/memory` | List memories with optional filters |
-| POST | `/api/memory` | Create a new memory |
-| GET | `/api/memory/:id` | Get single memory |
-| PATCH | `/api/memory/:id` | Update memory |
-| DELETE | `/api/memory/:id` | Delete memory |
-| POST | `/api/memory/propose` | Agent proposes a memory |
-| POST | `/api/memory/:id/confirm` | Confirm or reject proposal |
-| POST | `/api/memory/retrieve` | Retrieve memories for context |
+| Method | Path                      | Description                         |
+| ------ | ------------------------- | ----------------------------------- |
+| GET    | `/api/memory`             | List memories with optional filters |
+| POST   | `/api/memory`             | Create a new memory                 |
+| GET    | `/api/memory/:id`         | Get single memory                   |
+| PATCH  | `/api/memory/:id`         | Update memory                       |
+| DELETE | `/api/memory/:id`         | Delete memory                       |
+| POST   | `/api/memory/propose`     | Agent proposes a memory             |
+| POST   | `/api/memory/:id/confirm` | Confirm or reject proposal          |
+| POST   | `/api/memory/retrieve`    | Retrieve memories for context       |
 
 ### Query Parameters (List)
 
-| Param | Type | Description |
-| --- | --- | --- |
-| type | enum | Filter by HARD or SOFT |
-| domain | string | Filter by domain |
-| status | enum | Filter by status |
-| search | string | Text search |
-| limit | number | Max results (default: 50) |
-| cursor | string | Pagination cursor |
+| Param  | Type   | Description               |
+| ------ | ------ | ------------------------- |
+| type   | enum   | Filter by HARD or SOFT    |
+| domain | string | Filter by domain          |
+| status | enum   | Filter by status          |
+| search | string | Text search               |
+| limit  | number | Max results (default: 50) |
+| cursor | string | Pagination cursor         |
 
 ---
 
@@ -261,10 +261,10 @@ Every agent request passes through memory middleware:
 
 ### Agent Tools
 
-| Tool | Description |
-| --- | --- |
+| Tool             | Description                                     |
+| ---------------- | ----------------------------------------------- |
 | `propose_memory` | Propose a new preference or context to remember |
-| `query_memory` | Search user's saved memories |
+| `query_memory`   | Search user's saved memories                    |
 
 **Proposal Flow:**
 
@@ -312,23 +312,23 @@ Confirmation UI for proposed memories.
 
 ### Sensitive Domains
 
-| Domain | Sensitivity | Opt-in Required | Reason |
-| --- | --- | --- | --- |
-| health | High | Yes | Medical information, fitness data |
-| finance | High | Yes | Budget, spending patterns |
-| relationships | Medium | No | But careful phrasing required |
-| work | Low | No | Professional context |
+| Domain        | Sensitivity | Opt-in Required | Reason                            |
+| ------------- | ----------- | --------------- | --------------------------------- |
+| health        | High        | Yes             | Medical information, fitness data |
+| finance       | High        | Yes             | Budget, spending patterns         |
+| relationships | Medium      | No              | But careful phrasing required     |
+| work          | Low         | No              | Professional context              |
 
 ### Phrasing Rules
 
 The agent must follow these phrasing rules when referencing memories:
 
-| ✅ Allowed | ❌ Forbidden |
-| --- | --- |
-| "You previously told me..." | "You believe..." |
-| "Based on your preference for..." | "You think that..." |
-| "You mentioned that..." | "You are the type of person who..." |
-| "I remember you said..." | "Your personality suggests..." |
+| ✅ Allowed                        | ❌ Forbidden                        |
+| --------------------------------- | ----------------------------------- |
+| "You previously told me..."       | "You believe..."                    |
+| "Based on your preference for..." | "You think that..."                 |
+| "You mentioned that..."           | "You are the type of person who..." |
+| "I remember you said..."          | "Your personality suggests..."      |
 
 ### Data Retention
 
@@ -384,13 +384,13 @@ The agent must follow these phrasing rules when referencing memories:
 
 ## Success Metrics
 
-| Metric | Target | Description |
-| --- | --- | --- |
-| Memory citation rate | >80% | % of relevant actions that cite memory |
-| Proposal acceptance | >70% | % of proposed memories confirmed |
-| Memory correction rate | <10% | % of memories edited on confirm |
-| "Why did you do this?" queries | <5% | Reduction after memory explanations |
-| User satisfaction | >4.5/5 | Post-interaction survey |
+| Metric                         | Target | Description                            |
+| ------------------------------ | ------ | -------------------------------------- |
+| Memory citation rate           | >80%   | % of relevant actions that cite memory |
+| Proposal acceptance            | >70%   | % of proposed memories confirmed       |
+| Memory correction rate         | <10%   | % of memories edited on confirm        |
+| "Why did you do this?" queries | <5%    | Reduction after memory explanations    |
+| User satisfaction              | >4.5/5 | Post-interaction survey                |
 
 ---
 
@@ -436,12 +436,12 @@ POST /api/memory
 
 # Propose a memory (agent)
 POST /api/memory/propose
-{ 
-  "type": "HARD", 
-  "domain": "shopping", 
-  "key": "store", 
-  "content": "Kroger", 
-  "confidence": 0.6, 
+{
+  "type": "HARD",
+  "domain": "shopping",
+  "key": "store",
+  "content": "Kroger",
+  "confidence": 0.6,
   "evidence": [{ "type": "pattern", "description": "Last 5 orders were Kroger" }],
   "reasoning": "User has consistently chosen Kroger"
 }

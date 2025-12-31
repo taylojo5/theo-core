@@ -11,7 +11,11 @@ import {
   DEFAULT_CHUNKING_OPTIONS,
 } from "@/lib/embeddings/types";
 import { EmbeddingService } from "@/lib/embeddings/embedding-service";
-import type { EmbeddingProvider, EmbeddingResult, BatchEmbeddingResult } from "@/lib/embeddings/types";
+import type {
+  EmbeddingProvider,
+  EmbeddingResult,
+  BatchEmbeddingResult,
+} from "@/lib/embeddings/types";
 
 // ─────────────────────────────────────────────────────────────
 // Mock Provider
@@ -24,11 +28,14 @@ function createMockProvider(): EmbeddingProvider {
       model: DEFAULT_EMBEDDING_MODEL,
       tokensUsed: 10,
     } as EmbeddingResult),
-    generateEmbeddings: vi.fn().mockImplementation(async (texts: string[]) => ({
-      embeddings: texts.map(() => new Array(1536).fill(0.1)),
-      model: DEFAULT_EMBEDDING_MODEL,
-      totalTokensUsed: texts.length * 10,
-    } as BatchEmbeddingResult)),
+    generateEmbeddings: vi.fn().mockImplementation(
+      async (texts: string[]) =>
+        ({
+          embeddings: texts.map(() => new Array(1536).fill(0.1)),
+          model: DEFAULT_EMBEDDING_MODEL,
+          totalTokensUsed: texts.length * 10,
+        }) as BatchEmbeddingResult
+    ),
     getModel: vi.fn().mockReturnValue(DEFAULT_EMBEDDING_MODEL),
     getDimensions: vi.fn().mockReturnValue(1536),
   };
@@ -42,7 +49,7 @@ describe("EmbeddingError", () => {
   describe("constructor", () => {
     it("creates error with all properties", () => {
       const error = new EmbeddingError("test message", "api_error", true, 1000);
-      
+
       expect(error.message).toBe("test message");
       expect(error.type).toBe("api_error");
       expect(error.retryable).toBe(true);
@@ -59,7 +66,7 @@ describe("EmbeddingError", () => {
   describe("static factory methods", () => {
     it("creates rate limited error", () => {
       const error = EmbeddingError.rateLimited(5000);
-      
+
       expect(error.type).toBe("rate_limit");
       expect(error.retryable).toBe(true);
       expect(error.retryAfter).toBe(5000);
@@ -68,7 +75,7 @@ describe("EmbeddingError", () => {
 
     it("creates invalid input error", () => {
       const error = EmbeddingError.invalidInput("bad input");
-      
+
       expect(error.type).toBe("invalid_input");
       expect(error.retryable).toBe(false);
       expect(error.message).toBe("bad input");
@@ -76,21 +83,21 @@ describe("EmbeddingError", () => {
 
     it("creates API error", () => {
       const error = EmbeddingError.apiError("server error");
-      
+
       expect(error.type).toBe("api_error");
       expect(error.retryable).toBe(true);
     });
 
     it("creates network error", () => {
       const error = EmbeddingError.networkError("connection failed");
-      
+
       expect(error.type).toBe("network_error");
       expect(error.retryable).toBe(true);
     });
 
     it("creates content too long error", () => {
       const error = EmbeddingError.contentTooLong(50000, 32000);
-      
+
       expect(error.type).toBe("content_too_long");
       expect(error.retryable).toBe(false);
       expect(error.message).toContain("50000");
@@ -99,7 +106,7 @@ describe("EmbeddingError", () => {
 
     it("creates empty content error", () => {
       const error = EmbeddingError.emptyContent();
-      
+
       expect(error.type).toBe("empty_content");
       expect(error.retryable).toBe(false);
     });
@@ -150,7 +157,7 @@ describe("EmbeddingService", () => {
   describe("generateEmbedding", () => {
     it("generates embedding for text", async () => {
       const result = await service.generateEmbedding("hello world");
-      
+
       expect(result).toHaveLength(1536);
       expect(mockProvider.generateEmbedding).toHaveBeenCalledWith(
         "hello world",
@@ -161,8 +168,11 @@ describe("EmbeddingService", () => {
     it("passes options to provider", async () => {
       const options = { model: "text-embedding-3-large" as const };
       await service.generateEmbedding("test", options);
-      
-      expect(mockProvider.generateEmbedding).toHaveBeenCalledWith("test", options);
+
+      expect(mockProvider.generateEmbedding).toHaveBeenCalledWith(
+        "test",
+        options
+      );
     });
   });
 
@@ -170,7 +180,7 @@ describe("EmbeddingService", () => {
     it("generates embeddings for multiple texts", async () => {
       const texts = ["hello", "world", "test"];
       const result = await service.generateEmbeddings(texts);
-      
+
       expect(result).toHaveLength(3);
       expect(result[0]).toHaveLength(1536);
       expect(mockProvider.generateEmbeddings).toHaveBeenCalledWith(
@@ -181,7 +191,7 @@ describe("EmbeddingService", () => {
 
     it("handles empty array", async () => {
       const result = await service.generateEmbeddings([]);
-      
+
       expect(result).toEqual([]);
     });
   });
@@ -190,7 +200,7 @@ describe("EmbeddingService", () => {
     it("returns single chunk for short content", () => {
       const content = "This is a short piece of content.";
       const chunks = service.chunkContent(content);
-      
+
       expect(chunks).toHaveLength(1);
       expect(chunks[0]).toBe(content);
     });
@@ -199,51 +209,54 @@ describe("EmbeddingService", () => {
       // Create content that exceeds chunk size
       const sentence = "This is a sentence. ";
       const content = sentence.repeat(2000);
-      
+
       const chunks = service.chunkContent(content, { maxTokens: 100 });
-      
+
       expect(chunks.length).toBeGreaterThan(1);
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk) => {
         expect(chunk.length).toBeLessThanOrEqual(100 * 4 + 500); // Some buffer for overlap
       });
     });
 
     it("uses paragraph separator when specified", () => {
       const content = "Paragraph one.\n\nParagraph two.\n\nParagraph three.";
-      const chunks = service.chunkContent(content, { 
+      const chunks = service.chunkContent(content, {
         separator: "paragraph",
-        maxTokens: 10 
+        maxTokens: 10,
       });
-      
+
       expect(chunks.length).toBeGreaterThanOrEqual(1);
     });
 
     it("uses word separator when specified", () => {
       const content = "word1 word2 word3 word4 word5";
-      const chunks = service.chunkContent(content, { 
+      const chunks = service.chunkContent(content, {
         separator: "word",
-        maxTokens: 2 
+        maxTokens: 2,
       });
-      
+
       expect(chunks.length).toBeGreaterThan(1);
     });
 
     it("respects overlap between chunks", () => {
-      const words = Array(100).fill("word").map((w, i) => `${w}${i}`).join(" ");
-      const chunks = service.chunkContent(words, { 
+      const words = Array(100)
+        .fill("word")
+        .map((w, i) => `${w}${i}`)
+        .join(" ");
+      const chunks = service.chunkContent(words, {
         separator: "word",
         maxTokens: 20,
-        overlapTokens: 5
+        overlapTokens: 5,
       });
-      
+
       // With overlap, some content should appear in adjacent chunks
       if (chunks.length >= 2) {
         // There should be some overlap between chunks
         const lastWordsOfFirst = chunks[0].split(" ").slice(-5);
         const firstWordsOfSecond = chunks[1].split(" ").slice(0, 5);
-        
+
         // At least some overlap should exist
-        const hasOverlap = lastWordsOfFirst.some(w => 
+        const hasOverlap = lastWordsOfFirst.some((w) =>
           firstWordsOfSecond.includes(w)
         );
         expect(hasOverlap || chunks.length === 1).toBe(true);
@@ -258,7 +271,7 @@ describe("EmbeddingService", () => {
     it("trims chunks", () => {
       const content = "  hello world  ";
       const chunks = service.chunkContent(content);
-      
+
       expect(chunks[0]).toBe("hello world");
     });
   });
@@ -279,23 +292,24 @@ describe("Content Processing", () => {
 
   describe("sentence chunking", () => {
     it("splits on sentence boundaries", () => {
-      const content = "First sentence. Second sentence! Third sentence? Fourth.";
-      const chunks = service.chunkContent(content, { 
+      const content =
+        "First sentence. Second sentence! Third sentence? Fourth.";
+      const chunks = service.chunkContent(content, {
         separator: "sentence",
-        maxTokens: 5
+        maxTokens: 5,
       });
-      
+
       // Each chunk should contain complete sentences
-      chunks.forEach(chunk => {
+      chunks.forEach((chunk) => {
         // Sentences should end with proper punctuation
         const trimmed = chunk.trim();
         if (trimmed.length > 0) {
           // Either ends with punctuation or is the last chunk
           expect(
-            trimmed.endsWith(".") || 
-            trimmed.endsWith("!") || 
-            trimmed.endsWith("?") ||
-            chunks.indexOf(chunk) === chunks.length - 1
+            trimmed.endsWith(".") ||
+              trimmed.endsWith("!") ||
+              trimmed.endsWith("?") ||
+              chunks.indexOf(chunk) === chunks.length - 1
           ).toBe(true);
         }
       });
@@ -311,12 +325,12 @@ describe("Content Processing", () => {
         
         Third paragraph.
       `;
-      
-      const chunks = service.chunkContent(content, { 
+
+      const chunks = service.chunkContent(content, {
         separator: "paragraph",
-        maxTokens: 20
+        maxTokens: 20,
       });
-      
+
       expect(chunks.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -339,7 +353,7 @@ describe("Edge Cases", () => {
     it("handles unicode content", async () => {
       const unicodeText = "Hello 世界 🌍 Привет مرحبا";
       await service.generateEmbedding(unicodeText);
-      
+
       expect(mockProvider.generateEmbedding).toHaveBeenCalledWith(
         unicodeText,
         undefined
@@ -349,7 +363,7 @@ describe("Edge Cases", () => {
     it("handles newlines and tabs", async () => {
       const textWithWhitespace = "Line 1\nLine 2\tTabbed";
       await service.generateEmbedding(textWithWhitespace);
-      
+
       expect(mockProvider.generateEmbedding).toHaveBeenCalled();
     });
   });
@@ -358,10 +372,11 @@ describe("Edge Cases", () => {
     it("chunks content that exceeds token limit", () => {
       // Create content that's definitely longer than limit
       // Use sentences so the sentence splitter works properly
-      const veryLongContent = "This is a sentence that should be long enough. ".repeat(500);
-      
+      const veryLongContent =
+        "This is a sentence that should be long enough. ".repeat(500);
+
       const chunks = service.chunkContent(veryLongContent, { maxTokens: 50 });
-      
+
       expect(chunks.length).toBeGreaterThan(1);
     });
   });
@@ -382,12 +397,12 @@ describe("Edge Cases", () => {
 describe("Provider Error Handling", () => {
   it("propagates provider errors", async () => {
     const errorProvider: EmbeddingProvider = {
-      generateEmbedding: vi.fn().mockRejectedValue(
-        EmbeddingError.apiError("API failed")
-      ),
-      generateEmbeddings: vi.fn().mockRejectedValue(
-        EmbeddingError.apiError("API failed")
-      ),
+      generateEmbedding: vi
+        .fn()
+        .mockRejectedValue(EmbeddingError.apiError("API failed")),
+      generateEmbeddings: vi
+        .fn()
+        .mockRejectedValue(EmbeddingError.apiError("API failed")),
       getModel: vi.fn().mockReturnValue(DEFAULT_EMBEDDING_MODEL),
       getDimensions: vi.fn().mockReturnValue(1536),
     };
@@ -401,9 +416,9 @@ describe("Provider Error Handling", () => {
 
   it("handles rate limit errors", async () => {
     const rateLimitProvider: EmbeddingProvider = {
-      generateEmbedding: vi.fn().mockRejectedValue(
-        EmbeddingError.rateLimited(5000)
-      ),
+      generateEmbedding: vi
+        .fn()
+        .mockRejectedValue(EmbeddingError.rateLimited(5000)),
       generateEmbeddings: vi.fn(),
       getModel: vi.fn().mockReturnValue(DEFAULT_EMBEDDING_MODEL),
       getDimensions: vi.fn().mockReturnValue(1536),
@@ -421,4 +436,3 @@ describe("Provider Error Handling", () => {
     }
   });
 });
-

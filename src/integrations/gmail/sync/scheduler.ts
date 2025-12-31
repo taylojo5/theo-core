@@ -120,11 +120,14 @@ export async function startRecurringSync(userId: string): Promise<void> {
     userId,
     jobs: existingJobs.map((j) => ({ id: j.id, key: j.key, name: j.name })),
   });
-  
+
   const existing = existingJobs.find((j) => j.id === jobId);
   if (existing) {
     await queue.removeRepeatableByKey(existing.key);
-    schedulerLogger.info("Removed existing recurring job", { userId, key: existing.key });
+    schedulerLogger.info("Removed existing recurring job", {
+      userId,
+      key: existing.key,
+    });
   }
 
   // Update database first to track recurring sync is enabled
@@ -144,15 +147,19 @@ export async function startRecurringSync(userId: string): Promise<void> {
       ...GMAIL_JOB_OPTIONS.INCREMENTAL_SYNC,
     });
 
-    schedulerLogger.info("Started recurring sync", { 
-      userId, 
+    schedulerLogger.info("Started recurring sync", {
+      userId,
       jobId,
       createdJobId: job.id,
     });
   } catch (error) {
     // Rollback database state if job creation fails
     await syncStateRepository.update(userId, { recurringEnabled: false });
-    schedulerLogger.error("Failed to create recurring job, rolled back", { userId }, error);
+    schedulerLogger.error(
+      "Failed to create recurring job, rolled back",
+      { userId },
+      error
+    );
     throw error;
   }
 }
@@ -180,19 +187,22 @@ export async function stopRecurringSync(userId: string): Promise<void> {
   if (removed) {
     schedulerLogger.info("Removed repeatable job", { userId, jobId });
   } else {
-    schedulerLogger.warn("No repeatable job found to remove", { userId, jobId });
+    schedulerLogger.warn("No repeatable job found to remove", {
+      userId,
+      jobId,
+    });
   }
 
   // Update database to track recurring sync is disabled
   // We update even if no job was found (job may have been removed manually or never existed)
   await syncStateRepository.update(userId, { recurringEnabled: false });
-  
+
   schedulerLogger.info("Stopped recurring sync", { userId });
 }
 
 /**
  * Check if a user has recurring sync enabled
- * 
+ *
  * Uses the database field for reliability since BullMQ's getRepeatableJobs()
  * doesn't reliably return the jobId we passed.
  */

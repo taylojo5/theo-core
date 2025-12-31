@@ -5,4 +5,3 @@
 
 export { DashboardHeader, type DashboardHeaderProps } from "./dashboard-header";
 export { DashboardLayout, type DashboardLayoutProps } from "./dashboard-layout";
-

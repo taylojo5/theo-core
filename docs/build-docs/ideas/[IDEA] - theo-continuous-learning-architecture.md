@@ -1,8 +1,9 @@
-# Theo Continuous Learning & Preference Reinforcement  
+# Theo Continuous Learning & Preference Reinforcement
+
 **Architecture Overview**
 
 > **Purpose**  
-Enable Theo to continually learn, refine, and reconfirm user preferences over time through explicit, respectful feedback loops — without treating onboarding as a one-time event.
+> Enable Theo to continually learn, refine, and reconfirm user preferences over time through explicit, respectful feedback loops — without treating onboarding as a one-time event.
 
 Onboarding never ends. It simply becomes quieter, more contextual, and more valuable.
 
@@ -13,6 +14,7 @@ Onboarding never ends. It simply becomes quieter, more contextual, and more valu
 Theo learns through **Open Questions** — small, well-timed prompts that clarify ambiguity, confirm preferences, and reinforce memory.
 
 An **Open Question** represents:
+
 - something Theo needs to know to act better
 - something Theo is unsure about
 - something that may no longer be true
@@ -21,11 +23,11 @@ An **Open Question** represents:
 
 ## Guiding Principles
 
-1. Learning is **continuous**, not front-loaded  
-2. User attention is scarce — ask only what matters  
-3. Every question has a **clear payoff**  
-4. Memory is explicit, inspectable, and reversible  
-5. Theo never silently “assumes” preferences  
+1. Learning is **continuous**, not front-loaded
+2. User attention is scarce — ask only what matters
+3. Every question has a **clear payoff**
+4. Memory is explicit, inspectable, and reversible
+5. Theo never silently “assumes” preferences
 
 ---
 
@@ -38,11 +40,13 @@ An **Open Question** represents:
 An `OpenQuestion` is a pending clarification or confirmation that Theo wants answered.
 
 ### Characteristics
+
 - Created automatically by system behavior
 - Resolved explicitly by the user
 - Always skippable, snoozable, or dismissible
 
 ### Sources
+
 - Onboarding phases
 - Ambiguous decisions (e.g. grocery item match)
 - Repeated overrides or corrections
@@ -57,6 +61,7 @@ An `OpenQuestion` is a pending clarification or confirmation that Theo wants ans
 Continuously observes system behavior to identify learning opportunities.
 
 ### Inputs
+
 - User edits, overrides, rejections
 - Acceptance or dismissal of suggestions
 - Confidence scores from decision-making
@@ -65,6 +70,7 @@ Continuously observes system behavior to identify learning opportunities.
 - Integration errors (out-of-stock, ambiguity)
 
 ### Outputs
+
 - New `OpenQuestion`
 - Memory proposal
 - Reconfirmation request
@@ -78,6 +84,7 @@ A persistent backlog of unresolved Open Questions.
 > Theo should maintain a backlog and **spend user attention carefully**, not ask everything immediately.
 
 ### Responsibilities
+
 - Store all open questions
 - Track status and resolution
 - Support prioritization and throttling
@@ -89,16 +96,19 @@ A persistent backlog of unresolved Open Questions.
 Controls **when**, **where**, and **how often** Theo asks questions.
 
 ### Timing Rules
+
 - Ask immediately only if blocking progress
 - Otherwise defer to low-friction moments
 - Batch non-urgent questions when possible
 
 ### Throttling Rules
+
 - Max 1 non-urgent question per session
 - Max 1–2 per day unless user opts in
 - Respect “snooze” and “ask later”
 
 ### Channels
+
 - In-chat (default)
 - Email digest
 - Slack DM
@@ -111,6 +121,7 @@ Controls **when**, **where**, and **how often** Theo asks questions.
 Converts user responses into concrete system updates.
 
 ### Possible Outcomes
+
 - Create or update hard memory
 - Create or update soft memory
 - Save product mappings (ingredient → SKU/URL)
@@ -124,11 +135,13 @@ Converts user responses into concrete system updates.
 Keeps memory accurate over time through **promotion** and **decay**.
 
 ### Promotion
+
 - Soft → Hard only after:
   - explicit confirmation, or
   - repeated acceptance + confirmation prompt
 
 ### Decay
+
 - Hard memory becomes stale after time or behavior drift
 - Triggers reconfirmation Open Questions
 
@@ -234,6 +247,7 @@ Keeps memory accurate over time through **promotion** and **decay**.
 A low-friction summary designed to avoid annoyance.
 
 **Characteristics**
+
 - 1–3 high-value questions
 - Mix of reconfirmations and proposals
 - Fully skippable
@@ -257,16 +271,20 @@ Only the highest-value questions are surfaced.
 ## UX Patterns
 
 ### Micro-Confirmation
+
 > “Save this as a preference?”  
-**Yes / No / Edit**
+> **Yes / No / Edit**
 
 ### Snooze
+
 > “Ask me later” → reappear in X days
 
 ### Permanent Dismissal
+
 > “Don’t ask again” → creates implicit preference
 
 ### Evidence-Based Prompting
+
 > “You chose this option 6 of the last 7 times. Make it your default?”
 
 ---
@@ -292,6 +310,7 @@ Only the highest-value questions are surfaced.
 ## Summary
 
 Theo’s continuous learning system:
+
 - Uses Open Questions as a universal learning primitive
 - Learns gradually, explicitly, and respectfully
 - Reinforces memory through confirmation, not inference

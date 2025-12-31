@@ -49,7 +49,11 @@ import {
   upsertEventsFromSource,
   EventsServiceError,
 } from "@/services/context/events";
-import type { CreateEventInput, UpdateEventInput, Event } from "@/services/context/events";
+import type {
+  CreateEventInput,
+  UpdateEventInput,
+  Event,
+} from "@/services/context/events";
 
 // ─────────────────────────────────────────────────────────────
 // Test Fixtures
@@ -218,7 +222,10 @@ describe("createEvent", () => {
     const mockPlace = { id: mockPlaceId, userId: mockUserId, deletedAt: null };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.place.findFirst).mockResolvedValue(mockPlace as any);
-    vi.mocked(db.event.create).mockResolvedValue({ ...mockEvent, placeId: mockPlaceId });
+    vi.mocked(db.event.create).mockResolvedValue({
+      ...mockEvent,
+      placeId: mockPlaceId,
+    });
 
     await createEvent(mockUserId, {
       ...mockCreateInput,
@@ -233,12 +240,20 @@ describe("createEvent", () => {
   it("handles duplicate sourceId constraint violation", async () => {
     const prismaError = new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed",
-      { code: "P2002", clientVersion: "5.0.0", meta: { target: ["userId", "source", "sourceId"] } }
+      {
+        code: "P2002",
+        clientVersion: "5.0.0",
+        meta: { target: ["userId", "source", "sourceId"] },
+      }
     );
     vi.mocked(db.event.create).mockRejectedValue(prismaError);
 
     await expect(
-      createEvent(mockUserId, { ...mockCreateInput, source: "calendar", sourceId: "123" })
+      createEvent(mockUserId, {
+        ...mockCreateInput,
+        source: "calendar",
+        sourceId: "123",
+      })
     ).rejects.toMatchObject({
       code: "DUPLICATE_SOURCE_ID",
     });
@@ -288,7 +303,10 @@ describe("getEventByIdWithPlace", () => {
   });
 
   it("returns event with place relation", async () => {
-    const eventWithPlace = { ...mockEvent, place: { id: mockPlaceId, name: "Office" } };
+    const eventWithPlace = {
+      ...mockEvent,
+      place: { id: mockPlaceId, name: "Office" },
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.event.findFirst).mockResolvedValue(eventWithPlace as any);
 
@@ -373,10 +391,20 @@ describe("updateEventStatus", () => {
   });
 
   it("allows valid status transitions", async () => {
-    vi.mocked(db.event.findFirst).mockResolvedValue({ ...mockEvent, status: "tentative" });
-    vi.mocked(db.event.update).mockResolvedValue({ ...mockEvent, status: "confirmed" });
+    vi.mocked(db.event.findFirst).mockResolvedValue({
+      ...mockEvent,
+      status: "tentative",
+    });
+    vi.mocked(db.event.update).mockResolvedValue({
+      ...mockEvent,
+      status: "confirmed",
+    });
 
-    const result = await updateEventStatus(mockUserId, mockEventId, "confirmed");
+    const result = await updateEventStatus(
+      mockUserId,
+      mockEventId,
+      "confirmed"
+    );
 
     expect(result.status).toBe("confirmed");
   });
@@ -384,7 +412,10 @@ describe("updateEventStatus", () => {
   it("throws error for invalid status transition", async () => {
     // Can't go from tentative directly to... well, tentative can go to confirmed or cancelled
     // Let's test that confirmed can't go to some invalid state
-    vi.mocked(db.event.findFirst).mockResolvedValue({ ...mockEvent, status: "confirmed" });
+    vi.mocked(db.event.findFirst).mockResolvedValue({
+      ...mockEvent,
+      status: "confirmed",
+    });
 
     // confirmed can go to: tentative, cancelled - so try transitioning to same state
     // Actually the transitions allow confirmed -> tentative, cancelled
@@ -405,8 +436,14 @@ describe("cancelEvent", () => {
   });
 
   it("cancels a confirmed event", async () => {
-    vi.mocked(db.event.findFirst).mockResolvedValue({ ...mockEvent, status: "confirmed" });
-    vi.mocked(db.event.update).mockResolvedValue({ ...mockEvent, status: "cancelled" });
+    vi.mocked(db.event.findFirst).mockResolvedValue({
+      ...mockEvent,
+      status: "confirmed",
+    });
+    vi.mocked(db.event.update).mockResolvedValue({
+      ...mockEvent,
+      status: "cancelled",
+    });
 
     const result = await cancelEvent(mockUserId, mockEventId);
 
@@ -420,8 +457,14 @@ describe("confirmEvent", () => {
   });
 
   it("confirms a tentative event", async () => {
-    vi.mocked(db.event.findFirst).mockResolvedValue({ ...mockEvent, status: "tentative" });
-    vi.mocked(db.event.update).mockResolvedValue({ ...mockEvent, status: "confirmed" });
+    vi.mocked(db.event.findFirst).mockResolvedValue({
+      ...mockEvent,
+      status: "tentative",
+    });
+    vi.mocked(db.event.update).mockResolvedValue({
+      ...mockEvent,
+      status: "confirmed",
+    });
 
     const result = await confirmEvent(mockUserId, mockEventId);
 
@@ -480,7 +523,10 @@ describe("restoreEvent", () => {
   it("restores soft-deleted event", async () => {
     const deletedEvent = { ...mockEvent, deletedAt: new Date() };
     vi.mocked(db.event.findFirst).mockResolvedValue(deletedEvent);
-    vi.mocked(db.event.update).mockResolvedValue({ ...mockEvent, deletedAt: null });
+    vi.mocked(db.event.update).mockResolvedValue({
+      ...mockEvent,
+      deletedAt: null,
+    });
 
     const result = await restoreEvent(mockUserId, mockEventId);
 
@@ -494,9 +540,11 @@ describe("restoreEvent", () => {
   it("throws error when deleted event not found", async () => {
     vi.mocked(db.event.findFirst).mockResolvedValue(null);
 
-    await expect(restoreEvent(mockUserId, "nonexistent")).rejects.toMatchObject({
-      code: "EVENT_NOT_FOUND",
-    });
+    await expect(restoreEvent(mockUserId, "nonexistent")).rejects.toMatchObject(
+      {
+        code: "EVENT_NOT_FOUND",
+      }
+    );
   });
 });
 
@@ -764,7 +812,11 @@ describe("findEventBySource", () => {
   });
 
   it("finds event by source and sourceId", async () => {
-    const calendarEvent = { ...mockEvent, source: "calendar", sourceId: "cal-123" };
+    const calendarEvent = {
+      ...mockEvent,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.event.findFirst).mockResolvedValue(calendarEvent);
 
     const result = await findEventBySource(mockUserId, "calendar", "cal-123");
@@ -827,9 +879,16 @@ describe("upsertEventsFromSource", () => {
   });
 
   it("updates existing events when data changed", async () => {
-    const existingEvent = { ...mockEvent, source: "calendar", sourceId: "cal-123" };
+    const existingEvent = {
+      ...mockEvent,
+      source: "calendar",
+      sourceId: "cal-123",
+    };
     vi.mocked(db.event.findFirst).mockResolvedValue(existingEvent);
-    vi.mocked(db.event.update).mockResolvedValue({ ...existingEvent, title: "Updated Meeting" });
+    vi.mocked(db.event.update).mockResolvedValue({
+      ...existingEvent,
+      title: "Updated Meeting",
+    });
 
     const result = await upsertEventsFromSource(mockUserId, "calendar", [
       {
@@ -865,4 +924,3 @@ describe("EventsServiceError", () => {
     expect(error.details).toBeDefined();
   });
 });
-

@@ -23,11 +23,7 @@ export const BaseEntitySchema = z.object({
 });
 
 export const SoftDeleteSchema = z.object({
-  deletedAt: z
-    .string()
-    .datetime()
-    .nullable()
-    .openapi({ example: null }),
+  deletedAt: z.string().datetime().nullable().openapi({ example: null }),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -43,13 +39,10 @@ export const SourceSchema = z
 
 export const SourceTrackingSchema = z.object({
   source: SourceSchema,
-  sourceId: z
-    .string()
-    .nullable()
-    .openapi({
-      description: "External ID from source system",
-      example: "msg_abc123",
-    }),
+  sourceId: z.string().nullable().openapi({
+    description: "External ID from source system",
+    example: "msg_abc123",
+  }),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -80,12 +73,9 @@ export function createPaginatedSchema<T extends z.ZodTypeAny>(
       hasMore: z.boolean().openapi({
         description: "Whether more results are available",
       }),
-      nextCursor: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Cursor for fetching the next page",
-        }),
+      nextCursor: z.string().optional().openapi({
+        description: "Cursor for fetching the next page",
+      }),
     })
     .openapi(`Paginated${name}`);
 }

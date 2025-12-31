@@ -44,6 +44,6 @@ Also ,please use your analysis and findings to update the @CHUNKING_BEST_PRACTIC
 
 ## PROJECT PROJECT REPORT
 
-``` text
+```text
 Write a progress report document reporting on the general vibe, progress, and condition of the project now that we're done with phases 0-4. Store in the docs/progress-reports folder.
 ```

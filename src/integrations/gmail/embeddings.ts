@@ -240,7 +240,7 @@ export async function generateEmailEmbeddingById(
 
 /**
  * Generate embeddings for multiple emails (throttled to avoid rate limits)
- * 
+ *
  * Processes emails sequentially with delays between each API call to prevent
  * hitting OpenAI rate limits. Since this is async background processing,
  * throughput is less critical than reliability.
@@ -255,11 +255,11 @@ export async function generateEmailEmbeddings(
   // Process emails sequentially with throttling to avoid rate limits
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];
-    
+
     try {
       const result = await generateEmailEmbedding(email);
       results.push(result);
-      
+
       if (result.success) {
         succeeded++;
       } else {

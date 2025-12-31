@@ -257,7 +257,8 @@ export function parseGoogleApiError(error: unknown): CalendarError {
           );
         }
         return new CalendarAuthError(
-          googleError?.message || "Insufficient permission to perform this action",
+          googleError?.message ||
+            "Insufficient permission to perform this action",
           false,
           undefined,
           error
@@ -489,7 +490,8 @@ export function isSyncTokenExpired(error: unknown): boolean {
 /**
  * Check if the error is a conflict error
  */
-export function isConflictError(error: unknown): error is CalendarConflictError {
+export function isConflictError(
+  error: unknown
+): error is CalendarConflictError {
   return error instanceof CalendarConflictError;
 }
-

@@ -44,11 +44,11 @@ function LoginContent() {
   return (
     <div className="w-full max-w-md px-4">
       {/* Logo and Title */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-primary-foreground text-3xl font-bold mb-4 shadow-lg">
+      <div className="mb-8 text-center">
+        <div className="bg-primary text-primary-foreground mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-3xl font-bold shadow-lg">
           θ
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-foreground text-3xl font-bold tracking-tight">
           Welcome to Theo
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -57,16 +57,16 @@ function LoginContent() {
       </div>
 
       {/* Login Card */}
-      <Card className="shadow-xl border-0 bg-card/80 backdrop-blur-sm">
+      <Card className="bg-card/80 border-0 shadow-xl backdrop-blur-sm">
         <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-xl text-center">Sign in</CardTitle>
+          <CardTitle className="text-center text-xl">Sign in</CardTitle>
           <CardDescription className="text-center">
             Continue with your Google account to get started
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg text-center">
+            <div className="text-destructive bg-destructive/10 rounded-lg p-3 text-center text-sm">
               {error === "OAuthAccountNotLinked"
                 ? "This email is already associated with another account."
                 : "An error occurred during sign in. Please try again."}
@@ -75,7 +75,7 @@ function LoginContent() {
 
           <Button
             variant="outline"
-            className="w-full h-11 text-base font-medium hover:bg-accent transition-colors"
+            className="hover:bg-accent h-11 w-full text-base font-medium transition-colors"
             onClick={handleGoogleSignIn}
           >
             <GoogleIcon />
@@ -87,13 +87,13 @@ function LoginContent() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
+              <span className="bg-card text-muted-foreground px-2">
                 Secure authentication
               </span>
             </div>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-muted-foreground text-center text-xs">
             By signing in, you agree to our Terms of Service and Privacy Policy.
             Your data is encrypted and never shared.
           </p>
@@ -101,7 +101,7 @@ function LoginContent() {
       </Card>
 
       {/* Footer */}
-      <p className="text-center text-sm text-muted-foreground mt-8">
+      <p className="text-muted-foreground mt-8 text-center text-sm">
         Theo learns and grows with you, understanding your world to help you
         take the next right step.
       </p>
@@ -113,10 +113,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full max-w-md px-4 animate-pulse">
-          <div className="h-16 w-16 mx-auto rounded-2xl bg-muted mb-4" />
-          <div className="h-8 w-48 mx-auto bg-muted rounded mb-2" />
-          <div className="h-4 w-64 mx-auto bg-muted rounded" />
+        <div className="w-full max-w-md animate-pulse px-4">
+          <div className="bg-muted mx-auto mb-4 h-16 w-16 rounded-2xl" />
+          <div className="bg-muted mx-auto mb-2 h-8 w-48 rounded" />
+          <div className="bg-muted mx-auto h-4 w-64 rounded" />
         </div>
       }
     >
@@ -124,4 +124,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

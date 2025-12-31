@@ -28,16 +28,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const includeMessages = searchParams.get("includeMessages") !== "false";
-    const messageLimit = parseInt(searchParams.get("messageLimit") || "100", 10);
+    const messageLimit = parseInt(
+      searchParams.get("messageLimit") || "100",
+      10
+    );
 
     // Get conversation
     const conversation = await getConversation(id, session.user.id, {
@@ -73,10 +73,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse request body
@@ -102,7 +99,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(conversation);
   } catch (error) {
     console.error("Error updating conversation:", error);
-    
+
     if (error instanceof Error && error.message === "Conversation not found") {
       return NextResponse.json(
         { error: "Conversation not found" },
@@ -128,10 +125,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Authenticate user
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Delete conversation
@@ -140,7 +134,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting conversation:", error);
-    
+
     if (error instanceof Error && error.message === "Conversation not found") {
       return NextResponse.json(
         { error: "Conversation not found" },
@@ -154,4 +148,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
-

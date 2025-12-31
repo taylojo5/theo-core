@@ -14,7 +14,10 @@ import {
 } from "@/integrations/calendar/actions";
 import { calendarLogger } from "@/integrations/calendar/logger";
 import { z } from "zod";
-import type { EventUpdateInput, AttendeeResponseStatus } from "@/integrations/calendar/types";
+import type {
+  EventUpdateInput,
+  AttendeeResponseStatus,
+} from "@/integrations/calendar/types";
 
 const logger = calendarLogger.child("api.events.id");
 
@@ -431,9 +434,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to respond to event",
+          error instanceof Error ? error.message : "Failed to respond to event",
       },
       { status: 500, headers }
     );

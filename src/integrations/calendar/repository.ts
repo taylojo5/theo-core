@@ -4,9 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { db } from "@/lib/db";
-import {
-  Prisma,
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { calendarLogger } from "./logger";
 import type {
   Calendar,
@@ -37,10 +35,7 @@ export type CalendarUpdateInput = Partial<
 >;
 
 export type EventUpdateInput = Partial<
-  Omit<
-    Prisma.EventUpdateInput,
-    "user" | "createdAt" | "updatedAt" | "id"
-  >
+  Omit<Prisma.EventUpdateInput, "user" | "createdAt" | "updatedAt" | "id">
 >;
 
 export interface EventSearchQuery {
@@ -92,7 +87,7 @@ export type ApprovalUpdateInput = Partial<
 /**
  * Typed result for repository operations that can fail.
  * Provides explicit success/failure states with error details.
- * 
+ *
  * @example
  * ```typescript
  * const result = await calendarRepository.updateWithResult(id, data);
@@ -121,28 +116,37 @@ export type RepositoryErrorCode =
 /**
  * Map Prisma error to repository error code
  */
-function mapPrismaError(error: unknown): { code: RepositoryErrorCode; message: string } {
+function mapPrismaError(error: unknown): {
+  code: RepositoryErrorCode;
+  message: string;
+} {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case "P2025": // Record not found
         return { code: "NOT_FOUND", message: "Record not found" };
       case "P2002": // Unique constraint violation
-        return { code: "CONSTRAINT_VIOLATION", message: "Record already exists" };
+        return {
+          code: "CONSTRAINT_VIOLATION",
+          message: "Record already exists",
+        };
       case "P2003": // Foreign key constraint
-        return { code: "CONSTRAINT_VIOLATION", message: "Related record not found" };
+        return {
+          code: "CONSTRAINT_VIOLATION",
+          message: "Related record not found",
+        };
       default:
         return { code: "DATABASE_ERROR", message: error.message };
     }
   }
-  
+
   if (error instanceof Prisma.PrismaClientValidationError) {
     return { code: "VALIDATION_ERROR", message: "Invalid data provided" };
   }
-  
+
   if (error instanceof Error) {
     return { code: "UNKNOWN_ERROR", message: error.message };
   }
-  
+
   return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
 }
 
@@ -163,14 +167,16 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 /**
  * Build update data for calendar upsert operations.
  * Centralizes update field mapping to avoid WET code in upsert/upsertMany.
- * 
+ *
  * Note: isSelected is NOT updated here - it's a user preference that should
  * only be changed explicitly by the user, not during sync operations.
- * 
+ *
  * @param input - Calendar create input with fields to update
  * @returns Prisma update data object
  */
-function buildCalendarUpdateData(input: CalendarCreateInput): Prisma.CalendarUpdateInput {
+function buildCalendarUpdateData(
+  input: CalendarCreateInput
+): Prisma.CalendarUpdateInput {
   return {
     name: input.name,
     description: input.description,
@@ -191,7 +197,7 @@ function buildCalendarUpdateData(input: CalendarCreateInput): Prisma.CalendarUpd
  * Build create data for CalendarSyncState from update input.
  * Centralizes the mapping from CalendarSyncStateUpdate to create fields,
  * avoiding duplication in the upsert method.
- * 
+ *
  * @param userId - The user ID to connect
  * @param data - The update input data
  * @returns Prisma create data object for CalendarSyncState
@@ -238,11 +244,13 @@ function buildSyncStateCreateData(
 /**
  * Build update data object that only includes defined (non-undefined) fields.
  * Uses dynamic filtering to avoid hardcoding field names.
- * 
+ *
  * @param input - The input object with potentially undefined fields
  * @returns An object containing only fields that are explicitly defined
  */
-function buildEventUpdateData(input: EventDbCreateInput): Prisma.EventUncheckedUpdateInput {
+function buildEventUpdateData(
+  input: EventDbCreateInput
+): Prisma.EventUncheckedUpdateInput {
   // Start with fields that should always be set on update
   const baseData: Prisma.EventUncheckedUpdateInput = {
     updatedAt: new Date(),
@@ -264,15 +272,15 @@ function buildEventUpdateData(input: EventDbCreateInput): Prisma.EventUncheckedU
 
   // Fields to exclude from automatic copying (handled specially or not updateable)
   const excludeFields = new Set([
-    "userId",           // Not updateable - event ownership doesn't change
-    "googleEventId",    // Not updateable - this is the unique identifier
-    "id",               // Not in input, but defensive
-    "createdAt",        // Not updateable
-    "updatedAt",        // Handled in baseData
-    "deletedAt",        // Handled in baseData
-    "sourceSyncedAt",   // Handled in baseData with default
-    "sequence",         // Handled in baseData with default
-    ...jsonFields,      // Handled separately with casting
+    "userId", // Not updateable - event ownership doesn't change
+    "googleEventId", // Not updateable - this is the unique identifier
+    "id", // Not in input, but defensive
+    "createdAt", // Not updateable
+    "updatedAt", // Handled in baseData
+    "deletedAt", // Handled in baseData
+    "sourceSyncedAt", // Handled in baseData with default
+    "sequence", // Handled in baseData with default
+    ...jsonFields, // Handled separately with casting
   ]);
 
   // Dynamically copy all defined non-excluded fields
@@ -426,7 +434,9 @@ export const calendarSyncStateRepository = {
         lastSyncAt: new Date(),
         syncError: null,
         ...(stats.eventCount !== undefined && { eventCount: stats.eventCount }),
-        ...(stats.calendarCount !== undefined && { calendarCount: stats.calendarCount }),
+        ...(stats.calendarCount !== undefined && {
+          calendarCount: stats.calendarCount,
+        }),
         ...(stats.syncToken && {
           syncToken: stats.syncToken,
           syncTokenSetAt: new Date(),
@@ -514,8 +524,12 @@ export const calendarSyncStateRepository = {
     await db.calendarSyncState.update({
       where: { userId },
       data: {
-        ...(stats.pending !== undefined && { embeddingsPending: stats.pending }),
-        ...(stats.completed !== undefined && { embeddingsCompleted: stats.completed }),
+        ...(stats.pending !== undefined && {
+          embeddingsPending: stats.pending,
+        }),
+        ...(stats.completed !== undefined && {
+          embeddingsCompleted: stats.completed,
+        }),
         ...(stats.failed !== undefined && { embeddingsFailed: stats.failed }),
       },
     });
@@ -535,9 +549,15 @@ export const calendarSyncStateRepository = {
     await db.calendarSyncState.update({
       where: { userId },
       data: {
-        ...(delta.pending !== undefined && { embeddingsPending: { increment: delta.pending } }),
-        ...(delta.completed !== undefined && { embeddingsCompleted: { increment: delta.completed } }),
-        ...(delta.failed !== undefined && { embeddingsFailed: { increment: delta.failed } }),
+        ...(delta.pending !== undefined && {
+          embeddingsPending: { increment: delta.pending },
+        }),
+        ...(delta.completed !== undefined && {
+          embeddingsCompleted: { increment: delta.completed },
+        }),
+        ...(delta.failed !== undefined && {
+          embeddingsFailed: { increment: delta.failed },
+        }),
       },
     });
   },
@@ -545,7 +565,9 @@ export const calendarSyncStateRepository = {
   /**
    * Find users with expiring webhooks
    */
-  findExpiringWebhooks: async (withinMs: number): Promise<CalendarSyncState[]> => {
+  findExpiringWebhooks: async (
+    withinMs: number
+  ): Promise<CalendarSyncState[]> => {
     const expirationThreshold = new Date(Date.now() + withinMs);
     return db.calendarSyncState.findMany({
       where: {
@@ -561,7 +583,9 @@ export const calendarSyncStateRepository = {
    * Find sync state by webhook channel ID
    * Used for processing webhook notifications
    */
-  findByWebhookChannel: async (channelId: string): Promise<CalendarSyncState | null> => {
+  findByWebhookChannel: async (
+    channelId: string
+  ): Promise<CalendarSyncState | null> => {
     return db.calendarSyncState.findFirst({
       where: {
         webhookChannelId: channelId,
@@ -700,7 +724,10 @@ export const calendarRepository = {
         data,
       });
     } catch (error) {
-      calendarLogger.debug("Failed to update calendar", { calendarId: id, error });
+      calendarLogger.debug("Failed to update calendar", {
+        calendarId: id,
+        error,
+      });
       return null;
     }
   },
@@ -720,7 +747,11 @@ export const calendarRepository = {
       return { success: true, data: calendar };
     } catch (error) {
       const { code, message } = mapPrismaError(error);
-      calendarLogger.debug("Failed to update calendar", { calendarId: id, code, error });
+      calendarLogger.debug("Failed to update calendar", {
+        calendarId: id,
+        code,
+        error,
+      });
       return { success: false, error: message, code };
     }
   },
@@ -779,7 +810,11 @@ export const calendarRepository = {
       });
       return true;
     } catch (error) {
-      calendarLogger.debug("Failed to delete calendar", { userId, calendarId, error });
+      calendarLogger.debug("Failed to delete calendar", {
+        userId,
+        calendarId,
+        error,
+      });
       return false;
     }
   },
@@ -965,7 +1000,10 @@ export const calendarEventRepository = {
   /**
    * Find upcoming events for a user
    */
-  findUpcoming: async (userId: string, hours: number = 24): Promise<Event[]> => {
+  findUpcoming: async (
+    userId: string,
+    hours: number = 24
+  ): Promise<Event[]> => {
     const now = new Date();
     const endTime = new Date(now.getTime() + hours * 60 * 60 * 1000);
 
@@ -1016,10 +1054,7 @@ export const calendarEventRepository = {
           },
           // Events that span the entire range
           {
-            AND: [
-              { startsAt: { lte: start } },
-              { endsAt: { gte: end } },
-            ],
+            AND: [{ startsAt: { lte: start } }, { endsAt: { gte: end } }],
           },
         ],
         ...(options?.calendarId && { googleCalendarId: options.calendarId }),
@@ -1049,24 +1084,15 @@ export const calendarEventRepository = {
         OR: [
           // Starts during the range
           {
-            AND: [
-              { startsAt: { gte: start } },
-              { startsAt: { lt: end } },
-            ],
+            AND: [{ startsAt: { gte: start } }, { startsAt: { lt: end } }],
           },
           // Ends during the range
           {
-            AND: [
-              { endsAt: { gt: start } },
-              { endsAt: { lte: end } },
-            ],
+            AND: [{ endsAt: { gt: start } }, { endsAt: { lte: end } }],
           },
           // Encompasses the range
           {
-            AND: [
-              { startsAt: { lte: start } },
-              { endsAt: { gte: end } },
-            ],
+            AND: [{ startsAt: { lte: start } }, { endsAt: { gte: end } }],
           },
         ],
       },
@@ -1109,10 +1135,14 @@ export const calendarEventRepository = {
       ...(status && { status }),
       ...(allDay !== undefined && { allDay }),
       ...(hasAttendees !== undefined && {
-        attendees: hasAttendees ? { not: Prisma.DbNull } : { equals: Prisma.DbNull },
+        attendees: hasAttendees
+          ? { not: Prisma.DbNull }
+          : { equals: Prisma.DbNull },
       }),
       ...(hasConference !== undefined && {
-        conferenceData: hasConference ? { not: Prisma.DbNull } : { equals: Prisma.DbNull },
+        conferenceData: hasConference
+          ? { not: Prisma.DbNull }
+          : { equals: Prisma.DbNull },
       }),
     };
 
@@ -1157,10 +1187,7 @@ export const calendarEventRepository = {
    * Update an event
    * @deprecated Use updateWithResult for typed error handling
    */
-  update: async (
-    id: string,
-    data: EventUpdateInput
-  ): Promise<Event | null> => {
+  update: async (id: string, data: EventUpdateInput): Promise<Event | null> => {
     try {
       return await db.event.update({
         where: { id },
@@ -1187,7 +1214,11 @@ export const calendarEventRepository = {
       return { success: true, data: event };
     } catch (error) {
       const { code, message } = mapPrismaError(error);
-      calendarLogger.debug("Failed to update event", { eventId: id, code, error });
+      calendarLogger.debug("Failed to update event", {
+        eventId: id,
+        code,
+        error,
+      });
       return { success: false, error: message, code };
     }
   },
@@ -1200,7 +1231,10 @@ export const calendarEventRepository = {
     googleEventId: string,
     data: EventUpdateInput
   ): Promise<Event | null> => {
-    const event = await calendarEventRepository.findByGoogleId(userId, googleEventId);
+    const event = await calendarEventRepository.findByGoogleId(
+      userId,
+      googleEventId
+    );
     if (!event) return null;
     return calendarEventRepository.update(event.id, data);
   },
@@ -1243,7 +1277,10 @@ export const calendarEventRepository = {
     userId: string,
     googleEventId: string
   ): Promise<boolean> => {
-    const event = await calendarEventRepository.findByGoogleId(userId, googleEventId);
+    const event = await calendarEventRepository.findByGoogleId(
+      userId,
+      googleEventId
+    );
     if (!event) return false;
     return calendarEventRepository.softDelete(event.id);
   },
@@ -1351,12 +1388,17 @@ export const calendarEventRepository = {
   findToday: async (userId: string): Promise<Event[]> => {
     const now = new Date();
     // Use UTC methods since events are stored as UTC Date objects
-    const startOfDay = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      0, 0, 0, 0
-    ));
+    const startOfDay = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0,
+        0,
+        0,
+        0
+      )
+    );
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
     return calendarEventRepository.findInRange(userId, startOfDay, endOfDay);
@@ -1370,12 +1412,17 @@ export const calendarEventRepository = {
     const now = new Date();
     // Use UTC methods since events are stored as UTC Date objects
     const dayOfWeek = now.getUTCDay();
-    const startOfWeek = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - dayOfWeek,
-      0, 0, 0, 0
-    ));
+    const startOfWeek = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - dayOfWeek,
+        0,
+        0,
+        0,
+        0
+      )
+    );
 
     const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -1435,10 +1482,7 @@ export const calendarApprovalRepository = {
       where: {
         userId,
         status: "pending",
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
       orderBy: { requestedAt: "desc" },
     });
@@ -1486,7 +1530,10 @@ export const calendarApprovalRepository = {
         data,
       });
     } catch (error) {
-      calendarLogger.debug("Failed to update approval", { approvalId: id, error });
+      calendarLogger.debug("Failed to update approval", {
+        approvalId: id,
+        error,
+      });
       return null;
     }
   },
@@ -1506,7 +1553,11 @@ export const calendarApprovalRepository = {
       return { success: true, data: approval };
     } catch (error) {
       const { code, message } = mapPrismaError(error);
-      calendarLogger.debug("Failed to update approval", { approvalId: id, code, error });
+      calendarLogger.debug("Failed to update approval", {
+        approvalId: id,
+        code,
+        error,
+      });
       return { success: false, error: message, code };
     }
   },
@@ -1514,7 +1565,10 @@ export const calendarApprovalRepository = {
   /**
    * Approve an approval request
    */
-  approve: async (id: string, decidedBy?: string): Promise<CalendarApproval> => {
+  approve: async (
+    id: string,
+    decidedBy?: string
+  ): Promise<CalendarApproval> => {
     return db.calendarApproval.update({
       where: { id },
       data: {
@@ -1528,7 +1582,11 @@ export const calendarApprovalRepository = {
   /**
    * Reject an approval request
    */
-  reject: async (id: string, notes?: string, decidedBy?: string): Promise<CalendarApproval> => {
+  reject: async (
+    id: string,
+    notes?: string,
+    decidedBy?: string
+  ): Promise<CalendarApproval> => {
     return db.calendarApproval.update({
       where: { id },
       data: {
@@ -1615,10 +1673,7 @@ export const calendarApprovalRepository = {
       where: {
         userId,
         status: "pending",
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
     });
   },
@@ -1626,7 +1681,10 @@ export const calendarApprovalRepository = {
   /**
    * Find recent approvals for a user
    */
-  findRecent: async (userId: string, limit = 20): Promise<CalendarApproval[]> => {
+  findRecent: async (
+    userId: string,
+    limit = 20
+  ): Promise<CalendarApproval[]> => {
     return db.calendarApproval.findMany({
       where: { userId },
       orderBy: { requestedAt: "desc" },
@@ -1657,4 +1715,3 @@ export const calendarApprovalRepository = {
     return result.count;
   },
 };
-

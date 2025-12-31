@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
 
     // Get or create sync state
     const syncState = await calendarSyncStateRepository.getOrCreate(userId);
-    
+
     // Check if we need to sync calendar metadata first
     const hasCalendars = syncState.calendarCount > 0;
-    
+
     if (!hasCalendars) {
       // Try to sync calendar metadata
       try {
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     // Get calendars with sync eligibility information
     const calendars = await getCalendarsWithSyncEligibility(userId);
-    
+
     // Check if recurring sync is active
     const queue = getCalendarQueue();
     const isRecurring = await hasRecurringSyncActive(queue, userId);
@@ -179,7 +179,7 @@ export async function PUT(request: NextRequest) {
     if (enabledCalendarIds !== undefined) {
       // Get all user calendars
       const allCalendars = await calendarRepository.findByUser(userId);
-      
+
       // Validate that all enabled calendars can sync events
       for (const calId of enabledCalendarIds) {
         const calendar = allCalendars.find((c) => c.id === calId);
@@ -215,8 +215,9 @@ export async function PUT(request: NextRequest) {
       }
 
       // Mark sync as configured and trigger full sync if calendars selected
-      const wasConfigured = (await calendarSyncStateRepository.get(userId))?.syncConfigured;
-      
+      const wasConfigured = (await calendarSyncStateRepository.get(userId))
+        ?.syncConfigured;
+
       await calendarSyncStateRepository.update(userId, {
         syncConfigured: true,
       });
@@ -227,7 +228,9 @@ export async function PUT(request: NextRequest) {
           // First time setup - trigger full sync
           await scheduleFullSync(queue, userId);
           syncStarted = true;
-          logger.info("Started initial full sync after configuration", { userId });
+          logger.info("Started initial full sync after configuration", {
+            userId,
+          });
         }
       }
     }
@@ -282,4 +285,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-

@@ -117,7 +117,8 @@ export function registerCalendarPaths(registry: OpenAPIRegistry) {
                 })
                 .optional()
                 .openapi({
-                  description: "Parameters to pass to signIn() if signInRequired",
+                  description:
+                    "Parameters to pass to signIn() if signInRequired",
                 }),
               callbackUrl: z.string().optional().openapi({
                 description: "URL for after OAuth completes",
@@ -684,4 +685,3 @@ export function registerCalendarPaths(registry: OpenAPIRegistry) {
     },
   });
 }
-

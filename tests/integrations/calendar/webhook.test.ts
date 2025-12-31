@@ -32,7 +32,8 @@ describe("Calendar Webhooks", () => {
         "x-goog-resource-id": "resource_456",
         "x-goog-resource-state": "exists",
         "x-goog-message-number": "1",
-        "x-goog-resource-uri": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "x-goog-resource-uri":
+          "https://www.googleapis.com/calendar/v3/calendars/primary/events",
       };
 
       const result = parseWebhookHeaders(headers);
@@ -88,7 +89,8 @@ describe("Calendar Webhooks", () => {
 
       // Note: The actual implementation may need to handle case normalization
       // This test documents the expected behavior
-      const normalizedHeaders: Record<string, string | string[] | undefined> = {};
+      const normalizedHeaders: Record<string, string | string[] | undefined> =
+        {};
       for (const [key, value] of Object.entries(headers)) {
         normalizedHeaders[key.toLowerCase()] = value;
       }
@@ -313,7 +315,7 @@ describe("Calendar Webhooks", () => {
       // In a real implementation, these would be deduplicated
       // Only the last notification would trigger a sync
       expect(notifications).toHaveLength(5);
-      
+
       // Debounce logic would reduce this to 1 sync trigger
       const lastNotification = notifications[notifications.length - 1];
       expect(lastNotification.messageNumber).toBe("5");
@@ -335,4 +337,3 @@ describe("Calendar Webhooks", () => {
     });
   });
 });
-

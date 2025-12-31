@@ -17,13 +17,7 @@ import {
   afterEntityUpdate,
   afterEntityDelete,
 } from "@/services/context/embedding-integration";
-import type {
-  Person,
-  Place,
-  Event,
-  Task,
-  Deadline,
-} from "@prisma/client";
+import type { Person, Place, Event, Task, Deadline } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
 // Mock Setup
@@ -345,15 +339,19 @@ describe("Content Builders", () => {
       expect(buildEntityContent("person", person)).toContain("John Doe");
       expect(buildEntityContent("place", place)).toContain("Acme Headquarters");
       expect(buildEntityContent("event", event)).toContain("Team Meeting");
-      expect(buildEntityContent("task", task)).toContain("Complete project proposal");
-      expect(buildEntityContent("deadline", deadline)).toContain("Project Submission");
+      expect(buildEntityContent("task", task)).toContain(
+        "Complete project proposal"
+      );
+      expect(buildEntityContent("deadline", deadline)).toContain(
+        "Project Submission"
+      );
     });
 
     it("should throw for unknown entity type", () => {
       const person = createMockPerson();
-      expect(() => buildEntityContent("unknown" as unknown as "person", person)).toThrow(
-        "Unknown entity type"
-      );
+      expect(() =>
+        buildEntityContent("unknown" as unknown as "person", person)
+      ).toThrow("Unknown entity type");
     });
   });
 });
@@ -391,7 +389,9 @@ describe("Embedding Operations", () => {
     });
 
     it("should fail gracefully on error", async () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       (getEmbeddingService as Mock).mockReturnValue({
         storeEntityEmbedding: vi.fn().mockRejectedValue(new Error("API error")),
       });
@@ -416,17 +416,31 @@ describe("Embedding Operations", () => {
     it("should remove embedding successfully", async () => {
       (deleteEmbeddings as Mock).mockResolvedValue(undefined);
 
-      const result = await removeEntityEmbedding("user-1", "person", "person-1");
+      const result = await removeEntityEmbedding(
+        "user-1",
+        "person",
+        "person-1"
+      );
 
       expect(result.success).toBe(true);
-      expect(deleteEmbeddings).toHaveBeenCalledWith("user-1", "person", "person-1");
+      expect(deleteEmbeddings).toHaveBeenCalledWith(
+        "user-1",
+        "person",
+        "person-1"
+      );
     });
 
     it("should fail gracefully on error", async () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       (deleteEmbeddings as Mock).mockRejectedValue(new Error("Delete error"));
 
-      const result = await removeEntityEmbedding("user-1", "person", "person-1");
+      const result = await removeEntityEmbedding(
+        "user-1",
+        "person",
+        "person-1"
+      );
 
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
@@ -508,7 +522,11 @@ describe("Entity Lifecycle Hooks", () => {
       const result = await afterEntityDelete("person", "user-1", "person-1");
 
       expect(result.success).toBe(true);
-      expect(deleteEmbeddings).toHaveBeenCalledWith("user-1", "person", "person-1");
+      expect(deleteEmbeddings).toHaveBeenCalledWith(
+        "user-1",
+        "person",
+        "person-1"
+      );
     });
 
     it("should skip deletion when skipEmbedding is true", async () => {
@@ -521,4 +539,3 @@ describe("Entity Lifecycle Hooks", () => {
     });
   });
 });
-

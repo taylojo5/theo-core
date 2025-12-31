@@ -171,27 +171,19 @@ export class ContextSearchService implements IContextSearchService {
     const searchPromises: Promise<ContextSearchResult[]>[] = [];
 
     if (entityTypes.includes("person")) {
-      searchPromises.push(
-        this.searchPeopleText(userId, query, perTypeLimit)
-      );
+      searchPromises.push(this.searchPeopleText(userId, query, perTypeLimit));
     }
 
     if (entityTypes.includes("place")) {
-      searchPromises.push(
-        this.searchPlacesText(userId, query, perTypeLimit)
-      );
+      searchPromises.push(this.searchPlacesText(userId, query, perTypeLimit));
     }
 
     if (entityTypes.includes("event")) {
-      searchPromises.push(
-        this.searchEventsText(userId, query, perTypeLimit)
-      );
+      searchPromises.push(this.searchEventsText(userId, query, perTypeLimit));
     }
 
     if (entityTypes.includes("task")) {
-      searchPromises.push(
-        this.searchTasksText(userId, query, perTypeLimit)
-      );
+      searchPromises.push(this.searchTasksText(userId, query, perTypeLimit));
     }
 
     if (entityTypes.includes("deadline")) {
@@ -204,9 +196,7 @@ export class ContextSearchService implements IContextSearchService {
     results.push(...allResults.flat());
 
     // Sort by score and limit
-    return results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, normalizedLimit);
+    return results.sort((a, b) => b.score - a.score).slice(0, normalizedLimit);
   }
 
   /**
@@ -246,7 +236,10 @@ export class ContextSearchService implements IContextSearchService {
       return enrichedResults;
     } catch (error) {
       // If semantic search fails (e.g., no OpenAI key), return empty
-      console.warn("Semantic search failed, falling back to empty results:", error);
+      console.warn(
+        "Semantic search failed, falling back to empty results:",
+        error
+      );
       return [];
     }
   }
@@ -442,7 +435,9 @@ export class ContextSearchService implements IContextSearchService {
   /**
    * Get the primary title/name field from an entity
    */
-  private getEntityTitle(entity: Person | Place | Event | Task | Deadline): string {
+  private getEntityTitle(
+    entity: Person | Place | Event | Task | Deadline
+  ): string {
     if ("name" in entity) {
       return entity.name;
     }
@@ -686,4 +681,3 @@ export async function semanticSearchContext(
 ): Promise<ContextSearchResult[]> {
   return getContextSearchService().semanticSearch(userId, query, options);
 }
-

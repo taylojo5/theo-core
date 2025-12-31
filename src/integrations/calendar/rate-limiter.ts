@@ -3,12 +3,12 @@
 // Per-user rate limiting to respect Google Calendar API quotas
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { 
-  checkRateLimitAsyncWithUnits, 
-  peekRateLimitAsyncWithUnits, 
+import {
+  checkRateLimitAsyncWithUnits,
+  peekRateLimitAsyncWithUnits,
   peekRateLimitAsync,
   consumeRateLimitAsync,
-  type RateLimitConfig 
+  type RateLimitConfig,
 } from "@/lib/rate-limit";
 import { CalendarError, CalendarErrorCode } from "./errors";
 import { CALENDAR_QUOTA_UNITS, type CalendarOperation } from "./types";
@@ -96,7 +96,7 @@ export class CalendarRateLimiter {
   /**
    * Check if a given number of quota units is allowed AND consume them
    * Use this when you're about to perform an operation
-   * 
+   *
    * This method properly tracks quota UNITS (not call counts) by using
    * INCRBY to increment the counter by the operation's unit cost.
    * This ensures heterogeneous operations correctly share quota limits.
@@ -107,8 +107,16 @@ export class CalendarRateLimiter {
     // Check both per-second and per-minute limits (this CONSUMES units)
     // Uses INCRBY to increment counter by units, not just 1
     const [secResult, minResult] = await Promise.all([
-      checkRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
-      checkRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
+      checkRateLimitAsyncWithUnits(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perSecond,
+        safeUnits
+      ),
+      checkRateLimitAsyncWithUnits(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perMinute,
+        safeUnits
+      ),
     ]);
 
     const allowed = secResult.allowed && minResult.allowed;
@@ -129,7 +137,7 @@ export class CalendarRateLimiter {
   /**
    * Peek at quota status without consuming any units
    * Use this for polling/waiting loops to avoid exhausting quota
-   * 
+   *
    * Checks if the specified number of units would be allowed without
    * actually consuming them. Uses the unit-aware peek function.
    */
@@ -139,8 +147,16 @@ export class CalendarRateLimiter {
     // Peek both per-second and per-minute limits (read-only, NO consumption)
     // Uses unit-aware peek to check if these units would be allowed
     const [secResult, minResult] = await Promise.all([
-      peekRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
-      peekRateLimitAsyncWithUnits(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
+      peekRateLimitAsyncWithUnits(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perSecond,
+        safeUnits
+      ),
+      peekRateLimitAsyncWithUnits(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perMinute,
+        safeUnits
+      ),
     ]);
 
     const allowed = secResult.allowed && minResult.allowed;
@@ -214,10 +230,7 @@ export class CalendarRateLimiter {
 
       // Wait the suggested time or 100ms minimum
       const waitMs = peekResult.waitMs || 100;
-      const waitTime = Math.min(
-        waitMs,
-        timeoutMs - (Date.now() - startTime)
-      );
+      const waitTime = Math.min(waitMs, timeoutMs - (Date.now() - startTime));
       if (waitTime <= 0) break;
 
       await sleep(waitTime);
@@ -243,11 +256,11 @@ export class CalendarRateLimiter {
 
   /**
    * Unconditionally consume a specific number of quota units
-   * 
+   *
    * Unlike check() which only increments when allowed, this ALWAYS increments
    * the counter regardless of whether limits are exceeded. Use this to track
    * actual API usage that has already occurred (e.g., prefetch operations).
-   * 
+   *
    * Uses consumeRateLimitAsync which unconditionally increments via INCRBY.
    */
   async consumeUnits(units: number): Promise<void> {
@@ -256,8 +269,16 @@ export class CalendarRateLimiter {
     // Unconditionally consume units - always increments even if over limit
     // This is for tracking actual API usage that has already happened
     await Promise.all([
-      consumeRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perSecond, safeUnits),
-      consumeRateLimitAsync(this.userId, CALENDAR_RATE_LIMITS.perMinute, safeUnits),
+      consumeRateLimitAsync(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perSecond,
+        safeUnits
+      ),
+      consumeRateLimitAsync(
+        this.userId,
+        CALENDAR_RATE_LIMITS.perMinute,
+        safeUnits
+      ),
     ]);
   }
 
@@ -319,4 +340,3 @@ export function estimateRemainingOperations(
   const units = CALENDAR_QUOTA_UNITS[operation];
   return Math.floor(quotaRemaining / units);
 }
-

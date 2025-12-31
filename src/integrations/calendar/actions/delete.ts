@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createCalendarClient } from "../client";
-import { calendarApprovalRepository, calendarEventRepository } from "../repository";
+import {
+  calendarApprovalRepository,
+  calendarEventRepository,
+} from "../repository";
 import { calendarLogger } from "../logger";
 import { logAuditEntry } from "@/services/audit";
 import { getValidAccessToken } from "@/lib/auth/token-refresh";
@@ -24,9 +27,9 @@ import type {
 
 /**
  * Request deletion of an existing event
- * 
+ *
  * Creates an approval record that must be approved before execution.
- * 
+ *
  * @param request - Event deletion request
  * @param options - Approval options
  * @returns Result with approval record
@@ -44,13 +47,13 @@ export async function requestEventDeletion(
     requestedBy,
     notes,
   } = request;
-  
+
   const logger = calendarLogger.child("requestEventDeletion");
 
   try {
     // Find the existing event
     const existingEvent = await calendarEventRepository.findById(eventId);
-    
+
     if (!existingEvent) {
       return {
         success: false,
@@ -92,7 +95,8 @@ export async function requestEventDeletion(
     };
 
     // Calculate expiration
-    const expiresAt = options.expiresAt || 
+    const expiresAt =
+      options.expiresAt ||
       new Date(Date.now() + APPROVAL_DEFAULT_EXPIRATION_MS);
 
     // Create approval record
@@ -138,7 +142,7 @@ export async function requestEventDeletion(
     };
   } catch (error) {
     logger.error("Error requesting event deletion", { error });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -153,10 +157,10 @@ export async function requestEventDeletion(
 
 /**
  * Execute an approved event deletion
- * 
+ *
  * Actually deletes the event from Google Calendar and marks as deleted locally.
  * Should only be called after approval.
- * 
+ *
  * @param approvalId - ID of the approved request
  * @returns Result of deletion
  */
@@ -168,7 +172,7 @@ export async function executeEventDeletion(
   try {
     // Get approval record
     const approval = await calendarApprovalRepository.findById(approvalId);
-    
+
     if (!approval) {
       return {
         success: false,
@@ -207,21 +211,27 @@ export async function executeEventDeletion(
       };
     }
 
-    const existingEvent = await calendarEventRepository.findById(approval.eventId);
+    const existingEvent = await calendarEventRepository.findById(
+      approval.eventId
+    );
     if (!existingEvent) {
       // Event already deleted - mark approval as executed
       await calendarApprovalRepository.markExecuted(approvalId);
       return {
         success: true,
         message: "Event was already deleted",
-        approval: await calendarApprovalRepository.findById(approvalId) || approval,
+        approval:
+          (await calendarApprovalRepository.findById(approvalId)) || approval,
       };
     }
 
     // Get Google Event ID
     const googleEventId = existingEvent.googleEventId;
     if (!googleEventId) {
-      await calendarApprovalRepository.markFailed(approvalId, "No Google Event ID");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "No Google Event ID"
+      );
       return {
         success: false,
         error: "Not a Google event",
@@ -237,7 +247,10 @@ export async function executeEventDeletion(
     // Get access token
     const accessToken = await getValidAccessToken(approval.userId);
     if (!accessToken) {
-      await calendarApprovalRepository.markFailed(approvalId, "No valid access token");
+      await calendarApprovalRepository.markFailed(
+        approvalId,
+        "No valid access token"
+      );
       return {
         success: false,
         error: "Authentication failed",
@@ -250,7 +263,9 @@ export async function executeEventDeletion(
     const client = createCalendarClient(accessToken, approval.userId);
 
     // Delete event from Google Calendar
-    await client.deleteEvent(approval.calendarId, googleEventId, { sendUpdates });
+    await client.deleteEvent(approval.calendarId, googleEventId, {
+      sendUpdates,
+    });
 
     // Soft delete from local database
     await calendarEventRepository.softDelete(existingEvent.id);
@@ -280,14 +295,16 @@ export async function executeEventDeletion(
 
     return {
       success: true,
-      approval: await calendarApprovalRepository.findById(approvalId) || approval,
+      approval:
+        (await calendarApprovalRepository.findById(approvalId)) || approval,
       message: `Event "${existingEvent.title}" deleted successfully`,
     };
   } catch (error) {
     logger.error("Error executing event deletion", { error });
 
     // Mark approval as failed
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await calendarApprovalRepository.markFailed(approvalId, errorMessage);
 
     return {
@@ -297,4 +314,3 @@ export async function executeEventDeletion(
     };
   }
 }
-

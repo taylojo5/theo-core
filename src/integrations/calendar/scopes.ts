@@ -79,7 +79,7 @@ export function canPerformCalendarAction(
 
 /**
  * Get missing Calendar scopes for a specific action
- * 
+ *
  * Unlike a simple getMissingScopes() call, this properly handles cases where:
  * - EVENTS scope satisfies read requirements (READONLY not needed)
  * - Either READONLY or EVENTS satisfies read access
@@ -131,7 +131,10 @@ export function getCalendarScopeStatus(
 
   // Use capability-aware function: only report EVENTS as missing if user lacks write access
   // Don't report READONLY as missing since EVENTS supersedes it
-  const missingForFullAccess = getMissingCalendarScopesForAction(grantedScopes, "write");
+  const missingForFullAccess = getMissingCalendarScopesForAction(
+    grantedScopes,
+    "write"
+  );
 
   return {
     hasAccess: canRead || canWrite,
@@ -141,4 +144,3 @@ export function getCalendarScopeStatus(
     missingForFullAccess,
   };
 }
-

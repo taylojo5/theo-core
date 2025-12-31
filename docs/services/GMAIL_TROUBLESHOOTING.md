@@ -84,7 +84,8 @@ import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 if (!status.canSend || !status.canAccessContacts) {
   // Use NextAuth's signIn to properly handle PKCE
   const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
-  signIn("google",
+  signIn(
+    "google",
     { callbackUrl: "/settings/integrations/gmail" },
     {
       scope: scopeString,
@@ -277,9 +278,15 @@ const canSend = hasGmailSendAccess(userScopes);
 if (!canSend) {
   // Use NextAuth's signIn to request additional permissions (handles PKCE)
   const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
-  signIn("google",
+  signIn(
+    "google",
     { callbackUrl: "/settings/integrations/gmail" },
-    { scope: scopeString, prompt: "consent", access_type: "offline", include_granted_scopes: "true" }
+    {
+      scope: scopeString,
+      prompt: "consent",
+      access_type: "offline",
+      include_granted_scopes: "true",
+    }
   );
 }
 ```
@@ -430,9 +437,15 @@ import { ALL_GMAIL_SCOPES, BASE_SCOPES, formatScopes } from "@/lib/auth/scopes";
 if (!hasContactsAccess(userScopes)) {
   // Use NextAuth's signIn to request contacts permission (handles PKCE)
   const scopeString = formatScopes([...BASE_SCOPES, ...ALL_GMAIL_SCOPES]);
-  signIn("google",
+  signIn(
+    "google",
     { callbackUrl: "/settings/integrations/gmail" },
-    { scope: scopeString, prompt: "consent", access_type: "offline", include_granted_scopes: "true" }
+    {
+      scope: scopeString,
+      prompt: "consent",
+      access_type: "offline",
+      include_granted_scopes: "true",
+    }
   );
 }
 
