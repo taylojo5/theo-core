@@ -936,3 +936,210 @@ model CalendarApproval {
   @@index([expiresAt])
   @@index([userId, requestedAt(sort: Desc)])
 }
+
+// ─────────────────────────────────────────────────────────────
+// Kroger Integration: Connection
+// ─────────────────────────────────────────────────────────────
+
+model KrogerConnection {
+  id     String @id @default(cuid())
+  userId String @unique
+  // Connection details
+  accessToken String @db.Text // access token encrypted
+  refreshToken String? @db.Text // refresh token encrypted
+  tokenExpiresAt DateTime
+  scopes String[]
+  storeId String?
+  store KrogerStore? @relation(fields: [storeId], references: [id])
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([storeId])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model KrogerStore {
+  id String @id @default(cuid())
+  storeId String
+  divisionId String?
+  chain String?
+  name String
+  address KrogerAddress
+  geolocation KrogerGeolocation
+  phone String?
+  hours KrogerStoreHours
+  departments String[]
+  capabilities KrogerStoreCapabilities[]
+  distanceMiles Decimal? @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([divisionId])
+  @@index([chain])
+  @@index([name])
+  @@index([phone])
+  @@index([departments])
+  @@index([distanceMiles])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model KrogerAddress {
+  line1 String @db.VarChar(255)
+  line2 String? @db.VarChar(255)
+  city String @db.VarChar(255)
+  state String @db.VarChar(255)
+  zipCode String @db.VarChar(255)
+  county String? @db.VarChar(255)
+}
+
+model KrogerGeolocation {
+  latitude Decimal @db.Decimal(10, 8)
+  longitude Decimal @db.Decimal(11, 8)
+}
+
+model KrogerStoreHours {
+  monday KrogerStoreHoursDay
+  tuesday KrogerStoreHoursDay
+  wednesday KrogerStoreHoursDay
+  thursday KrogerStoreHoursDay
+  friday KrogerStoreHoursDay
+  saturday KrogerStoreHoursDay
+  sunday KrogerStoreHoursDay
+}
+
+model KrogerStoreHoursDay {
+  open String
+  close String
+  open24Hours Boolean @default(false)
+}
+
+model KrogerStoreCapabilities {
+  pickup Boolean @default(false)
+  delivery Boolean @default(false)
+  shipToHome Boolean @default(false)
+  pharmacy Boolean @default(false)
+  fuelCenter Boolean @default(false)
+}
+
+model KrogerUserProductPreferences {
+  id String @id @default(cuid())
+  userId String
+  preferOrganic Boolean @default(false)
+  preferStorebrands Boolean @default(false)
+  preferredBrands String[]
+  avoidBrands String[]
+  dietaryRestrictions String @default("NONE")
+  defaultQuantityBehavior String @default("EXACT")
+  maxPriceVariancePercent Int @default(25)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model KrogerPreferredProduct {
+  id String @id @default(cuid())
+  userId String
+  ingredientKey String
+  krogerProductId String
+  krogerProduct KrogerProduct @relation(fields: [krogerProductId], references: [id])
+  productSnapshot Json
+  lastVerifiedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KrogerProduct {
+  id String @id @default(cuid())
+  krogerProductId String
+  upc String @db.VarChar(255)
+  brand String? @db.VarChar(255)
+  description String @db.VarChar(255)
+  category String @db.VarChar(255)
+  subcategory String? @db.VarChar(255)
+  size String @db.VarChar(255)
+  sizeQuantity Int
+  unitOfMeasure String @db.VarChar(255)
+  soldAs String @db.VarChar(255)
+  priceRegular Decimal @db.Decimal(10, 2)
+  pricePromo Decimal? @db.Decimal(10, 2)
+  promoDescription String? @db.VarChar(255)
+  priceLoyalty Decimal? @db.Decimal(10, 2)
+  priceUnit Decimal? @db.Decimal(10, 4)
+  priceUnitLabel String? @db.VarChar(255)
+  available Boolean @default(true)
+  stockLevel String @db.VarChar(255) @default("HIGH")
+  fulfillmentTypes String[]
+  estimatedAvailability String?
+  isOrganic Boolean @default(false)
+  isGlutenFree Boolean @default(false)
+  isKosher Boolean @default(false)
+  isVegan Boolean @default(false)
+  isVegetarian Boolean @default(false)
+  isLocallyGrown Boolean @default(false)
+  isPrivateLabel Boolean @default(false)
+  temperature String @default("AMBIENT")
+  images Json?
+  storeId String
+  lastFetchedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([krogerProductId])
+  @@index([upc])
+  @@index([category])
+  @@index([lastFetchedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([storeId])
+  @@unique([krogerProductId, storeId])
+}
+
+model KrogerCartRun {
+  id String @id @default(cuid())
+  userId String
+  shoppingListId String
+  status String @default("RUNNING")
+  storeId String
+  store KrogerStore @relation(fields: [storeId], references: [id])
+  addedItemsCount Int @default(0)
+  skippedItems String[]
+  evidence String?
+  estimatedTotal Decimal @db.Decimal(10, 2)
+  cartUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([shoppingListId])
+  @@index([status])
+  @@index([storeId])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model KrogerCartRunItem {
+  id String @id @default(cuid())
+  cartRun KrogerCartRun @relation(fields: [cartRunId], references: [id])
+  cartRunId String
+  krogerProduct KrogerProduct @relation(fields: [krogerProductId], references: [id])
+  krogerProductId String
+  status String @default("PENDING")
+  resolutionReason String?
+  alternativeProductIds String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cartRunId])
+  @@index([krogerProductId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
