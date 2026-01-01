@@ -521,3 +521,13 @@ export const findSimilarEmailsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   minSimilarity: z.coerce.number().min(0).max(1).optional(),
 });
+
+// ─────────────────────────────────────────────────────────────
+// Kroger Schemas
+// ─────────────────────────────────────────────────────────────
+
+export const searchKrogerStoresSchema = z.object({
+  zipCode: z.string().min(5).max(5).optional(),
+  radiusMiles: z.number().min(1).max(100).optional(),
+  limit: z.number().min(1).max(200).optional(),
+});

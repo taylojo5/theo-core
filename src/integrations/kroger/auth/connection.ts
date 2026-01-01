@@ -3,12 +3,29 @@ import { KrogerTokenSet } from "../types";
 import { KrogerConnection } from "@prisma/client";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { omit } from "lodash";
+import { cacheDelete, cacheGet, cacheSet } from "@/lib/redis/cache";
+import { KROGER_TOKEN_CACHE_PREFIX } from "../constants";
+import { refreshKrogerTokenSet } from "./oauth";
+
+
 
 export async function getKrogerTokenSet(
   userId: string
 ): Promise<KrogerTokenSet | null> {
-  // Get the token set
-  const tokenSet = await db.krogerConnection.findFirst({
+  // Get the token set from the cache
+  const cachedTokenSet = await cacheGet<KrogerTokenSet>(`${KROGER_TOKEN_CACHE_PREFIX}${userId}`);
+  if (cachedTokenSet) {
+    return {
+      tokenType: "Bearer",
+      accessToken: decrypt(cachedTokenSet.accessToken),
+      refreshToken: decrypt(cachedTokenSet.refreshToken ?? ""),
+      expiresAt: cachedTokenSet.expiresAt,
+      scopes: cachedTokenSet.scopes,
+    };
+  }
+
+  // Get the token set from the database
+  const connection = await db.krogerConnection.findFirst({
     where: {
       userId,
     },
@@ -16,14 +33,17 @@ export async function getKrogerTokenSet(
       store: true,
     },
   });
-  if (!tokenSet) return null;
-  return {
+  if (!connection) return null;
+
+  const refreshedTokenSet = await refreshKrogerTokenSet({
+    accessToken: decrypt(connection.accessToken),
+    refreshToken: decrypt(connection.refreshToken ?? ""),
+    expiresAt: connection.tokenExpiresAt,
+    scopes: connection.scopes,
     tokenType: "Bearer",
-    accessToken: decrypt(tokenSet.accessToken),
-    refreshToken: decrypt(tokenSet.refreshToken ?? ""),
-    expiresAt: tokenSet.tokenExpiresAt,
-    scopes: tokenSet.scopes,
-  };
+  });
+  await storeKrogerTokenSet(userId, refreshedTokenSet);
+  return refreshedTokenSet;
 }
 
 export async function storeKrogerTokenSet(
@@ -49,6 +69,18 @@ export async function storeKrogerTokenSet(
       scopes: tokenSet.scopes,
     },
   });
+  // Cache the token set
+  await cacheSet<KrogerTokenSet>(`${KROGER_TOKEN_CACHE_PREFIX}${userId}`, {
+    tokenType: "Bearer",
+    accessToken: encrypt(tokenSet.accessToken),
+    refreshToken: encrypt(tokenSet.refreshToken ?? ""),
+    expiresAt: tokenSet.expiresAt,
+    scopes: tokenSet.scopes,
+  }, {
+    // Cache the token until 1 min before it expires
+    ttlSeconds: Math.floor((tokenSet.expiresAt.getTime() - Date.now()) / 1000) - 60,
+  });
+  return;
 }
 
 export async function getKrogerConnection(
@@ -106,4 +138,6 @@ export async function deleteKrogerConnection(userId: string): Promise<void> {
       userId,
     },
   });
+  // Delete the cache
+  await cacheDelete(`${KROGER_TOKEN_CACHE_PREFIX}${userId}`);
 }

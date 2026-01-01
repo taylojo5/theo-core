@@ -17,7 +17,7 @@ export async function exchangeKrogerCodeForTokenSet(
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${Buffer.from(`${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`).toString("base64")}`,
     },
     body: new URLSearchParams({
       grant_type: "authorization_code",
@@ -27,7 +27,9 @@ export async function exchangeKrogerCodeForTokenSet(
   });
 
   if (!tokenSetRes.ok) {
-    console.error(`[Kroger] Failed to exchange code for token set: ${tokenSetRes.statusText}. Response: ${await tokenSetRes.text()}`);
+    console.error(
+      `[Kroger] Failed to exchange code for token set: ${tokenSetRes.statusText}. Response: ${await tokenSetRes.text()}`
+    );
     throw new Error("Failed to exchange code for token set");
   }
 
@@ -35,7 +37,9 @@ export async function exchangeKrogerCodeForTokenSet(
   return {
     accessToken: tokenSetData.access_token,
     refreshToken: tokenSetData.refresh_token,
-    expiresAt: DateTime.now().plus({ seconds: tokenSetData.expires_in }).toJSDate(),
+    expiresAt: DateTime.now()
+      .plus({ seconds: tokenSetData.expires_in })
+      .toJSDate(),
     tokenType: "Bearer",
     scopes: tokenSetData.scopes,
   };
@@ -49,7 +53,7 @@ export async function refreshKrogerTokenSet(
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${Buffer.from(`${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${process.env.KROGER_CLIENT_ID}:${process.env.KROGER_CLIENT_SECRET}`).toString("base64")}`,
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
@@ -65,7 +69,9 @@ export async function refreshKrogerTokenSet(
   return {
     accessToken: tokenSetData.access_token,
     refreshToken: tokenSetData.refresh_token,
-    expiresAt: DateTime.now().plus({ seconds: tokenSetData.expires_in }).toJSDate(),
+    expiresAt: DateTime.now()
+      .plus({ seconds: tokenSetData.expires_in })
+      .toJSDate(),
     tokenType: "Bearer",
     scopes: tokenSetData.scopes,
   };

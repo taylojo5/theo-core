@@ -3,6 +3,8 @@
 // TypeScript type definitions for Kroger API interactions
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { KrogerStore } from "@prisma/client";
+
 // ─────────────────────────────────────────────────────────────
 // OAuth & Connection Types
 // ─────────────────────────────────────────────────────────────
@@ -42,12 +44,20 @@ enum KrogerChain {
  * Parameters for searching nearby stores by location or zip code.
  */
 export interface KrogerStoreSearchParams {
-  zipCode?: string; // 5-digit ZIP code
-  latitude?: number; // Latitude for geo search
-  longitude?: number; // Longitude for geo search
+  zipCode: string; // 5-digit ZIP code
   radiusMiles?: number; // Search radius (default: 10)
   limit?: number; // Max results (default: 10, max: 200)
   chain?: KrogerChain; // Filter by store banner
+}
+
+/**
+ * Configuration for the Kroger client.
+ */
+export interface KrogerClientConfig {
+  userId: string;
+  radiusMiles?: number;
+  limit?: number;
+  chain?: KrogerChain;
 }
 
 /**
@@ -77,6 +87,17 @@ enum FulfillmentMode {
   PICKUP = "PICKUP",
   DELIVERY = "DELIVERY",
 }
+
+export type LeanKrogerStore = Pick<
+  KrogerStore,
+  | "storeId"
+  | "divisionId"
+  | "chain"
+  | "name"
+  | "phone"
+  | "departments"
+  | "distanceMiles"
+>;
 
 // ─────────────────────────────────────────────────────────────
 // Product Types
@@ -277,6 +298,8 @@ interface NutrientValue {
   dailyValue: number | null; // Percent daily value
 }
 
+export type LeanKrogerProduct = Pick<KrogerProduct, "productId">;
+
 // ─────────────────────────────────────────────────────────────
 // Product Resolution Types
 // ─────────────────────────────────────────────────────────────
@@ -372,7 +395,7 @@ interface MatchFactor {
  * Current state of a Kroger shopping cart.
  * May be retrieved or created via API.
  */
-interface KrogerCart {
+export interface KrogerCart {
   items: KrogerCartItem[]; // Cart contents
   itemCount: number; // Total item count
   subtotal: number; // Subtotal in dollars
@@ -707,47 +730,7 @@ export interface KrogerApiError {
  * Maps to internal KrogerProduct via mapKrogerProductToInternal().
  */
 export interface KrogerApiProductResponse {
-  data: Array<{
-    productId: string;
-    upc: string;
-    brand: string;
-    description: string;
-    categories: string[];
-    countryOfOrigin: string;
-    items: Array<{
-      itemId: string;
-      size: string;
-      soldBy: string;
-      price: {
-        regular: number;
-        promo: number;
-      };
-      fulfillment: {
-        curbside: boolean;
-        delivery: boolean;
-        inStore: boolean;
-        shipToHome: boolean;
-      };
-      nationalPrice: {
-        regular: number;
-        promo: number;
-      };
-    }>;
-    images: Array<{
-      perspective: string;
-      sizes: Array<{
-        size: string;
-        url: string;
-      }>;
-    }>;
-    temperature: {
-      indicator: string;
-    };
-    productInfo: {
-      organic: boolean;
-      glutenFree: boolean;
-    };
-  }>;
+  data: Array<KrogerApiProduct>;
   meta: {
     pagination: {
       start: number;
@@ -757,69 +740,109 @@ export interface KrogerApiProductResponse {
   };
 }
 
+export interface KrogerApiProduct {
+  productId: string;
+  upc: string;
+  brand: string;
+  description: string;
+  categories: string[];
+  countryOfOrigin: string;
+  items: Array<KrogerApiProductItem>;
+}
+
+export interface KrogerApiProductItem {
+  itemId: string;
+  size: string;
+  soldBy: string;
+  price: {
+    regular: number;
+    promo: number;
+  };
+}
+
 /**
  * Raw store response from Kroger Locations API.
  * Maps to internal KrogerStore via mapKrogerStoreToInternal().
  */
 export interface KrogerApiStoreResponse {
-  data: Array<{
-    locationId: string;
-    chain: string;
-    divisionNumber: string;
-    name: string;
-    phone: string;
-    address: {
-      addressLine1: string;
-      addressLine2: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      county: string;
-    };
-    geolocation: {
-      latitude: number;
-      longitude: number;
-    };
-    hours: {
-      open24: boolean;
-      monday: { open: string; close: string };
-      tuesday: { open: string; close: string };
-      wednesday: { open: string; close: string };
-      thursday: { open: string; close: string };
-      friday: { open: string; close: string };
-      saturday: { open: string; close: string };
-      sunday: { open: string; close: string };
-      timezone: string;
-    };
-    departments: Array<{
-      departmentId: string;
-      name: string;
-    }>;
-  }>;
+  data: Array<KrogerApiStore>;
 }
+
+export interface KrogerApiStore {
+  locationId: string;
+  storeNumber: string;
+  chain: string;
+  divisionNumber: string;
+  name: string;
+  phone: string;
+  address: KrogerApiAddressResponse;
+  geolocation: KrogerApiGeolocationResponse;
+  hours: KrogerApiHoursResponse;
+  departments: Array<KrogerApiDepartmentResponse>;
+}
+
+type KrogerApiAddressResponse = {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  county: string;
+};
+
+type KrogerApiGeolocationResponse = {
+  latitude: number;
+  longitude: number;
+  latLng: string;
+};
+
+type KrogerApiHoursResponse = {
+  timezone: string;
+  gmtOffset: string;
+  open24: boolean;
+  monday: { open: string; close: string; open24: boolean };
+  tuesday: { open: string; close: string; open24: boolean };
+  wednesday: { open: string; close: string; open24: boolean };
+  thursday: { open: string; close: string; open24: boolean };
+  friday: { open: string; close: string; open24: boolean };
+  saturday: { open: string; close: string; open24: boolean };
+  sunday: { open: string; close: string; open24: boolean };
+};
+
+type KrogerApiDepartmentResponse = {
+  departmentId: string;
+  name: string;
+  phone?: string;
+  address?: KrogerApiAddressResponse;
+  hours?: KrogerApiHoursResponse;
+};
 
 /**
  * Raw cart response from Kroger Cart API.
  * Maps to internal KrogerCart via mapKrogerCartToInternal().
  */
 export interface KrogerApiCartResponse {
-  data: {
-    cartId: string;
-    items: Array<{
-      cartItemId: string;
-      productId: string;
-      upc: string;
-      description: string;
-      quantity: number;
-      price: number;
-      extendedPrice: number;
-      size: string;
-      image: string;
-    }>;
-    subtotal: number;
-    taxes: number;
-    total: number;
-    itemCount: number;
-    lastModified: string;
-  };
+  data: KrogerApiCart;
+}
+
+export interface KrogerApiCart {
+  cartId: string;
+  items: Array<KrogerApiCartItem>;
+  subtotal: number;
+  taxes: number;
+  total: number;
+  itemCount: number;
+  lastModified: string;
+}
+
+export interface KrogerApiCartItem {
+  cartItemId: string;
+  productId: string;
+  upc: string;
+  description: string;
+  quantity: number;
+  price: number;
+  extendedPrice: number;
+  size: string;
+  image: string;
 }

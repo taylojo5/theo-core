@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { z, ZodError, ZodSchema } from "zod";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -12,7 +13,7 @@ export * from "./schemas";
  */
 export type ValidationResult<T> =
   | { success: true; data: T }
-  | { success: false; error: Response };
+  | { success: false; error: NextResponse };
 
 /**
  * Validate request body against a Zod schema
@@ -110,14 +111,14 @@ export function validateParams<T extends ZodSchema>(
 /**
  * Create a validation error response from a ZodError
  */
-export function validationErrorResponse(error: ZodError): Response {
+export function validationErrorResponse(error: ZodError): NextResponse {
   const issues = error.issues.map((issue) => ({
     path: issue.path.join(".") || "(root)",
     message: issue.message,
     code: issue.code,
   }));
 
-  return Response.json(
+  return NextResponse.json(
     {
       error: {
         code: "VALIDATION_ERROR",
@@ -143,7 +144,7 @@ export async function parseAndValidateBody<T extends ZodSchema>(
   } catch {
     return {
       success: false,
-      error: Response.json(
+      error: NextResponse.json(
         {
           error: {
             code: "INVALID_JSON",

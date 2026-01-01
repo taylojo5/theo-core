@@ -4,7 +4,10 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
 import { applyRateLimit } from "@/lib/rate-limit/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { cacheDelete, cacheGet } from "@/lib/redis/cache";
-import { KROGER_STATE_CACHE_PREFIX, KROGER_STATE_CACHE_TTL } from "@/integrations/kroger/constants";
+import {
+  KROGER_STATE_CACHE_PREFIX,
+  KROGER_STATE_CACHE_TTL,
+} from "@/integrations/kroger/constants";
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/integrations/kroger/callback - Handle Kroger callback
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if ((stateData.createdAt + KROGER_STATE_CACHE_TTL) < new Date().getTime()) {
+  if (stateData.createdAt + KROGER_STATE_CACHE_TTL < new Date().getTime()) {
     return NextResponse.json(
       { error: "Invalid or expired state timeout" },
       { status: 403 }

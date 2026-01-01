@@ -11,7 +11,10 @@ declare global {
   var bullmqRedis: Redis | undefined;
 }
 
-const redisCacheUrl = process.env.REDIS_CACHE_URL || process.env.REDIS_URL || "redis://localhost:6381";
+const redisCacheUrl =
+  process.env.REDIS_CACHE_URL ||
+  process.env.REDIS_URL ||
+  "redis://localhost:6381";
 const redisBullmqUrl = process.env.REDIS_BULLMQ_URL || "redis://localhost:6380";
 
 /**
