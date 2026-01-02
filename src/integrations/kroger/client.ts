@@ -1,5 +1,4 @@
-import { getKrogerTokenSet, storeKrogerTokenSet } from "./auth/connection";
-import { refreshKrogerTokenSet } from "./auth/oauth";
+import { getKrogerTokenSet } from "./auth/connection";
 import { mapKrogerStoreToInternal } from "./mappers";
 import {
   KrogerClientConfig,
@@ -22,7 +21,6 @@ class KrogerClient {
     };
   }
 
-  // @todo add a method to check the token and refresh if needed
   private async getAccessToken(): Promise<string> {
     const tokenSet = await getKrogerTokenSet(this.config.userId);
     if (!tokenSet) {
@@ -62,7 +60,7 @@ class KrogerClient {
     }
 
     const body = await response.json();
-    return body.data.map(mapKrogerStoreToInternal);
+    return body.data.map(mapKrogerStoreToInternal) as LeanKrogerStore[];
   }
 
   async getStore(storeId: string): Promise<LeanKrogerStore> {

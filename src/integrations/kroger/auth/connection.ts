@@ -7,13 +7,13 @@ import { cacheDelete, cacheGet, cacheSet } from "@/lib/redis/cache";
 import { KROGER_TOKEN_CACHE_PREFIX } from "../constants";
 import { refreshKrogerTokenSet } from "./oauth";
 
-
-
 export async function getKrogerTokenSet(
   userId: string
 ): Promise<KrogerTokenSet | null> {
   // Get the token set from the cache
-  const cachedTokenSet = await cacheGet<KrogerTokenSet>(`${KROGER_TOKEN_CACHE_PREFIX}${userId}`);
+  const cachedTokenSet = await cacheGet<KrogerTokenSet>(
+    `${KROGER_TOKEN_CACHE_PREFIX}${userId}`
+  );
   if (cachedTokenSet) {
     return {
       tokenType: "Bearer",
@@ -28,9 +28,6 @@ export async function getKrogerTokenSet(
   const connection = await db.krogerConnection.findFirst({
     where: {
       userId,
-    },
-    include: {
-      store: true,
     },
   });
   if (!connection) return null;
@@ -70,16 +67,21 @@ export async function storeKrogerTokenSet(
     },
   });
   // Cache the token set
-  await cacheSet<KrogerTokenSet>(`${KROGER_TOKEN_CACHE_PREFIX}${userId}`, {
-    tokenType: "Bearer",
-    accessToken: encrypt(tokenSet.accessToken),
-    refreshToken: encrypt(tokenSet.refreshToken ?? ""),
-    expiresAt: tokenSet.expiresAt,
-    scopes: tokenSet.scopes,
-  }, {
-    // Cache the token until 1 min before it expires
-    ttlSeconds: Math.floor((tokenSet.expiresAt.getTime() - Date.now()) / 1000) - 60,
-  });
+  await cacheSet<KrogerTokenSet>(
+    `${KROGER_TOKEN_CACHE_PREFIX}${userId}`,
+    {
+      tokenType: "Bearer",
+      accessToken: encrypt(tokenSet.accessToken),
+      refreshToken: encrypt(tokenSet.refreshToken ?? ""),
+      expiresAt: tokenSet.expiresAt,
+      scopes: tokenSet.scopes,
+    },
+    {
+      // Cache the token until 1 min before it expires
+      ttlSeconds:
+        Math.floor((tokenSet.expiresAt.getTime() - Date.now()) / 1000) - 60,
+    }
+  );
   return;
 }
 
@@ -90,9 +92,6 @@ export async function getKrogerConnection(
   const connection = await db.krogerConnection.findFirst({
     where: {
       userId,
-    },
-    include: {
-      store: true,
     },
   });
   if (!connection) return null;
@@ -123,9 +122,6 @@ export async function updateKrogerConnection(
     },
     data: {
       ...connection,
-    },
-    include: {
-      store: true,
     },
   });
   return omit(updatedConnection, ["accessToken", "refreshToken"]);

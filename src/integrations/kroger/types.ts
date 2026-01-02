@@ -3,7 +3,7 @@
 // TypeScript type definitions for Kroger API interactions
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { KrogerStore } from "@prisma/client";
+import { KrogerProduct, KrogerStore } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
 // OAuth & Connection Types
@@ -61,66 +61,30 @@ export interface KrogerClientConfig {
 }
 
 /**
- * User's selected store and fulfillment preferences.
- * Required before product search or cart operations.
+ * Fulfillment mode for Kroger products.
  */
-export interface KrogerStoreContext {
-  storeId: string; // Selected store ID
-  storeName: string; // Store display name for UI
-  chain: KrogerChain; // Store banner
-  fulfillmentMode: FulfillmentMode; // Pickup or delivery
-  address: KrogerAddress; // Store address
-  timezone: string; // Store timezone
-  setAt: Date; // When context was set
-}
-
-interface KrogerAddress {
-  line1: string;
-  line2: string | null;
-  city: string;
-  state: string;
-  zipCode: string;
-  county: string | null;
-}
-
 enum FulfillmentMode {
   PICKUP = "PICKUP",
   DELIVERY = "DELIVERY",
 }
 
-export type LeanKrogerStore = Pick<
+/**
+ * Lean Kroger store type for internal use. Missing relations and columns that are not needed for the internal use.
+ */
+export type LeanKrogerStore = Omit<
   KrogerStore,
-  | "storeId"
-  | "divisionId"
-  | "chain"
-  | "name"
-  | "phone"
-  | "departments"
-  | "distanceMiles"
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "krogerConnections"
+  | "krogerCartRuns"
+  | "krogerUserPreferences"
+  | "krogerStoreDepartments"
 >;
 
 // ─────────────────────────────────────────────────────────────
 // Product Types
 // ─────────────────────────────────────────────────────────────
-
-/**
- * A product from Kroger's catalog with pricing, size, and availability.
- * Availability may vary by store.
- */
-export interface KrogerProduct {
-  productId: string; // Kroger product ID
-  upc: string; // Universal Product Code
-  brand: string | null; // Brand name
-  description: string; // Product title/description
-  category: ProductCategory; // Top-level category
-  subcategory: string | null; // Subcategory
-  size: ProductSize; // Size/quantity info
-  price: ProductPrice; // Pricing info
-  images: ProductImage[]; // Product images
-  availability: ProductAvailability; // Stock status
-  itemInformation: ItemInformation; // Attributes (organic, etc.)
-  temperature: TemperatureIndicator; // Storage type
-}
 
 /**
  * Product category from Kroger taxonomy.
@@ -140,96 +104,6 @@ enum ProductCategory {
   BABY = "BABY",
   PET = "PET",
   OTHER = "OTHER",
-}
-
-/**
- * How product is priced and sold.
- */
-enum SoldAsType {
-  EACH = "EACH", // Sold per unit
-  BY_WEIGHT = "BY_WEIGHT", // Sold by weight (lb, oz)
-}
-
-/**
- * Product size and quantity information.
- */
-interface ProductSize {
-  size: string; // Display size (e.g., "16 oz")
-  quantity: number; // Number of units
-  unitOfMeasure: string; // Unit (oz, lb, ct, etc.)
-  soldAs: SoldAsType; // Pricing method
-}
-
-/**
- * Product pricing information.
- */
-interface ProductPrice {
-  regular: number; // Regular price in dollars
-  promo: number | null; // Promotional price (if on sale)
-  promoDescription: string | null; // Sale description (e.g., "2 for $5")
-  loyaltyPrice: number | null; // Kroger Plus card price
-  unitPrice: number | null; // Price per unit (e.g., per oz)
-  unitPriceLabel: string | null; // Unit price display (e.g., "$0.25/oz")
-}
-
-/**
- * Product image viewing angle.
- */
-enum ImagePerspective {
-  FRONT = "front",
-  LEFT = "left",
-  RIGHT = "right",
-  TOP = "top",
-  BACK = "back",
-}
-
-/**
- * Product images at various resolutions.
- */
-interface ProductImage {
-  perspective: ImagePerspective;
-  sizes: {
-    small: string; // ~100px URL
-    medium: string; // ~200px URL
-    large: string; // ~400px URL
-    xlarge: string; // ~800px URL
-  };
-}
-
-/**
- * Product availability at user's store.
- */
-interface ProductAvailability {
-  available: boolean; // In stock
-  stockLevel: StockLevel; // Stock status
-  fulfillmentTypes: FulfillmentMode[]; // Available for pickup/delivery
-  estimatedAvailability: string | null; // Restock estimate if out
-}
-
-enum StockLevel {
-  HIGH = "HIGH",
-  LOW = "LOW",
-  TEMPORARILY_OUT = "TEMPORARILY_OUT",
-  OUT_OF_STOCK = "OUT_OF_STOCK",
-}
-
-/**
- * Product item attributes.
- */
-interface ItemInformation {
-  organic: boolean; // USDA Organic
-  glutenFree: boolean; // Gluten-free certified
-  kosher: boolean; // Kosher certified
-  vegan: boolean; // Vegan
-  vegetarian: boolean; // Vegetarian
-  locallyGrown: boolean; // Locally sourced
-  private_label: boolean; // Store brand
-}
-
-enum TemperatureIndicator {
-  AMBIENT = "AMBIENT",
-  REFRIGERATED = "REFRIGERATED",
-  FROZEN = "FROZEN",
 }
 
 /**
@@ -298,7 +172,19 @@ interface NutrientValue {
   dailyValue: number | null; // Percent daily value
 }
 
-export type LeanKrogerProduct = Pick<KrogerProduct, "productId">;
+/**
+ * Lean Kroger product type without id, createdAt, updatedAt, preferredProducts, productItems, and nutritionInformation.
+ */
+export type LeanKrogerProduct = Omit<
+  KrogerProduct,
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "preferredProducts"
+  | "productItems"
+  | "nutritionInformation"
+  | "lastFetchedAt"
+>;
 
 // ─────────────────────────────────────────────────────────────
 // Product Resolution Types
@@ -742,21 +628,157 @@ export interface KrogerApiProductResponse {
 
 export interface KrogerApiProduct {
   productId: string;
-  upc: string;
+  productPageURI: string;
+  aliasProductIds: string[];
+  aisleLocations: Array<KrogerApiAisleLocation>;
   brand: string;
-  description: string;
   categories: string[];
   countryOfOrigin: string;
-  items: Array<KrogerApiProductItem>;
+  upc: string;
+  description: string;
+  alcohol: boolean;
+  alcoholProof: number;
+  ageRestriction: boolean;
+  snapEligible: boolean;
+  manufacturerDeclarations: string[];
+  sweeteningMethods: KrogerApiSweeteningMethod;
+  allergens: Array<KrogerApiAllergen>;
+  allergensDescription: string;
+  certifiedForPassover: boolean;
+  hypoallergenic: boolean;
+  nonGmo: boolean;
+  nonGmoClaimName: string;
+  organicClaimName: string;
+  receiptDescription: string;
+  warnings: string;
+  items: Array<KrogerApiItem>;
+  itemInformation: {
+    depth: string;
+    height: string;
+    width: string;
+    grossWeight: string;
+    netWeight: string;
+    averageWeightPerUnit: string;
+  };
+  temperature: {
+    indicator: string;
+    heatSensitive: boolean;
+  };
+  images: Array<KrogerApiImage>;
+  ratingsAndReviews: {
+    averageOverallRating: number;
+    totalReviewCount: number;
+  };
+  nutritionInformation: KrogerApiNutritionInformation;
 }
 
-export interface KrogerApiProductItem {
+interface KrogerApiAisleLocation {
+  bayNumber: string;
+  description: string;
+  number: string;
+  numberOfFacings: string;
+  sequenceNumber: string;
+  side: string;
+  shelfNumber: string;
+  shelfPositionInBay: string;
+}
+
+interface KrogerApiSweeteningMethod {
+  code: string;
+  name: string;
+}
+
+interface KrogerApiAllergen {
+  levelOfContainmentName: string;
+  name: string;
+}
+
+interface KrogerApiItem {
   itemId: string;
+  inventory: {
+    stockLevel: string;
+  };
+  favorite: boolean;
+  fulfillment: KrogerApiFulfillment;
+  price: KrogerApiPrice;
+  nationalPrice: KrogerApiPrice;
   size: string;
   soldBy: string;
-  price: {
-    regular: number;
-    promo: number;
+}
+
+interface KrogerApiFulfillment {
+  curbside: boolean;
+  delivery: boolean;
+  instore: boolean;
+  shiptohome: boolean;
+}
+
+interface KrogerApiPrice {
+  regular: number;
+  promo: number;
+  regularPerUnitEstimate: number;
+  promoPerUnitEstimate: number;
+  expirationDate: {
+    value: string;
+    timezone: string;
+  };
+  effectiveDate: {
+    value: string;
+    timezone: string;
+  };
+}
+
+interface KrogerApiImage {
+  id: string;
+  perspective: string;
+  default: boolean;
+  sizes: Array<KrogerApiImageSize>;
+}
+
+interface KrogerApiImageSize {
+  id: string;
+  size: string;
+  url: string;
+}
+
+interface KrogerApiNutritionInformation {
+  ingredientStatement: string;
+  dailyValueIntakeReference: string;
+  servingSize: {
+    description: string;
+    quantity: number;
+    unitOfMeasure: {
+      abbreviation: string;
+      code: string;
+      name: string;
+    };
+  };
+  nutrients: Array<KrogerApiNutrient>;
+  preparationState: {
+    code: string;
+    name: string;
+  };
+  servingsPerPackage: {
+    description: string;
+    value: number;
+  };
+  nutritionalRating: number;
+}
+
+interface KrogerApiNutrient {
+  code: string;
+  description: string;
+  displayName: string;
+  percentDailyIntake: number;
+  quantity: number;
+  precision: {
+    code: string;
+    name: string;
+  };
+  unitOfMeasure: {
+    abbreviation: string;
+    code: string;
+    name: string;
   };
 }
 
@@ -816,33 +838,3 @@ type KrogerApiDepartmentResponse = {
   address?: KrogerApiAddressResponse;
   hours?: KrogerApiHoursResponse;
 };
-
-/**
- * Raw cart response from Kroger Cart API.
- * Maps to internal KrogerCart via mapKrogerCartToInternal().
- */
-export interface KrogerApiCartResponse {
-  data: KrogerApiCart;
-}
-
-export interface KrogerApiCart {
-  cartId: string;
-  items: Array<KrogerApiCartItem>;
-  subtotal: number;
-  taxes: number;
-  total: number;
-  itemCount: number;
-  lastModified: string;
-}
-
-export interface KrogerApiCartItem {
-  cartItemId: string;
-  productId: string;
-  upc: string;
-  description: string;
-  quantity: number;
-  price: number;
-  extendedPrice: number;
-  size: string;
-  image: string;
-}
